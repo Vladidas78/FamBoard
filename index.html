@@ -410,6 +410,15 @@
 
   /* ---------- Wochenplan füllen ---------- */
   .week-fill-row{ margin:-6px 0 14px; }
+
+  /* ---------- Haushalt & Drogerie ---------- */
+  .hh-list{ list-style:none; margin:12px 0 0; padding:0; }
+  .hh-row{ display:flex; align-items:center; gap:10px; padding:9px 2px; border-bottom:1px solid var(--border-soft); }
+  .hh-row:last-child{ border-bottom:none; }
+  .hh-row .hh-name{ flex:1; font-size:0.92rem; }
+  .hh-row .hh-del{ flex:none; width:30px; height:30px; border-radius:8px; border:1px solid var(--border); background:var(--card-2); color:var(--danger); cursor:pointer; }
+  .hh-row .hh-del:hover{ background:var(--danger); color:#1a0808; border-color:var(--danger); }
+  .hh-empty{ font-size:0.84rem; color:var(--faint); font-style:italic; padding:6px 2px; }
 </style>
 </head>
 <body>
@@ -571,6 +580,21 @@
   </section>
 
   <section id="shop">
+    <div class="collapse-section" id="haushaltSection" style="margin-bottom:16px;">
+      <button class="section-head" id="haushaltHead" type="button">
+        <span class="chev">▼</span> 🏠 Haushalt &amp; Drogerie <span class="count" id="haushaltCount"></span>
+      </button>
+      <div class="section-body">
+        <p class="ex-hint">Klopapier, Waschmittel, Putzmittel & Co. — einmal eingetragen, taucht es
+          automatisch in jeder Einkaufsliste auf, bis du es wieder entfernst.</p>
+        <div class="extra-form" style="grid-template-columns:1fr auto;">
+          <input id="hhName" placeholder="Was fehlt im Haushalt?">
+          <button class="btn btn-primary" id="hhAdd" type="button">Hinzufügen</button>
+        </div>
+        <ul class="hh-list" id="haushaltList"></ul>
+      </div>
+    </div>
+
     <div class="collapse-section collapsed" id="excludeSectionShop" style="margin-bottom:16px;">
       <button class="section-head" id="excludeHeadShop" type="button">
         <span class="chev">▼</span> Immer zuhause <span class="count" id="exCountShop"></span>
@@ -823,9 +847,11 @@ const CATS = [
   {id:'fleisch',   label:'Fleisch & Fisch',       icon:'🥩'},
   {id:'kuehl',     label:'Kühlregal',             icon:'🧀'},
   {id:'trocken',   label:'Trockenwaren & Backen', icon:'🌾'},
+  {id:'gewuerze',  label:'Gewürze',               icon:'🧂'},
   {id:'konserven', label:'Konserven & Saucen',    icon:'🥫'},
   {id:'tk',        label:'Tiefkühl',              icon:'🧊'},
   {id:'getraenke', label:'Getränke',              icon:'🧃'},
+  {id:'haushalt',  label:'Haushalt & Drogerie',   icon:'🧻'},
   {id:'sonstiges', label:'Sonstiges',             icon:'🛒'}
 ];
 const CAT_LABEL = {}; CATS.forEach(c=>{ CAT_LABEL[c.id]=c; });
@@ -845,10 +871,12 @@ const CAT_KEYWORDS = {
   obst: ['zwiebel','knoblauch','kartoffel','karotte','möhre','brokkoli','blumenkohl','zucchini','aubergine','paprika','tomate','gurke','salat','rucola','spinat','lauch','porree','sellerie','kohlrabi','weißkohl','rotkohl','wirsing','spitzkohl','champignon','pilz','kürbis','süßkartoffel','radieschen','rote bete','zitrone','limette','orange','apfel','banane','birne','erdbeere','himbeere','heidelbeere','beere','traube','mango','avocado','ingwer','petersilie','basilikum','schnittlauch','koriander','dill','rosmarin','thymian','minze','kräuter','frühlingszwiebel','lauchzwiebel','chili','fenchel','pastinake','rettich','kresse','staudensellerie','schalotte','melone','pfirsich','pflaume','kiwi','ananas'],
   fleisch: ['hähnchen','hühnchen','huhn','pute','truthahn','rind','hackfleisch','hack','schwein','schnitzel','kotelett','steak','filet','speck','bacon','schinken','wurst','salami','bratwurst','chorizo','lamm','ente','gans','gulasch','lachs','fisch','garnele','shrimp','kabeljau','seelachs','forelle','dorade','scampi','muschel','tintenfisch','leberkäse','frikadelle'],
   kuehl: ['milch','sahne','schmand','crème fraîche','creme fraiche','joghurt','jogurt','quark','butter','margarine','käse','gouda','feta','mozzarella','parmesan','frischkäse','hüttenkäse','ricotta','mascarpone','halloumi','emmentaler','bergkäse','ei','tofu','seitan','pudding','buttermilch','kefir','skyr','sauerrahm','blätterteig','pizzateig','mürbeteig','frische hefe','räuchertofu','aufschnitt','hafermilch','mandelmilch'],
-  trocken: ['mehl','zucker','salz','pfeffer','reis','nudel','spaghetti','penne','fusilli','tagliatelle','pasta','spätzle','couscous','bulgur','quinoa','linse','kichererbse','haferflocke','müsli','grieß','stärke','backpulver','natron','vanille','zimt','paprikapulver','curry','kreuzkümmel','kümmel','oregano','majoran','muskat','gewürz','brühe','nuss','mandel','walnuss','cashew','pinienkern','sesam','sonnenblumenkern','kürbiskern','rosine','dattel','honig','sirup','öl','olivenöl','rapsöl','essig','balsamico','brot','toast','brötchen','baguette','semmelbrösel','panko','schokolade','kakao','kaffee','tee','tortilla','wrap','chips','cracker','trockenhefe','hefe'],
-  konserven: ['passierte tomaten','tomatenmark','dosentomaten','gehackte tomaten','kokosmilch','kidneybohne','weiße bohne','mais','ketchup','senf','mayonnaise','sojasauce','sojasoße','currypaste','curry-paste','pesto','olive','kaper','marmelade','konfitüre','nutella','erdnussbutter','fond','sauce','soße','ajvar','sambal','sriracha','tahini','apfelmus','sauerkraut','thunfisch','antipasti'],
+  trocken: ['mehl','zucker','reis','nudel','spaghetti','penne','fusilli','tagliatelle','pasta','spätzle','couscous','bulgur','quinoa','linse','kichererbse','haferflocke','müsli','grieß','stärke','backpulver','natron','nuss','mandel','walnuss','cashew','pinienkern','sesam','sonnenblumenkern','kürbiskern','rosine','dattel','honig','sirup','öl','olivenöl','rapsöl','essig','balsamico','brot','toast','brötchen','baguette','semmelbrösel','panko','schokolade','kakao','kaffee','tee','tortilla','wrap','chips','cracker','trockenhefe','hefe'],
+  gewuerze: ['salz','pfeffer','paprikapulver','curry','currypulver','kreuzkümmel','kümmel','oregano','majoran','muskat','gewürz','brühe','vanille','zimt','chiliflocken','chilipulver','lorbeer','lorbeerblatt','nelken','kardamom','sternanis','ingwerpulver','knoblauchpulver','zwiebelpulver','currypaste'],
+  konserven: ['passierte tomaten','tomatenmark','dosentomaten','gehackte tomaten','kokosmilch','kidneybohne','weiße bohne','mais','ketchup','senf','mayonnaise','sojasauce','sojasoße','pesto','olive','kaper','marmelade','konfitüre','nutella','erdnussbutter','fond','sauce','soße','ajvar','sambal','sriracha','tahini','apfelmus','sauerkraut','thunfisch','antipasti'],
   tk: ['tiefkühl','tk-','pommes','eiscreme','speiseeis','blattspinat','fischstäbchen'],
-  getraenke: ['wasser','mineralwasser','saft','apfelsaft','orangensaft','traubensaft','tomatensaft','kirschsaft','multivitaminsaft','wein','bier','sekt','cola','limonade','schorle','prosecco']
+  getraenke: ['wasser','mineralwasser','saft','apfelsaft','orangensaft','traubensaft','tomatensaft','kirschsaft','multivitaminsaft','wein','bier','sekt','cola','limonade','schorle','prosecco'],
+  haushalt: ['klopapier','toilettenpapier','küchenrolle','kuechenrolle','taschentücher','waschmittel','weichspüler','spülmittel','spuelmittel','spülmaschinentab','geschirrspültab','putzmittel','allzweckreiniger','wc-reiniger','wc reiniger','müllbeutel','muellbeutel','alufolie','frischhaltefolie','backpapier','batterien','kerzen','streichhölzer','feuerzeug','seife','duschgel','shampoo','zahnpasta','zahnbürste','rasierklinge','katzenfutter','katzenstreu','hundefutter','windeln','feuchttücher','müllsack','schwamm','handschuhe']
 };
 const KEYWORD_INDEX = [];
 Object.keys(CAT_KEYWORDS).forEach(cat=>CAT_KEYWORDS[cat].forEach(kw=>KEYWORD_INDEX.push({kw, cat})));
@@ -1998,6 +2026,7 @@ function renderShop(){
   document.getElementById('shopWeekLabel').textContent = 'Einkaufsliste · KW '+isoWeek(currentMonday).week;
   renderExcludeChips();
   renderExtraCount();
+  renderHaushalt();
 
   const box = document.getElementById('shopGroups');
   const emptyMsg = document.getElementById('shopEmpty');
@@ -2251,6 +2280,51 @@ document.getElementById('exName').addEventListener('keydown', e=>{ if(e.key==='E
 document.getElementById('exQty').addEventListener('keydown', e=>{ if(e.key==='Enter') addExtra(); });
 document.getElementById('extraHead').addEventListener('click', ()=>{
   document.getElementById('extraHead').closest('.collapse-section').classList.toggle('collapsed');
+});
+
+/* ---------- Haushalt & Drogerie: eigener, sichtbarer Bereich für wiederkehrende Nicht-Rezept-Artikel ---------- */
+function renderHaushalt(){
+  const box = document.getElementById('haushaltList');
+  const cnt = document.getElementById('haushaltCount');
+  if(!box) return;
+  const items = (state.extras||[]).filter(x=>x.cat==='haushalt');
+  if(cnt) cnt.textContent = items.length ? '('+items.length+')' : '';
+  box.innerHTML = items.length
+    ? items.map(x=>
+        '<li class="hh-row" data-id="'+x.id+'">' +
+          '<span class="hh-name">'+escapeHtml(x.name)+'</span>' +
+          '<button class="hh-del" type="button" title="Entfernen" aria-label="'+escapeHtml(x.name)+' entfernen">✕</button>' +
+        '</li>')
+        .join('')
+    : '<li class="hh-empty">Noch nichts eingetragen.</li>';
+
+  Array.prototype.forEach.call(box.querySelectorAll('.hh-del'), b=>b.addEventListener('click', e=>{
+    const id = e.currentTarget.closest('.hh-row').dataset.id;
+    const idx = state.extras.findIndex(x=>x.id===id);
+    if(idx<0) return;
+    const backup = state.extras[idx];
+    state.extras.splice(idx,1);
+    saveExtras(); renderShop();
+    showToast(backup.name+' entfernt', ()=>{
+      state.extras.splice(idx,0,backup); saveExtras(); renderShop();
+    });
+  }));
+}
+async function addHaushalt(){
+  const nameEl = document.getElementById('hhName');
+  const name = nameEl.value.trim();
+  if(!name) { nameEl.focus(); return; }
+  state.extras.push({
+    id: 'e'+Date.now()+Math.random().toString(36).slice(2,5),
+    name: name, qty: '', cat: 'haushalt', recurring: true, doneWk: null
+  });
+  nameEl.value = '';
+  saveExtras(); renderShop(); nameEl.focus();
+}
+document.getElementById('hhAdd').addEventListener('click', addHaushalt);
+document.getElementById('hhName').addEventListener('keydown', e=>{ if(e.key==='Enter') addHaushalt(); });
+document.getElementById('haushaltHead').addEventListener('click', ()=>{
+  document.getElementById('haushaltHead').closest('.collapse-section').classList.toggle('collapsed');
 });
 
 /* =========================================================================
