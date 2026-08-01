@@ -1,0 +1,18 @@
+{
+  "rules": {
+    "haushalte": {
+      "$haushalt": {
+        ".read":  "auth != null && $haushalt.length >= 12",
+        ".write": "auth != null && $haushalt.length >= 12",
+        "data": {
+          ".validate": true
+        },
+        "images": {
+          "$rezept": {
+            ".validate": "newData.isString() && newData.val().length < 400000"
+          }
+        }
+      }
+    }
+  }
+}
