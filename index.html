@@ -351,18 +351,36 @@
   }
   .chip:hover{ border-color:var(--accent); }
   .chip.excluded{ background:rgba(245,181,68,0.16); border-color:var(--accent); color:var(--accent); text-decoration:line-through; }
+  .chip.tag-active{ background:var(--accent); color:var(--accent-ink); border-color:var(--accent); }
   .chips-empty{ font-size:0.84rem; color:var(--faint); font-style:italic; }
+  .tag-filter-row{ display:none; }
+  .tag-badge{
+    font-size:0.62rem; padding:2px 8px; border-radius:999px; margin-left:6px; vertical-align:middle;
+    background:rgba(245,181,68,.12); border:1px solid rgba(245,181,68,.35); color:var(--accent);
+    letter-spacing:.3px; font-family:'Inter',sans-serif; font-weight:600;
+  }
 
   /* ingredients overview */
   .ing-overview{ list-style:none; padding:0; margin:0; }
   .ing-overview li{ padding:11px 2px; border-bottom:1px solid var(--border-soft); }
-  .ing-overview .in-name{ font-weight:600; font-size:0.96rem; }
+  .ing-overview .in-name{ font-weight:600; font-size:0.96rem; display:flex; align-items:center; justify-content:space-between; gap:8px; }
   .ing-overview .in-meta{ font-size:0.74rem; color:var(--faint); margin-top:3px; }
   .ing-overview .in-recipes{ margin-top:6px; display:flex; flex-wrap:wrap; gap:6px; }
   .ing-overview .in-tag{
     font-size:0.72rem; padding:3px 9px; border-radius:999px;
     background:var(--card-2); border:1px solid var(--border); color:var(--muted);
   }
+  .ing-overview .ci-del{
+    flex:none; width:28px; height:28px; border-radius:8px; border:1px solid var(--border);
+    background:var(--card-2); color:var(--danger); cursor:pointer; font-size:0.85rem;
+  }
+  .ing-overview .ci-del:hover{ background:var(--danger); color:#1a0808; border-color:var(--danger); }
+
+  /* ---------- Filter-Pillen (Zutaten-Tab) ---------- */
+  .filter-row{ display:flex; gap:8px; margin:4px 0 14px; flex-wrap:wrap; }
+  .filter-pill{ font-size:0.82rem; font-weight:600; padding:7px 14px; border-radius:999px; border:1px solid var(--border); background:var(--card-2); color:var(--muted); cursor:pointer; }
+  .filter-pill:hover{ color:var(--text); border-color:var(--accent); }
+  .filter-pill.active{ background:var(--accent); color:var(--accent-ink); border-color:var(--accent); }
 
   /* recipe images */
   .recipe-img{ width:100%; max-height:230px; object-fit:cover; border-radius:var(--radius-sm); margin-bottom:12px; border:1px solid var(--border-soft); }
@@ -411,12 +429,38 @@
   /* ---------- Wochenplan füllen ---------- */
   .week-fill-row{ margin:-6px 0 14px; }
 
+  /* ---------- Rezeptsuche im Wochenplan (Overlay) ---------- */
+  .modal-overlay{
+    position:fixed; inset:0; z-index:80; background:rgba(10,11,14,.72);
+    display:flex; align-items:flex-end; justify-content:center;
+  }
+  @media (min-width:640px){ .modal-overlay{ align-items:center; } }
+  .modal-box{
+    width:100%; max-width:520px; max-height:82vh; overflow-y:auto;
+    background:var(--card); border:1px solid var(--border-soft); border-radius:var(--radius) var(--radius) 0 0;
+    padding:16px 18px 20px;
+  }
+  @media (min-width:640px){ .modal-box{ border-radius:var(--radius); } }
+  .slot-search-results{ display:flex; flex-direction:column; gap:6px; }
+  .ssr-item{
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    background:var(--card-2); border:1px solid var(--border); border-radius:var(--radius-sm);
+    padding:10px 12px; cursor:pointer; text-align:left; font-family:'Inter',sans-serif; color:var(--text); font-size:0.92rem;
+  }
+  .ssr-item:hover{ border-color:var(--accent); }
+  .ssr-item .ssr-tags{ display:flex; gap:4px; flex-wrap:wrap; }
+
   /* ---------- Haushalt & Drogerie ---------- */
   .hh-list{ list-style:none; margin:12px 0 0; padding:0; }
-  .hh-row{ display:flex; align-items:center; gap:10px; padding:9px 2px; border-bottom:1px solid var(--border-soft); }
+  .hh-row{ display:flex; align-items:center; gap:8px; padding:9px 2px; border-bottom:1px solid var(--border-soft); }
   .hh-row:last-child{ border-bottom:none; }
+  .hh-row.excluded{ opacity:.6; }
   .hh-row .hh-name{ flex:1; font-size:0.92rem; }
-  .hh-row .hh-del{ flex:none; width:30px; height:30px; border-radius:8px; border:1px solid var(--border); background:var(--card-2); color:var(--danger); cursor:pointer; }
+  .hh-row .hh-add-list, .hh-row .hh-del{ flex:none; width:30px; height:30px; border-radius:8px; border:1px solid var(--border); background:var(--card-2); color:var(--text); cursor:pointer; font-size:0.95rem; }
+  .hh-row .hh-add-list{ color:var(--accent); border-color:rgba(245,181,68,.4); }
+  .hh-row .hh-add-list:hover:not(:disabled){ background:var(--accent); color:var(--accent-ink); border-color:var(--accent); }
+  .hh-row .hh-add-list:disabled{ opacity:.4; cursor:default; }
+  .hh-row .hh-del{ color:var(--danger); }
   .hh-row .hh-del:hover{ background:var(--danger); color:#1a0808; border-color:var(--danger); }
   .hh-empty{ font-size:0.84rem; color:var(--faint); font-style:italic; padding:6px 2px; }
 </style>
@@ -431,6 +475,7 @@
   <button class="tab active" data-tab="plan">Wochenplan</button>
   <button class="tab" data-tab="recipes">Rezepte</button>
   <button class="tab" data-tab="ingredients">Zutaten</button>
+  <button class="tab" data-tab="haushalt">Haushalt</button>
   <button class="tab" data-tab="shop">Einkaufsliste</button>
   <button class="tab" data-tab="pantry">Immer zuhause</button>
 </nav>
@@ -537,6 +582,11 @@
         <button class="btn btn-soft btn-sm" id="addIngRow" type="button" style="margin-top:6px;">+ Zutat</button>
       </div>
 
+      <div class="field">
+        <label>Tags <span class="hint">— optional, mit Komma trennen</span></label>
+        <input id="r-tags" placeholder="High Protein, Low Carb, Vegetarisch …">
+      </div>
+
       <div class="field only-rezept">
         <label>Beschreibung / Zubereitung <span class="hint">— optional</span></label>
         <textarea id="r-description" placeholder="Kurz notieren, wie's gemacht wird …"></textarea>
@@ -564,6 +614,7 @@
         <span class="chev">▼</span> Rezepte <span class="count" id="recCount"></span>
       </button>
       <div class="section-body" id="recSectionBody">
+        <div class="chips tag-filter-row" id="tagFilterRow" style="margin-bottom:12px;"></div>
         <div class="recipe-list" id="recipeList"></div>
       </div>
     </div>
@@ -571,30 +622,44 @@
 
   <section id="ingredients">
     <div class="card">
+      <div class="shop-head"><div class="wk">Neue Zutat anlegen</div></div>
+      <p class="ex-hint">Für Dinge, die in keinem Rezept vorkommen, aber trotzdem hier auftauchen sollen — z. B. Getränke.</p>
+      <div class="extra-form" style="grid-template-columns:1fr auto;">
+        <input id="ciName" placeholder="z. B. Mineralwasser">
+        <button class="btn btn-primary" id="ciAdd" type="button">Anlegen</button>
+      </div>
+    </div>
+    <div class="card">
       <div class="shop-head">
         <div class="wk">Alle Zutaten <span class="count" id="ingCount"></span></div>
       </div>
       <p class="ex-hint">Jede Zutat aus euren Rezepten mit den Gerichten, in denen sie vorkommt. Schreibweisen wie Zwiebel und Zwiebeln zählen als eine Zutat.</p>
+      <div class="filter-row" id="ingSortRow">
+        <button class="filter-pill active" data-mode="kategorie" type="button">Nach Kategorie</button>
+        <button class="filter-pill" data-mode="alpha" type="button">Alphabetisch</button>
+      </div>
       <div id="ingredientsList"></div>
     </div>
   </section>
 
-  <section id="shop">
-    <div class="collapse-section" id="haushaltSection" style="margin-bottom:16px;">
-      <button class="section-head" id="haushaltHead" type="button">
-        <span class="chev">▼</span> 🏠 Haushalt &amp; Drogerie <span class="count" id="haushaltCount"></span>
-      </button>
-      <div class="section-body">
-        <p class="ex-hint">Klopapier, Waschmittel, Putzmittel & Co. — einmal eingetragen, taucht es
-          automatisch in jeder Einkaufsliste auf, bis du es wieder entfernst.</p>
-        <div class="extra-form" style="grid-template-columns:1fr auto;">
-          <input id="hhName" placeholder="Was fehlt im Haushalt?">
-          <button class="btn btn-primary" id="hhAdd" type="button">Hinzufügen</button>
-        </div>
-        <ul class="hh-list" id="haushaltList"></ul>
+  <section id="haushalt">
+    <div class="card">
+      <div class="shop-head"><div class="wk">Neuer Artikel</div></div>
+      <div class="extra-form" style="grid-template-columns:1fr auto;">
+        <input id="hhName" placeholder="z. B. Klopapier, Waschmittel …">
+        <button class="btn btn-primary" id="hhAdd" type="button">Anlegen</button>
       </div>
     </div>
+    <div class="card">
+      <div class="shop-head"><div class="wk">Haushalt &amp; Drogerie <span class="count" id="haushaltCount"></span></div></div>
+      <p class="ex-hint">Einmal angelegt, bleibt der Artikel hier. Mit (+) landet er ganz normal in der
+        aktuellen Einkaufsliste — nicht automatisch jede Woche. Was ihr immer da habt, markiert ihr unter
+        „Immer zuhause“.</p>
+      <ul class="hh-list" id="haushaltList"></ul>
+    </div>
+  </section>
 
+  <section id="shop">
     <div class="collapse-section collapsed" id="excludeSectionShop" style="margin-bottom:16px;">
       <button class="section-head" id="excludeHeadShop" type="button">
         <span class="chev">▼</span> Immer zuhause <span class="count" id="exCountShop"></span>
@@ -649,6 +714,13 @@
       <div id="excludeChips" class="chips"></div>
     </div>
     <div class="card">
+      <div class="shop-head">
+        <div class="wk">Haushalt &amp; Drogerie <span class="count" id="hhExCount"></span></div>
+      </div>
+      <p class="ex-hint">Was ihr eh immer im Schrank habt — antippen markiert es als „immer zuhause“, das (+) im Reiter „Haushalt“ ist dann gesperrt.</p>
+      <div id="hhExcludeChips" class="chips"></div>
+    </div>
+    <div class="card">
       <div class="shop-head"><div class="wk">Abteilungen sortieren</div></div>
       <p class="ex-hint">Reihenfolge, in der die Kategorien in der Einkaufsliste erscheinen — passt sie an euren Supermarkt an.</p>
       <ul class="cat-order-list" id="catOrderList"></ul>
@@ -664,6 +736,18 @@
 </main>
 
 <div class="toast" id="toast"><span id="toastText"></span><button id="toastAction" type="button">Rückgängig</button></div>
+
+<div class="modal-overlay" id="slotSearchOverlay" style="display:none;">
+  <div class="modal-box">
+    <div class="add-head">
+      <h3 id="slotSearchTitle">Rezept wählen</h3>
+      <button class="close-add" id="slotSearchClose" type="button" aria-label="Schließen">✕</button>
+    </div>
+    <input type="search" id="slotSearchInput" placeholder="🔍 Suchen …">
+    <div class="chips" id="slotSearchTags" style="margin:10px 0;"></div>
+    <div class="slot-search-results" id="slotSearchResults"></div>
+  </div>
+</div>
 
 <datalist id="units">
   <option>g</option><option>kg</option><option>ml</option><option>l</option>
@@ -801,7 +885,10 @@ function emptyState(){
     qty: {},           // { wk: { key: "2 kg" } }  manuell überschriebene Mengen
     excluded: [],      // normalisierte Zutatennamen
     catOverrides: {},  // { normKey: catId }
-    extras: []         // { id, name, qty, cat, recurring, doneWk }
+    extras: [],        // { id, name, qty, cat, recurring, doneWk, from }
+    haushalt: [],              // { id, name, cat } — Katalog Haushalt & Drogerie, unabhängig von Rezepten
+    haushaltAusgeschlossen: [],// Haushalt-Katalog-IDs, die "immer zuhause" sind
+    customIngredients: []      // { name } — manuell angelegte "Zutaten" ohne Rezeptbezug
   };
 }
 let state = emptyState();
@@ -810,6 +897,16 @@ const viewServings = {};   // Rezeptansicht: temporäre Portionszahl, wird nicht
 
 function setStatus(m){ document.getElementById('status').textContent = m; }
 function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function parseTags(s){
+  const seen = {};
+  return String(s||'').split(',').map(t=>t.trim()).filter(t=>{
+    if(!t) return false;
+    const k = t.toLowerCase();
+    if(seen[k]) return false;
+    seen[k] = true;
+    return true;
+  });
+}
 
 /* =========================================================================
    3. Zutatennamen normalisieren (Zwiebel = Zwiebeln)
@@ -996,6 +1093,7 @@ function migrate(raw){
 const imageCache = {};
 let planAlt = false;      // alter Wochenplan erkannt -> einmalig neu schreiben
 let slotsFehlen = false;  // Mahlzeiten-Einstellung fehlt -> einmalig anlegen                 // Bilder liegen getrennt und werden erst bei Bedarf geholt
+let haushaltMigriert = false;  // alte, wöchentlich wiederkehrende Haushalt-Einträge -> neuer Katalog
 
 function fromRemote(d){
   d = d || {};
@@ -1012,10 +1110,14 @@ function fromRemote(d){
   s.recipes = (d.recipes || []).filter(Boolean).map(r=>Object.assign({}, r, {
     type: r.type === 'snack' ? 'snack' : 'rezept',
     servings: (r.servings && r.servings > 0) ? r.servings : 4,
-    ingredients: (r.ingredients || []).filter(Boolean)
+    ingredients: (r.ingredients || []).filter(Boolean),
+    tags: Array.isArray(r.tags) ? r.tags.filter(Boolean) : []
   }));
   s.excluded = (d.excluded || []).filter(Boolean);
   s.extras   = (d.extras   || []).filter(Boolean);
+  s.haushalt = (d.haushalt || []).filter(Boolean);
+  s.haushaltAusgeschlossen = (d.haushaltAusgeschlossen || []).filter(Boolean);
+  s.customIngredients = (d.customIngredients || []).filter(Boolean);
   Object.keys(d.catOverrides || {}).forEach(k=>{ s.catOverrides[decKey(k)] = d.catOverrides[k]; });
   Object.keys(d.weeks || {}).forEach(wk=>{
     const w = d.weeks[wk] || {};
@@ -1038,6 +1140,19 @@ function fromRemote(d){
     Object.keys(w.removed || {}).forEach(k=>{ s.removed[wk][decKey(k)] = w.removed[k]; });
     Object.keys(w.qty     || {}).forEach(k=>{ s.qty[wk][decKey(k)]     = w.qty[k];     });
   });
+
+  // Übergangslösung: in einer früheren Fassung war "Haushalt" ein wöchentlich wiederkehrender
+  // Eintrag unter "Eigene Einträge". Einmalig in den neuen, eigenständigen Katalog übernehmen.
+  const alteHaushaltExtras = s.extras.filter(x=>x.cat==='haushalt' && x.recurring && !x.from);
+  if(alteHaushaltExtras.length){
+    alteHaushaltExtras.forEach(x=>{
+      if(!s.haushalt.some(h=>h.name.toLowerCase()===x.name.toLowerCase())){
+        s.haushalt.push({id:'h'+Date.now()+Math.random().toString(36).slice(2,5), name:x.name, cat:'haushalt'});
+      }
+    });
+    s.extras = s.extras.filter(x=>!(x.cat==='haushalt' && x.recurring && !x.from));
+    haushaltMigriert = true;
+  }
   return s;
 }
 function recipesForRemote(){
@@ -1063,6 +1178,9 @@ function put(path, value){
 const saveRecipes  = ()          => put('data/recipes', recipesForRemote());
 const saveExcluded = ()          => put('data/excluded', state.excluded.length ? state.excluded : null);
 const saveExtras   = ()          => put('data/extras', (state.extras||[]).length ? state.extras : null);
+const saveHaushalt = ()          => put('data/haushalt', (state.haushalt||[]).length ? state.haushalt : null);
+const saveHaushaltAusgeschlossen = () => put('data/haushaltAusgeschlossen', (state.haushaltAusgeschlossen||[]).length ? state.haushaltAusgeschlossen : null);
+const saveCustomIngredients = () => put('data/customIngredients', (state.customIngredients||[]).length ? state.customIngredients : null);
 const savePersonen = ()          => put('data/settings/personen', state.settings.personen);
 const savePlanSlot = (wk,day,slot,e) => put('data/weeks/'+wk+'/plan/'+day+'/'+slot, e || null);
 const saveSlots    = ()          => put('data/settings/slots', state.settings.slots);
@@ -1130,10 +1248,11 @@ async function loadState(){
     const d = snap.val();
     if(!d && ersterSnapshot){ ersterSnapshot = false; seed(); return; }
     ersterSnapshot = false;
-    planAlt = false; slotsFehlen = false;
+    planAlt = false; slotsFehlen = false; haushaltMigriert = false;
     state = fromRemote(d);
     if(planAlt){ saveAllPlans(); }
     if(slotsFehlen){ saveSlots(); }
+    if(haushaltMigriert){ saveHaushalt(); saveExtras(); }
     if(pruneExtras()) saveExtras();
     try{ localStorage.setItem(CACHE_KEY, JSON.stringify(d || {})); }catch(e){}
     verbergeFehler();
@@ -1162,6 +1281,7 @@ function pruneExtras(){
 function renderAll(){
   renderWeekNav(); renderMealConfig(); renderDayTrack();
   renderRecipeList(); renderShop(); renderExcludeChips(); renderIngredientsTab(); renderCatOrder();
+  renderHaushaltTab(); renderHaushaltExcludeChips();
 }
 
 /* =========================================================================
@@ -1383,6 +1503,7 @@ function renderSlot(wk, day, sl, e){
     '<div class="day-actions">' +
       slotSelect(wk, day, sl.id, e) +
       '<button class="btn btn-soft btn-sm suggest" data-day="'+day+'" data-slot="'+sl.id+'" title="Vorschlag">🎲</button>' +
+      '<button class="btn btn-soft btn-sm slot-search-open" data-day="'+day+'" data-slot="'+sl.id+'" title="Suchen">🔍</button>' +
     '</div></div>';
 }
 
@@ -1471,6 +1592,9 @@ function renderDayTrack(){
       setSlot(el.dataset.day, el.dataset.slot, id);
     });
   });
+  Array.prototype.forEach.call(track.querySelectorAll('.slot-search-open'), btn=>{
+    btn.addEventListener('click', e=>openSlotSearch(e.currentTarget.dataset.day, e.currentTarget.dataset.slot));
+  });
 
   const bump = (day, slotId, delta)=>{
     const wkNow = weekKeyOf(currentMonday);
@@ -1486,6 +1610,77 @@ function renderDayTrack(){
     b.addEventListener('click', e=>bump(e.currentTarget.dataset.day, e.currentTarget.dataset.slot, 1)));
 }
 
+/* ---------- Rezept-Suche fürs Auswählen im Wochenplan (statt/zusätzlich zum Dropdown) ---------- */
+let slotSearchTarget = null;   // {day, slotId}
+let slotSearchQuery = '';
+let slotSearchTagFilter = '';
+
+function openSlotSearch(day, slotId){
+  slotSearchTarget = {day:day, slotId:slotId};
+  slotSearchQuery = ''; slotSearchTagFilter = '';
+  const sl = SLOT_BY_ID[slotId];
+  document.getElementById('slotSearchTitle').textContent = (sl?sl.label:'Mahlzeit') + ' — ' + day;
+  document.getElementById('slotSearchInput').value = '';
+  document.getElementById('slotSearchOverlay').style.display = 'flex';
+  renderSlotSearchResults();
+  setTimeout(()=>document.getElementById('slotSearchInput').focus(), 50);
+}
+function closeSlotSearch(){
+  document.getElementById('slotSearchOverlay').style.display = 'none';
+  slotSearchTarget = null;
+}
+document.getElementById('slotSearchClose').addEventListener('click', closeSlotSearch);
+document.getElementById('slotSearchOverlay').addEventListener('click', e=>{
+  if(e.target.id === 'slotSearchOverlay') closeSlotSearch();
+});
+document.addEventListener('keydown', e=>{
+  if(e.key === 'Escape' && document.getElementById('slotSearchOverlay').style.display !== 'none') closeSlotSearch();
+});
+document.getElementById('slotSearchInput').addEventListener('input', e=>{
+  slotSearchQuery = e.target.value.trim();
+  renderSlotSearchResults();
+});
+
+function renderSlotSearchResults(){
+  if(!slotSearchTarget) return;
+  const pool = poolFor(slotSearchTarget.slotId);
+
+  const tagsBox = document.getElementById('slotSearchTags');
+  const seen = {}; const tags = [];
+  pool.forEach(r=>(r.tags||[]).forEach(t=>{ const k=t.toLowerCase(); if(!seen[k]){ seen[k]=true; tags.push(t); } }));
+  tags.sort((a,b)=>a.localeCompare(b,'de'));
+  tagsBox.innerHTML = tags.map(t=>
+    '<span class="chip'+(slotSearchTagFilter.toLowerCase()===t.toLowerCase()?' tag-active':'')+'" data-tag="'+escapeHtml(t)+'">'+escapeHtml(t)+'</span>'
+  ).join('');
+  Array.prototype.forEach.call(tagsBox.querySelectorAll('.chip'), chip=>chip.addEventListener('click', ()=>{
+    const t = chip.dataset.tag;
+    slotSearchTagFilter = (slotSearchTagFilter.toLowerCase()===t.toLowerCase()) ? '' : t;
+    renderSlotSearchResults();
+  }));
+
+  const gefiltert = pool.filter(r=>matchesSearch(r, slotSearchQuery) && matchesTag(r, slotSearchTagFilter));
+  const box = document.getElementById('slotSearchResults');
+  box.innerHTML = gefiltert.length
+    ? gefiltert.map(r=>
+        '<button type="button" class="ssr-item" data-id="'+r.id+'">' +
+          '<span>'+escapeHtml(r.name)+'</span>' +
+          '<span class="ssr-tags">'+(r.tags||[]).map(t=>'<span class="tag-badge">'+escapeHtml(t)+'</span>').join('')+'</span>' +
+        '</button>')
+        .join('')
+    : '<div class="empty">Nichts gefunden.</div>';
+  Array.prototype.forEach.call(box.querySelectorAll('.ssr-item'), b=>b.addEventListener('click', e=>{
+    const id = e.currentTarget.dataset.id;
+    const target = slotSearchTarget;
+    if(!target) return;
+    const wk = weekKeyOf(currentMonday);
+    setPlanSlot(wk, target.day, target.slotId, id);
+    const r = state.recipes.filter(x=>x.id===id)[0];
+    closeSlotSearch();
+    renderDayTrack(); renderShop();
+    showToast((r?r.name:'Eintrag')+' für '+target.day+' eingetragen');
+  }));
+}
+
 /* =========================================================================
    11. Rezepte
    ========================================================================= */
@@ -1495,11 +1690,41 @@ function scaleAmount(amount, factor){
   return (Math.round(v*100)/100).toString().replace('.',',');
 }
 let recipeQuery = '';
+let activeTagFilter = '';
 function matchesSearch(r, q){
   if(!q) return true;
   const needle = q.toLowerCase();
   if((r.name||'').toLowerCase().indexOf(needle) >= 0) return true;
+  if((r.tags||[]).some(t=>t.toLowerCase().indexOf(needle) >= 0)) return true;
   return (r.ingredients||[]).some(i=>(i.name||'').toLowerCase().indexOf(needle) >= 0);
+}
+function matchesTag(r, tag){
+  if(!tag) return true;
+  return (r.tags||[]).some(t=>t.toLowerCase()===tag.toLowerCase());
+}
+function alleRezeptTags(){
+  const seen = {}; const out = [];
+  state.recipes.forEach(r=>(r.tags||[]).forEach(t=>{
+    const k = t.toLowerCase();
+    if(!seen[k]){ seen[k]=true; out.push(t); }
+  }));
+  out.sort((a,b)=>a.localeCompare(b,'de'));
+  return out;
+}
+function renderTagFilterChips(){
+  const box = document.getElementById('tagFilterRow');
+  if(!box) return;
+  const tags = alleRezeptTags();
+  if(!tags.length){ box.innerHTML=''; box.style.display='none'; return; }
+  box.style.display='flex';
+  box.innerHTML = tags.map(t=>
+    '<span class="chip'+(activeTagFilter.toLowerCase()===t.toLowerCase()?' tag-active':'')+'" data-tag="'+escapeHtml(t)+'">'+escapeHtml(t)+'</span>'
+  ).join('');
+  Array.prototype.forEach.call(box.querySelectorAll('.chip'), chip=>chip.addEventListener('click', ()=>{
+    const t = chip.dataset.tag;
+    activeTagFilter = (activeTagFilter.toLowerCase()===t.toLowerCase()) ? '' : t;
+    renderRecipeList();
+  }));
 }
 function weekPickerHtml(r){
   const slotsForR = activeSlots().filter(sl => istSnack(r) === (sl.id==='snack'));
@@ -1529,14 +1754,16 @@ function renderRecipeList(){
   const openIds = Array.prototype.map.call(list.querySelectorAll('.recipe-item.open'), el=>el.dataset.id);
   const descOpenIds = Array.prototype.map.call(list.querySelectorAll('.recipe-item .desc-wrap.desc-open'), el=>el.closest('.recipe-item').dataset.id);
 
+  renderTagFilterChips();
+
   if(!state.recipes.length){
     list.innerHTML='<div class="empty">Noch keine Rezepte. Leg über „+ Neues Rezept“ eins an oder importiere eure Excel.</div>';
     return;
   }
 
-  const gefiltert = state.recipes.filter(r=>matchesSearch(r, recipeQuery));
+  const gefiltert = state.recipes.filter(r=>matchesSearch(r, recipeQuery) && matchesTag(r, activeTagFilter));
   if(!gefiltert.length){
-    list.innerHTML='<div class="empty">Keine Rezepte für „'+escapeHtml(recipeQuery)+'“ gefunden.</div>';
+    list.innerHTML='<div class="empty">Keine Rezepte gefunden'+(recipeQuery?' für „'+escapeHtml(recipeQuery)+'“':'')+(activeTagFilter?' mit Tag „'+escapeHtml(activeTagFilter)+'“':'')+'.</div>';
     return;
   }
 
@@ -1548,6 +1775,7 @@ function renderRecipeList(){
     '<div class="recipe-item" data-id="'+r.id+'">' +
       '<button class="recipe-head" type="button" data-toggle="'+r.id+'">' +
         '<span class="chev">▶</span> '+escapeHtml(r.name) + (istSnack(r)?'<span class="snack-badge">Snack</span>':'') +
+        (r.tags||[]).map(t=>'<span class="tag-badge">'+escapeHtml(t)+'</span>').join('') +
       '</button>' +
       '<div class="recipe-body">' +
         (imgOf(r) ? '<img class="recipe-img" src="'+imgOf(r)+'" alt="'+escapeHtml(r.name)+'">' : (r.hasImage ? '<div class="img-loading">Bild wird geladen …</div>' : '')) +
@@ -1901,6 +2129,7 @@ document.getElementById('saveRecipe').addEventListener('click', async ()=>{
   state.recipes.push({
     id:neueId, name:name, ingredients:ingredients, type:typ,
     servings: (serv && serv>0) ? serv : (typ==='snack' ? 1 : 4),
+    tags: parseTags(document.getElementById('r-tags').value),
     description: typ==='snack' ? '' : document.getElementById('r-description').value.trim(),
     hasImage: typ==='snack' ? false : !!pendingImage,
     kcal: typ==='snack' ? 0 : (parseFloat(document.getElementById('r-kcal').value)||0),
@@ -1911,7 +2140,7 @@ document.getElementById('saveRecipe').addEventListener('click', async ()=>{
   if(pendingImage){ imageCache[neueId] = pendingImage; saveImage(neueId, pendingImage); }
   saveRecipes();
   pendingImage=null; document.getElementById('addImgPreview').innerHTML='';
-  ['r-name','r-description','r-kcal','r-protein-g','r-carbs-g','r-fat-g'].forEach(id=>{ document.getElementById(id).value=''; });
+  ['r-name','r-tags','r-description','r-kcal','r-protein-g','r-carbs-g','r-fat-g'].forEach(id=>{ document.getElementById(id).value=''; });
   document.getElementById('ingRows').innerHTML=''; addIngRow();
   syncTypFelder();
   closeAddPanel();
@@ -2011,7 +2240,7 @@ function buildItems(wk){
     if(!x.recurring && x.doneWk && x.doneWk !== wk) return;
     items.push({
       key: 'x|'+x.id, kind:'extra', name: x.name,
-      qty: x.qty || '', edited: false, recurring: !!x.recurring,
+      qty: x.qty || '', edited: false, recurring: !!x.recurring, from: x.from || null,
       cat: x.cat || guessCategory(x.name),
       checked: x.recurring ? !!state.checked[wk]['x|'+x.id] : (x.doneWk === wk)
     });
@@ -2026,7 +2255,7 @@ function renderShop(){
   document.getElementById('shopWeekLabel').textContent = 'Einkaufsliste · KW '+isoWeek(currentMonday).week;
   renderExcludeChips();
   renderExtraCount();
-  renderHaushalt();
+  renderHaushaltTab();
 
   const box = document.getElementById('shopGroups');
   const emptyMsg = document.getElementById('shopEmpty');
@@ -2051,7 +2280,7 @@ function renderShop(){
       '<div class="shop-inner">' +
         '<input type="checkbox" '+(it.checked?'checked':'')+' aria-label="'+escapeHtml(it.name)+' abhaken">' +
         '<button class="name-btn" type="button">'+escapeHtml(it.name)+
-          (it.kind==='extra' ? (it.recurring ? '<span class="rep-badge">jede Woche</span>' : '<span class="extra-badge">eigener Eintrag</span>') : '')+
+          (it.kind==='extra' ? (it.recurring ? '<span class="rep-badge">jede Woche</span>' : (it.from ? '<span class="extra-badge">Haushalt</span>' : '<span class="extra-badge">eigener Eintrag</span>')) : '')+
         '</button>' +
         '<button class="qty-btn '+(it.edited?'edited':'')+' '+(it.qty?'':'empty')+'" type="button">'+escapeHtml(it.qty || 'Menge')+'</button>' +
         '<button class="del-item" type="button" title="Löschen" aria-label="'+escapeHtml(it.name)+' löschen">🗑</button>' +
@@ -2282,50 +2511,97 @@ document.getElementById('extraHead').addEventListener('click', ()=>{
   document.getElementById('extraHead').closest('.collapse-section').classList.toggle('collapsed');
 });
 
-/* ---------- Haushalt & Drogerie: eigener, sichtbarer Bereich für wiederkehrende Nicht-Rezept-Artikel ---------- */
-function renderHaushalt(){
+/* =========================================================================
+   Haushalt & Drogerie — eigener Katalog, unabhängig von Rezepten.
+   (+) legt einen ganz normalen, einmaligen Eintrag in der aktuellen
+   Einkaufsliste an (kein "jede Woche wieder"). "Immer zuhause" sperrt das (+).
+   ========================================================================= */
+function haushaltIstAufListe(item){
+  const wk = weekKeyOf(currentMonday);
+  return (state.extras||[]).some(x=>x.from===item.id && (x.recurring || !x.doneWk || x.doneWk===wk));
+}
+function renderHaushaltTab(){
   const box = document.getElementById('haushaltList');
   const cnt = document.getElementById('haushaltCount');
   if(!box) return;
-  const items = (state.extras||[]).filter(x=>x.cat==='haushalt');
+  const items = (state.haushalt||[]).slice().sort((a,b)=>a.name.localeCompare(b.name,'de'));
   if(cnt) cnt.textContent = items.length ? '('+items.length+')' : '';
-  box.innerHTML = items.length
-    ? items.map(x=>
-        '<li class="hh-row" data-id="'+x.id+'">' +
-          '<span class="hh-name">'+escapeHtml(x.name)+'</span>' +
-          '<button class="hh-del" type="button" title="Entfernen" aria-label="'+escapeHtml(x.name)+' entfernen">✕</button>' +
-        '</li>')
-        .join('')
-    : '<li class="hh-empty">Noch nichts eingetragen.</li>';
+  if(!items.length){
+    box.innerHTML = '<li class="hh-empty">Noch nichts angelegt.</li>';
+    return;
+  }
+  box.innerHTML = items.map(it=>{
+    const ausgeschlossen = (state.haushaltAusgeschlossen||[]).indexOf(it.id) >= 0;
+    const aufListe = haushaltIstAufListe(it);
+    const plusAttrs = ausgeschlossen
+      ? 'disabled title="Als \'immer zuhause\' markiert"'
+      : (aufListe ? 'disabled title="Schon auf der Liste"' : 'title="Zur Einkaufsliste"');
+    return '<li class="hh-row'+(ausgeschlossen?' excluded':'')+'" data-id="'+it.id+'">' +
+      '<span class="hh-name">'+escapeHtml(it.name)+(ausgeschlossen?' <span class="rep-badge">immer zuhause</span>':'')+'</span>' +
+      '<button class="hh-add-list" type="button" '+plusAttrs+'>'+((aufListe && !ausgeschlossen) ? '✓' : '+')+'</button>' +
+      '<button class="hh-del" type="button" title="Katalog-Eintrag löschen" aria-label="'+escapeHtml(it.name)+' löschen">🗑</button>' +
+    '</li>';
+  }).join('');
 
+  Array.prototype.forEach.call(box.querySelectorAll('.hh-add-list'), b=>b.addEventListener('click', e=>{
+    const id = e.currentTarget.closest('.hh-row').dataset.id;
+    const item = (state.haushalt||[]).filter(x=>x.id===id)[0];
+    if(!item) return;
+    state.extras.push({
+      id: 'e'+Date.now()+Math.random().toString(36).slice(2,5),
+      name: item.name, qty:'', cat: item.cat || 'haushalt',
+      recurring:false, doneWk:null, from: item.id
+    });
+    saveExtras(); renderHaushaltTab(); renderShop();
+    showToast(item.name+' zur Einkaufsliste hinzugefügt');
+  }));
   Array.prototype.forEach.call(box.querySelectorAll('.hh-del'), b=>b.addEventListener('click', e=>{
     const id = e.currentTarget.closest('.hh-row').dataset.id;
-    const idx = state.extras.findIndex(x=>x.id===id);
+    const idx = (state.haushalt||[]).findIndex(x=>x.id===id);
     if(idx<0) return;
-    const backup = state.extras[idx];
-    state.extras.splice(idx,1);
-    saveExtras(); renderShop();
-    showToast(backup.name+' entfernt', ()=>{
-      state.extras.splice(idx,0,backup); saveExtras(); renderShop();
+    const backup = state.haushalt[idx];
+    state.haushalt.splice(idx,1);
+    state.haushaltAusgeschlossen = (state.haushaltAusgeschlossen||[]).filter(x=>x!==id);
+    saveHaushalt(); saveHaushaltAusgeschlossen(); renderHaushaltTab(); renderHaushaltExcludeChips();
+    showToast(backup.name+' aus dem Katalog gelöscht', ()=>{
+      state.haushalt.splice(idx,0,backup); saveHaushalt(); renderHaushaltTab(); renderHaushaltExcludeChips();
     });
   }));
 }
-async function addHaushalt(){
+async function addHaushaltItem(){
   const nameEl = document.getElementById('hhName');
   const name = nameEl.value.trim();
-  if(!name) { nameEl.focus(); return; }
-  state.extras.push({
-    id: 'e'+Date.now()+Math.random().toString(36).slice(2,5),
-    name: name, qty: '', cat: 'haushalt', recurring: true, doneWk: null
-  });
+  if(!name){ nameEl.focus(); return; }
+  if((state.haushalt||[]).some(x=>x.name.toLowerCase()===name.toLowerCase())){
+    setStatus('„'+name+'“ ist schon im Katalog.'); setTimeout(()=>setStatus(''),2500);
+    nameEl.value=''; nameEl.focus(); return;
+  }
+  state.haushalt.push({ id:'h'+Date.now()+Math.random().toString(36).slice(2,5), name:name, cat:'haushalt' });
   nameEl.value = '';
-  saveExtras(); renderShop(); nameEl.focus();
+  saveHaushalt(); renderHaushaltTab(); renderHaushaltExcludeChips(); nameEl.focus();
 }
-document.getElementById('hhAdd').addEventListener('click', addHaushalt);
-document.getElementById('hhName').addEventListener('keydown', e=>{ if(e.key==='Enter') addHaushalt(); });
-document.getElementById('haushaltHead').addEventListener('click', ()=>{
-  document.getElementById('haushaltHead').closest('.collapse-section').classList.toggle('collapsed');
-});
+document.getElementById('hhAdd').addEventListener('click', addHaushaltItem);
+document.getElementById('hhName').addEventListener('keydown', e=>{ if(e.key==='Enter') addHaushaltItem(); });
+
+/* ---------- Immer zuhause: Bereich für den Haushalt-Katalog ---------- */
+function renderHaushaltExcludeChips(){
+  const box = document.getElementById('hhExcludeChips');
+  const cnt = document.getElementById('hhExCount');
+  if(!box) return;
+  const items = (state.haushalt||[]).slice().sort((a,b)=>a.name.localeCompare(b.name,'de'));
+  const anzahl = (state.haushaltAusgeschlossen||[]).length;
+  if(cnt) cnt.textContent = anzahl ? '· '+anzahl+' ausgeschlossen' : '';
+  box.innerHTML = items.length
+    ? items.map(it=>'<span class="chip '+((state.haushaltAusgeschlossen||[]).indexOf(it.id)>=0?'excluded':'')+'" data-id="'+it.id+'">'+escapeHtml(it.name)+'</span>').join('')
+    : '<span class="chips-empty">Leg im Reiter „Haushalt“ Artikel an, dann erscheinen sie hier.</span>';
+  Array.prototype.forEach.call(box.querySelectorAll('.chip'), chip=>chip.addEventListener('click', ()=>{
+    const id = chip.dataset.id;
+    state.haushaltAusgeschlossen = state.haushaltAusgeschlossen || [];
+    const i = state.haushaltAusgeschlossen.indexOf(id);
+    if(i>=0) state.haushaltAusgeschlossen.splice(i,1); else state.haushaltAusgeschlossen.push(id);
+    saveHaushaltAusgeschlossen(); renderHaushaltExcludeChips(); renderHaushaltTab();
+  }));
+}
 
 /* =========================================================================
    16. „Immer zuhause"
@@ -2335,6 +2611,9 @@ function allIngredientNames(){
   state.recipes.forEach(r=>(r.ingredients||[]).forEach(i=>{
     const k=normKey(i.name); if(k && !names[k]) names[k]=i.name;
   }));
+  (state.customIngredients||[]).forEach(c=>{
+    const k=normKey(c.name); if(k && !names[k]) names[k]=c.name;
+  });
   return names;
 }
 function renderExcludeChips(){
@@ -2365,6 +2644,8 @@ document.getElementById('excludeHeadShop').addEventListener('click', ()=>{
 /* =========================================================================
    17. Zutaten-Tab
    ========================================================================= */
+let ingredientSortMode = 'kategorie';   // 'kategorie' | 'alpha'
+
 function renderIngredientsTab(){
   const box=document.getElementById('ingredientsList');
   const cnt=document.getElementById('ingCount');
@@ -2374,19 +2655,76 @@ function renderIngredientsTab(){
     if(!map[k]) map[k]={name:i.name, key:k, recipes:[]};
     if(map[k].recipes.indexOf(r.name)<0) map[k].recipes.push(r.name);
   }));
-  const keys=Object.keys(map).sort((a,b)=>map[a].name.localeCompare(map[b].name,'de'));
+  (state.customIngredients||[]).forEach(c=>{
+    const k=normKey(c.name); if(!k) return;
+    if(!map[k]) map[k]={name:c.name, key:k, recipes:[]};
+  });
+  const keys=Object.keys(map);
   cnt.textContent = keys.length ? '('+keys.length+')' : '';
   if(!keys.length){ box.innerHTML='<div class="chips-empty">Sobald Rezepte da sind, erscheinen hier ihre Zutaten.</div>'; return; }
-  box.innerHTML='<ul class="ing-overview">'+keys.map(k=>{
+
+  const rowHtml = k=>{
     const it=map[k];
     const c=CAT_LABEL[categoryOf(it.name)] || CAT_LABEL.sonstiges;
-    return '<li>' +
-      '<div class="in-name">'+escapeHtml(it.name)+'</div>' +
+    const eigenstaendig = !it.recipes.length;
+    return '<li data-key="'+escapeHtml(k)+'">' +
+      '<div class="in-name"><span>'+escapeHtml(it.name)+(eigenstaendig?' <span class="extra-badge">manuell</span>':'')+'</span>' +
+        (eigenstaendig?'<button class="ci-del" type="button" data-key="'+escapeHtml(k)+'" title="Löschen" aria-label="'+escapeHtml(it.name)+' löschen">🗑</button>':'')+
+      '</div>' +
       '<div class="in-meta">'+c.icon+' '+c.label+(state.excluded.indexOf(k)>=0?' · immer zuhause':'')+'</div>' +
-      '<div class="in-recipes">'+it.recipes.map(n=>'<span class="in-tag">'+escapeHtml(n)+'</span>').join('')+'</div>' +
+      (it.recipes.length ? '<div class="in-recipes">'+it.recipes.map(n=>'<span class="in-tag">'+escapeHtml(n)+'</span>').join('')+'</div>' : '') +
     '</li>';
-  }).join('')+'</ul>';
+  };
+
+  let html;
+  if(ingredientSortMode === 'kategorie'){
+    html = '';
+    orderedCats().forEach(c=>{
+      const gruppe = keys.filter(k=>categoryOf(map[k].name)===c.id).sort((a,b)=>map[a].name.localeCompare(map[b].name,'de'));
+      if(!gruppe.length) return;
+      html += '<div class="cat-group"><div class="cat-title">'+c.icon+' '+c.label+'<span class="cat-n">'+gruppe.length+'</span></div>' +
+        '<ul class="ing-overview">'+gruppe.map(rowHtml).join('')+'</ul></div>';
+    });
+  } else {
+    const sortedKeys = keys.slice().sort((a,b)=>map[a].name.localeCompare(map[b].name,'de'));
+    html = '<ul class="ing-overview">'+sortedKeys.map(rowHtml).join('')+'</ul>';
+  }
+  box.innerHTML = html;
+
+  Array.prototype.forEach.call(box.querySelectorAll('.ci-del'), b=>b.addEventListener('click', e=>{
+    const key = e.currentTarget.dataset.key;
+    const idx = (state.customIngredients||[]).findIndex(c=>normKey(c.name)===key);
+    if(idx<0) return;
+    const backup = state.customIngredients[idx];
+    state.customIngredients.splice(idx,1);
+    saveCustomIngredients(); renderIngredientsTab(); renderExcludeChips();
+    showToast(backup.name+' gelöscht', ()=>{
+      state.customIngredients.splice(idx,0,backup); saveCustomIngredients(); renderIngredientsTab(); renderExcludeChips();
+    });
+  }));
 }
+Array.prototype.forEach.call(document.querySelectorAll('#ingSortRow .filter-pill'), b=>b.addEventListener('click', e=>{
+  ingredientSortMode = e.currentTarget.dataset.mode;
+  Array.prototype.forEach.call(document.querySelectorAll('#ingSortRow .filter-pill'), x=>x.classList.toggle('active', x===e.currentTarget));
+  renderIngredientsTab();
+}));
+async function addCustomIngredient(){
+  const nameEl = document.getElementById('ciName');
+  const name = nameEl.value.trim();
+  if(!name){ nameEl.focus(); return; }
+  const k = normKey(name);
+  const existiertSchon = state.recipes.some(r=>(r.ingredients||[]).some(i=>normKey(i.name)===k))
+    || (state.customIngredients||[]).some(c=>normKey(c.name)===k);
+  if(existiertSchon){
+    setStatus('„'+name+'“ gibt es schon.'); setTimeout(()=>setStatus(''),2500);
+    nameEl.value=''; nameEl.focus(); return;
+  }
+  state.customIngredients.push({name:name});
+  nameEl.value = '';
+  saveCustomIngredients(); renderIngredientsTab(); renderExcludeChips(); nameEl.focus();
+}
+document.getElementById('ciAdd').addEventListener('click', addCustomIngredient);
+document.getElementById('ciName').addEventListener('keydown', e=>{ if(e.key==='Enter') addCustomIngredient(); });
 
 /* =========================================================================
    18. Bildschirm an halten — beim Einkaufen und bei offenem Rezept
