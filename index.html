@@ -382,6 +382,34 @@
     border-radius:var(--radius-sm); padding:11px 14px; margin:0 0 14px;
   }
   .storage-note{ text-align:center; font-size:0.72rem; color:var(--faint); padding:6px 0 0; }
+
+  /* ---------- Vergangene Tage einklappen ---------- */
+  .day-top-toggle{ width:100%; background:none; border:none; cursor:pointer; text-align:left; padding:0; font:inherit; color:inherit; display:flex; align-items:baseline; justify-content:space-between; margin-bottom:10px; }
+  .day-chev{ color:var(--accent); font-size:0.72rem; margin-left:8px; }
+  .day-col.collapsed{ padding-bottom:12px; }
+  .day-col.collapsed .day-top-toggle{ margin-bottom:0; }
+  .day-summary{ font-size:0.82rem; color:var(--muted); padding:2px 0 0; }
+
+  /* ---------- Rezeptsuche & Zur-Woche-Picker ---------- */
+  .rec-search{ margin-bottom:10px; }
+  .add-to-week-row{ display:flex; gap:8px; justify-content:flex-end; margin-top:12px; flex-wrap:wrap; }
+  .week-picker{ display:none; margin-top:10px; padding:10px; background:var(--bg2); border:1px solid var(--border-soft); border-radius:var(--radius-sm); }
+  .recipe-item.show-week-picker .week-picker{ display:block; }
+  .wp-row{ display:flex; gap:8px; flex-wrap:wrap; }
+  .wp-row select{ flex:1; min-width:120px; }
+
+  /* ---------- Abteilungen sortieren ---------- */
+  .cat-order-list{ list-style:none; margin:0; padding:0; }
+  .cat-order-row{ display:flex; align-items:center; gap:10px; padding:9px 2px; border-bottom:1px solid var(--border-soft); }
+  .cat-order-row:last-child{ border-bottom:none; }
+  .cat-order-row .col-label{ flex:1; font-size:0.92rem; }
+  .cat-order-row .col-arrows{ display:flex; gap:4px; }
+  .cat-order-row .col-arrows button{ width:30px; height:30px; border-radius:8px; border:1px solid var(--border); background:var(--card-2); color:var(--text); cursor:pointer; font-size:0.9rem; }
+  .cat-order-row .col-arrows button:disabled{ opacity:.3; cursor:default; }
+  .cat-order-row .col-arrows button:not(:disabled):hover{ background:var(--accent); color:var(--accent-ink); border-color:var(--accent); }
+
+  /* ---------- Wochenplan füllen ---------- */
+  .week-fill-row{ margin:-6px 0 14px; }
 </style>
 </head>
 <body>
@@ -415,6 +443,10 @@
     </div>
     <div class="hint-swipe">Pfeile ‹ › oder Wischen auf der Leiste wechseln die Woche</div>
 
+    <div class="week-fill-row">
+      <button class="btn btn-soft full" id="fillWeek" type="button">🎲 Ganze Woche füllen</button>
+    </div>
+
     <div class="collapse-section mealcfg collapsed" id="mealSection">
       <button class="section-head" id="mealHead" type="button">
         <span class="chev">▼</span> Mahlzeiten <span class="count" id="mealCount"></span>
@@ -429,6 +461,9 @@
   </section>
 
   <section id="recipes">
+    <div class="rec-search">
+      <input type="search" id="recSearch" placeholder="🔍 Rezept oder Zutat suchen …">
+    </div>
     <div class="rec-toolbar">
       <button class="btn btn-soft" id="openIO" type="button">⇄ Excel</button>
       <button class="btn btn-primary" id="openAdd" type="button">+ Neues Rezept</button>
@@ -567,7 +602,10 @@
     <div class="card">
       <div class="shop-head">
         <div class="wk" id="shopWeekLabel">Einkaufsliste</div>
-        <button class="btn btn-ghost btn-sm" id="resetChecks" type="button">Liste zurücksetzen</button>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-soft btn-sm" id="shareShop" type="button">📤 Teilen</button>
+          <button class="btn btn-ghost btn-sm" id="resetChecks" type="button">Liste zurücksetzen</button>
+        </div>
       </div>
       <div class="swipe-hint" id="swipeHint">
         Wischen: → abhaken · ← löschen<br>
@@ -585,6 +623,11 @@
       </div>
       <p class="ex-hint">Alle Zutaten aus euren Rezepten auf einen Blick. Tippt an, was ihr ohnehin immer da habt (Salz, Pfeffer, Öl …) — Ausgewähltes taucht dann in keiner Einkaufsliste mehr auf. Nochmal antippen hebt es wieder auf.</p>
       <div id="excludeChips" class="chips"></div>
+    </div>
+    <div class="card">
+      <div class="shop-head"><div class="wk">Abteilungen sortieren</div></div>
+      <p class="ex-hint">Reihenfolge, in der die Kategorien in der Einkaufsliste erscheinen — passt sie an euren Supermarkt an.</p>
+      <ul class="cat-order-list" id="catOrderList"></ul>
     </div>
     <div class="card">
       <div class="shop-head"><div class="wk">Weiteres Gerät verbinden</div></div>
@@ -787,6 +830,17 @@ const CATS = [
 ];
 const CAT_LABEL = {}; CATS.forEach(c=>{ CAT_LABEL[c.id]=c; });
 
+/* Reihenfolge der Abteilungen ist einstellbar; fällt auf die Standardreihenfolge
+   zurück, falls noch nichts gespeichert ist oder die Liste nicht mehr passt. */
+function defaultCatOrder(){ return CATS.map(c=>c.id); }
+function catOrder(){
+  const o = (state.settings && state.settings.catOrder) || [];
+  const ids = defaultCatOrder();
+  const gueltig = o.length === ids.length && ids.every(id=>o.indexOf(id)>=0);
+  return gueltig ? o : defaultCatOrder();
+}
+function orderedCats(){ return catOrder().map(id=>CAT_LABEL[id]); }
+
 const CAT_KEYWORDS = {
   obst: ['zwiebel','knoblauch','kartoffel','karotte','möhre','brokkoli','blumenkohl','zucchini','aubergine','paprika','tomate','gurke','salat','rucola','spinat','lauch','porree','sellerie','kohlrabi','weißkohl','rotkohl','wirsing','spitzkohl','champignon','pilz','kürbis','süßkartoffel','radieschen','rote bete','zitrone','limette','orange','apfel','banane','birne','erdbeere','himbeere','heidelbeere','beere','traube','mango','avocado','ingwer','petersilie','basilikum','schnittlauch','koriander','dill','rosmarin','thymian','minze','kräuter','frühlingszwiebel','lauchzwiebel','chili','fenchel','pastinake','rettich','kresse','staudensellerie','schalotte','melone','pfirsich','pflaume','kiwi','ananas'],
   fleisch: ['hähnchen','hühnchen','huhn','pute','truthahn','rind','hackfleisch','hack','schwein','schnitzel','kotelett','steak','filet','speck','bacon','schinken','wurst','salami','bratwurst','chorizo','lamm','ente','gans','gulasch','lachs','fisch','garnele','shrimp','kabeljau','seelachs','forelle','dorade','scampi','muschel','tintenfisch','leberkäse','frikadelle'],
@@ -984,6 +1038,7 @@ const saveExtras   = ()          => put('data/extras', (state.extras||[]).length
 const savePersonen = ()          => put('data/settings/personen', state.settings.personen);
 const savePlanSlot = (wk,day,slot,e) => put('data/weeks/'+wk+'/plan/'+day+'/'+slot, e || null);
 const saveSlots    = ()          => put('data/settings/slots', state.settings.slots);
+const saveCatOrder = ()          => put('data/settings/catOrder', (state.settings.catOrder && state.settings.catOrder.length) ? state.settings.catOrder : null);
 const saveChecked  = (wk,key,on) => put('data/weeks/'+wk+'/checked/'+encKey(key), on ? true : null);
 const saveRemoved  = (wk,key,on) => put('data/weeks/'+wk+'/removed/'+encKey(key), on ? true : null);
 const saveQty      = (wk,key,v)  => put('data/weeks/'+wk+'/qty/'+encKey(key), v || null);
@@ -1078,7 +1133,7 @@ function pruneExtras(){
 
 function renderAll(){
   renderWeekNav(); renderMealConfig(); renderDayTrack();
-  renderRecipeList(); renderShop(); renderExcludeChips(); renderIngredientsTab();
+  renderRecipeList(); renderShop(); renderExcludeChips(); renderIngredientsTab(); renderCatOrder();
 }
 
 /* =========================================================================
@@ -1112,6 +1167,22 @@ document.getElementById('todayBtn').addEventListener('click',()=>{
     x0=null;
   },{passive:true});
 })();
+
+document.getElementById('fillWeek').addEventListener('click', ()=>{
+  const wk = weekKeyOf(currentMonday);
+  let anzahl = 0;
+  DAYS.forEach((day, idx)=>{
+    activeSlots().forEach(sl=>{
+      const cur = ((state.plan[wk] || {})[day] || {})[sl.id];
+      if(cur) return;   // Tag/Mahlzeit ist schon belegt — auch "auswärts" und Reste bleiben stehen
+      const id = suggestFor(idx, sl.id);
+      if(id){ setPlanSlot(wk, day, sl.id, id); anzahl++; }
+    });
+  });
+  renderDayTrack(); renderShop();
+  setStatus(anzahl ? anzahl+' Mahlzeiten ergänzt ✓' : 'Nichts zu ergänzen — schon alles geplant oder noch keine Rezepte vorhanden.');
+  setTimeout(()=>setStatus(''), 2500);
+});
 
 function renderMealConfig(){
   const box = document.getElementById('mealRows');
@@ -1174,6 +1245,27 @@ function suggestFor(dayIdx, slotId){
    10. Tages-Kalender
    ========================================================================= */
 function istKochEintrag(e){ return !!(e && e.id && e.kind !== 'out' && e.kind !== 'leftover'); }
+
+/* Gemeinsame Schreibfunktion für einen Plan-Slot — genutzt vom Wochenplan selbst,
+   vom "Zur Woche hinzufügen"-Button bei den Rezepten und vom "Woche füllen"-Button. */
+function setPlanSlot(wk, day, slotId, wert){
+  state.plan[wk] = state.plan[wk] || {};
+  state.plan[wk][day] = state.plan[wk][day] || {};
+  let eintrag = null;
+  if(wert === '__out'){
+    eintrag = {kind:'out'};
+  } else if(wert && wert.indexOf('__lo|') === 0){
+    const t = wert.split('|');
+    eintrag = {kind:'leftover', from:t[1], fromSlot:t[2] || 'abend'};
+  } else if(wert){
+    const alt = state.plan[wk][day][slotId];
+    eintrag = {kind:'recipe', id:wert,
+               servings:(alt && alt.servings) || slotCfg(slotId).personen};
+  }
+  if(eintrag) state.plan[wk][day][slotId] = eintrag;
+  else delete state.plan[wk][day][slotId];
+  savePlanSlot(wk, day, slotId, eintrag);
+}
 
 function restenQuelle(wk, e){
   const w = state.plan[wk] || {};
@@ -1266,11 +1358,13 @@ function renderSlot(wk, day, sl, e){
     '</div></div>';
 }
 
+const expandedPastDays = {};   // { 'wk|Tag': true } — von Hand wieder aufgeklappte vergangene Tage
+
 function renderDayTrack(){
   const track = document.getElementById('dayTrack');
   const wk = weekKeyOf(currentMonday);
   const weekPlan = state.plan[wk] || {};
-  const today = new Date();
+  const today = new Date(); today.setHours(0,0,0,0);
   const slots = activeSlots();
   track.innerHTML = '';
 
@@ -1280,38 +1374,54 @@ function renderDayTrack(){
   }
 
   DAYS.forEach((day, idx)=>{
-    const date = new Date(currentMonday); date.setDate(date.getDate()+idx);
+    const date = new Date(currentMonday); date.setDate(date.getDate()+idx); date.setHours(0,0,0,0);
     const eintraege = weekPlan[day] || {};
     const kcal = tagKcal(eintraege);
+    const dayKey = wk+'|'+day;
+    const istVergangen = date.getTime() < today.getTime();
+    const eingeklappt = istVergangen && !expandedPastDays[dayKey];
 
     const col = document.createElement('div');
-    col.className = 'day-col' + (sameDay(date, today) ? ' today' : '');
+    col.className = 'day-col'
+      + (sameDay(date, today) ? ' today' : '')
+      + (istVergangen ? ' past' : '')
+      + (eingeklappt ? ' collapsed' : '');
     col.dataset.idx = idx;
-    col.innerHTML =
-      '<div class="day-top"><span class="day-name">'+day+'</span><span class="day-date">'+fmtDate(date)+'</span></div>' +
-      (kcal ? '<div class="day-kcal">≈ '+kcal+' kcal pro Person</div>' : '') +
-      slots.map(sl=>renderSlot(wk, day, sl, eintraege[sl.id] || null)).join('');
+
+    const topHtml = istVergangen
+      ? '<button class="day-top day-top-toggle" type="button" data-daykey="'+dayKey+'">' +
+          '<span class="day-name">'+day+'</span><span class="day-date">'+fmtDate(date)+'</span>' +
+          '<span class="day-chev">'+(eingeklappt?'▸':'▾')+'</span>' +
+        '</button>'
+      : '<div class="day-top"><span class="day-name">'+day+'</span><span class="day-date">'+fmtDate(date)+'</span></div>';
+
+    if(eingeklappt){
+      const kurz = slots.map(sl=>{
+        const e = eintraege[sl.id];
+        if(!istKochEintrag(e)) return null;
+        const r = state.recipes.filter(x=>x.id===e.id)[0];
+        return r ? r.name : null;
+      }).filter(Boolean).join(' · ');
+      col.innerHTML = topHtml + '<div class="day-summary">'+(kurz ? escapeHtml(kurz) : 'nichts geplant')+'</div>';
+    } else {
+      col.innerHTML = topHtml +
+        (kcal ? '<div class="day-kcal">≈ '+kcal+' kcal pro Person</div>' : '') +
+        slots.map(sl=>renderSlot(wk, day, sl, eintraege[sl.id] || null)).join('');
+    }
     track.appendChild(col);
+  });
+
+  Array.prototype.forEach.call(track.querySelectorAll('.day-top-toggle'), el=>{
+    el.addEventListener('click', ()=>{
+      const k = el.dataset.daykey;
+      if(expandedPastDays[k]) delete expandedPastDays[k]; else expandedPastDays[k] = true;
+      renderDayTrack();
+    });
   });
 
   const setSlot = (day, slotId, wert)=>{
     const wkNow = weekKeyOf(currentMonday);
-    state.plan[wkNow] = state.plan[wkNow] || {};
-    state.plan[wkNow][day] = state.plan[wkNow][day] || {};
-    let eintrag = null;
-    if(wert === '__out'){
-      eintrag = {kind:'out'};
-    } else if(wert && wert.indexOf('__lo|') === 0){
-      const t = wert.split('|');
-      eintrag = {kind:'leftover', from:t[1], fromSlot:t[2] || 'abend'};
-    } else if(wert){
-      const alt = state.plan[wkNow][day][slotId];
-      eintrag = {kind:'recipe', id:wert,
-                 servings:(alt && alt.servings) || slotCfg(slotId).personen};
-    }
-    if(eintrag) state.plan[wkNow][day][slotId] = eintrag;
-    else delete state.plan[wkNow][day][slotId];
-    savePlanSlot(wkNow, day, slotId, eintrag);
+    setPlanSlot(wkNow, day, slotId, wert);
     renderDayTrack(); renderShop();
   };
 
@@ -1356,6 +1466,32 @@ function scaleAmount(amount, factor){
   if(!v) return '';
   return (Math.round(v*100)/100).toString().replace('.',',');
 }
+let recipeQuery = '';
+function matchesSearch(r, q){
+  if(!q) return true;
+  const needle = q.toLowerCase();
+  if((r.name||'').toLowerCase().indexOf(needle) >= 0) return true;
+  return (r.ingredients||[]).some(i=>(i.name||'').toLowerCase().indexOf(needle) >= 0);
+}
+function weekPickerHtml(r){
+  const slotsForR = activeSlots().filter(sl => istSnack(r) === (sl.id==='snack'));
+  if(!slotsForR.length){
+    return '<div class="week-picker" data-id="'+r.id+'">' +
+      '<p class="ex-hint" style="margin:0;">Für '+(istSnack(r)?'Snacks':'Rezepte')+' ist gerade keine passende Mahlzeit aktiv — unter Wochenplan → Mahlzeiten einschalten.</p>' +
+    '</div>';
+  }
+  const isCurrentWeek = weekKeyOf(currentMonday) === weekKeyOf(getMondayOf(new Date()));
+  const todayIdx = (new Date().getDay()+6)%7;
+  const defaultDay = isCurrentWeek ? DAYS[todayIdx] : DAYS[0];
+  return '<div class="week-picker" data-id="'+r.id+'">' +
+    '<div class="wp-row">' +
+      '<select class="wp-day">' + DAYS.map(d=>'<option value="'+d+'" '+(d===defaultDay?'selected':'')+'>'+d+'</option>').join('') + '</select>' +
+      '<select class="wp-slot">' + slotsForR.map(sl=>'<option value="'+sl.id+'">'+sl.label+'</option>').join('') + '</select>' +
+      '<button class="btn btn-primary btn-sm wp-confirm" type="button">Eintragen</button>' +
+    '</div>' +
+    '<p class="ex-hint" style="margin:6px 0 0;">Für KW '+isoWeek(currentMonday).week+'</p>' +
+  '</div>';
+}
 function renderRecipeList(){
   const list = document.getElementById('recipeList');
   const nSnack = state.recipes.filter(istSnack).length;
@@ -1370,7 +1506,13 @@ function renderRecipeList(){
     return;
   }
 
-  list.innerHTML = state.recipes.map(r=>{
+  const gefiltert = state.recipes.filter(r=>matchesSearch(r, recipeQuery));
+  if(!gefiltert.length){
+    list.innerHTML='<div class="empty">Keine Rezepte für „'+escapeHtml(recipeQuery)+'“ gefunden.</div>';
+    return;
+  }
+
+  list.innerHTML = gefiltert.map(r=>{
     const base = r.servings || 4;
     const shown = viewServings[r.id] || base;
     const f = shown / base;
@@ -1406,9 +1548,11 @@ function renderRecipeList(){
           '<input type="file" id="imgup-'+r.id+'" accept="image/*" data-imgfor="'+r.id+'" style="display:none;">' +
           (r.hasImage?'<button class="btn btn-ghost btn-sm rm-img" data-id="'+r.id+'" type="button">Bild entfernen</button>':'') +
         '</div>') +
-        '<div style="display:flex;justify-content:flex-end;margin-top:12px;">' +
+        '<div class="add-to-week-row">' +
+          '<button class="btn btn-soft btn-sm add-to-week" data-id="'+r.id+'" type="button">+ Zur Woche</button>' +
           '<button class="btn btn-ghost btn-sm del-recipe" data-id="'+r.id+'" type="button">Entfernen</button>' +
         '</div>' +
+        weekPickerHtml(r) +
       '</div>' +
     '</div>';
   }).join('');
@@ -1427,6 +1571,7 @@ function renderRecipeList(){
     if(item.classList.contains('open') && r && r.hasImage && imageCache[id] === undefined){
       await loadImage(id); renderRecipeList();
     }
+    updateWakeLock();
   }));
   Array.prototype.forEach.call(list.querySelectorAll('[data-desctoggle]'), b=>b.addEventListener('click',()=>{
     const w=b.closest('.desc-wrap'); w.classList.toggle('desc-open');
@@ -1464,6 +1609,22 @@ function renderRecipeList(){
   Array.prototype.forEach.call(list.querySelectorAll('.rm-img'), b=>b.addEventListener('click', async e=>{
     const r=state.recipes.filter(x=>x.id===e.target.dataset.id)[0];
     if(r){ imageCache[r.id]=null; r.hasImage=false; deleteImage(r.id); saveRecipes(); renderRecipeList(); }
+  }));
+
+  Array.prototype.forEach.call(list.querySelectorAll('.add-to-week'), b=>b.addEventListener('click', e=>{
+    e.currentTarget.closest('.recipe-item').classList.toggle('show-week-picker');
+  }));
+  Array.prototype.forEach.call(list.querySelectorAll('.wp-confirm'), b=>b.addEventListener('click', e=>{
+    const panel = e.currentTarget.closest('.week-picker');
+    const id = panel.dataset.id;
+    const day = panel.querySelector('.wp-day').value;
+    const slotId = panel.querySelector('.wp-slot').value;
+    const wk = weekKeyOf(currentMonday);
+    setPlanSlot(wk, day, slotId, id);
+    const r = state.recipes.filter(x=>x.id===id)[0];
+    panel.closest('.recipe-item').classList.remove('show-week-picker');
+    renderDayTrack(); renderShop();
+    showToast((r?r.name:'Eintrag')+' für '+day+' eingetragen');
   }));
 }
 
@@ -1648,6 +1809,10 @@ document.getElementById('openIO').addEventListener('click', ()=>{
   } else { ioPanel.style.display='none'; }
 });
 document.getElementById('closeIO').addEventListener('click', ()=>{ ioPanel.style.display='none'; });
+document.getElementById('recSearch').addEventListener('input', e=>{
+  recipeQuery = e.target.value.trim();
+  renderRecipeList();
+});
 document.getElementById('recSectionHead').addEventListener('click', ()=>{
   document.getElementById('recSectionHead').closest('.collapse-section').classList.toggle('collapsed');
 });
@@ -1863,12 +2028,12 @@ function renderShop(){
         '<button class="del-item" type="button" title="Löschen" aria-label="'+escapeHtml(it.name)+' löschen">🗑</button>' +
       '</div>' +
       '<div class="cat-picker">' +
-        CATS.map(c=>'<button class="cat-opt '+(c.id===it.cat?'on':'')+'" type="button" data-cat="'+c.id+'">'+c.icon+' '+c.label+'</button>').join('') +
+        orderedCats().map(c=>'<button class="cat-opt '+(c.id===it.cat?'on':'')+'" type="button" data-cat="'+c.id+'">'+c.icon+' '+c.label+'</button>').join('') +
       '</div>' +
     '</li>';
 
   let html = '';
-  CATS.forEach(c=>{
+  orderedCats().forEach(c=>{
     const group = open.filter(i=>i.cat===c.id);
     if(!group.length) return;
     html += '<div class="cat-group">' +
@@ -1985,6 +2150,69 @@ function renderShop(){
   });
 }
 
+/* ---------- Abteilungen sortieren ---------- */
+function renderCatOrder(){
+  const box = document.getElementById('catOrderList');
+  if(!box) return;
+  const order = catOrder();
+  box.innerHTML = order.map((id,i)=>{
+    const c = CAT_LABEL[id];
+    return '<li class="cat-order-row" data-id="'+id+'">' +
+      '<span class="col-label">'+c.icon+' '+c.label+'</span>' +
+      '<span class="col-arrows">' +
+        '<button type="button" class="co-up" '+(i===0?'disabled':'')+' aria-label="Nach oben">↑</button>' +
+        '<button type="button" class="co-down" '+(i===order.length-1?'disabled':'')+' aria-label="Nach unten">↓</button>' +
+      '</span>' +
+    '</li>';
+  }).join('');
+
+  const verschieben = (id, delta)=>{
+    const o = catOrder().slice();
+    const i = o.indexOf(id);
+    const j = i + delta;
+    if(j<0 || j>=o.length) return;
+    const t = o[i]; o[i]=o[j]; o[j]=t;
+    state.settings.catOrder = o;
+    saveCatOrder(); renderCatOrder(); renderShop();
+  };
+  Array.prototype.forEach.call(box.querySelectorAll('.co-up'), b=>b.addEventListener('click', e=>
+    verschieben(e.currentTarget.closest('.cat-order-row').dataset.id, -1)));
+  Array.prototype.forEach.call(box.querySelectorAll('.co-down'), b=>b.addEventListener('click', e=>
+    verschieben(e.currentTarget.closest('.cat-order-row').dataset.id, 1)));
+}
+
+/* ---------- Einkaufsliste teilen ---------- */
+document.getElementById('shareShop').addEventListener('click', async ()=>{
+  const wk = weekKeyOf(currentMonday);
+  const built = buildItems(wk);
+  const open = built.items.filter(i=>!i.checked);
+  if(!open.length){
+    setStatus('Nichts zu teilen — die Liste ist leer.');
+    setTimeout(()=>setStatus(''),2500);
+    return;
+  }
+  const byCat = {};
+  open.forEach(it=>{ (byCat[it.cat] = byCat[it.cat] || []).push(it); });
+  let text = 'Einkaufsliste · KW '+isoWeek(currentMonday).week+'\n\n';
+  orderedCats().forEach(c=>{
+    const g = byCat[c.id] || [];
+    if(!g.length) return;
+    text += c.icon+' '+c.label+'\n';
+    g.forEach(it=>{ text += '- '+it.name+(it.qty?' ('+it.qty+')':'')+'\n'; });
+    text += '\n';
+  });
+  text = text.trim();
+  try{
+    if(navigator.share){
+      await navigator.share({title:'Einkaufsliste', text: text});
+    } else {
+      await navigator.clipboard.writeText(text);
+      setStatus('Liste in die Zwischenablage kopiert.');
+      setTimeout(()=>setStatus(''),3000);
+    }
+  }catch(e){ /* Teilen abgebrochen — nichts zu tun */ }
+});
+
 document.getElementById('resetChecks').addEventListener('click', async ()=>{
   const wk=weekKeyOf(currentMonday);
   const backupChecked = state.checked[wk], backupRemoved = state.removed[wk], backupQty = state.qty[wk];
@@ -2087,13 +2315,40 @@ function renderIngredientsTab(){
 }
 
 /* =========================================================================
-   18. Tabs & Start
+   18. Bildschirm an halten — beim Einkaufen und bei offenem Rezept
+   ========================================================================= */
+let wakeLock = null;
+async function requestWakeLock(){
+  if(!('wakeLock' in navigator)) return;
+  try{
+    wakeLock = await navigator.wakeLock.request('screen');
+    wakeLock.addEventListener('release', ()=>{ wakeLock = null; });
+  }catch(e){ /* z.B. Tab im Hintergrund — einfach ignorieren */ }
+}
+function releaseWakeLock(){
+  if(wakeLock){ wakeLock.release().catch(()=>{}); wakeLock = null; }
+}
+function wakeLockGewuenscht(){
+  const shopAktiv = document.getElementById('shop').classList.contains('active');
+  const rezeptOffen = !!document.querySelector('#recipes .recipe-item.open');
+  return shopAktiv || rezeptOffen;
+}
+function updateWakeLock(){
+  if(wakeLockGewuenscht()) requestWakeLock(); else releaseWakeLock();
+}
+document.addEventListener('visibilitychange', ()=>{
+  if(document.visibilityState === 'visible' && wakeLockGewuenscht()) requestWakeLock();
+});
+
+/* =========================================================================
+   19. Tabs & Start
    ========================================================================= */
 Array.prototype.forEach.call(document.querySelectorAll('.tab'), t=>t.addEventListener('click',()=>{
   Array.prototype.forEach.call(document.querySelectorAll('.tab'), b=>b.classList.remove('active'));
   Array.prototype.forEach.call(document.querySelectorAll('main section'), s=>s.classList.remove('active'));
   t.classList.add('active');
   document.getElementById(t.dataset.tab).classList.add('active');
+  updateWakeLock();
 }));
 
 /* Kommt die App aus dem Hintergrund zurück, springt sie auf die laufende Woche */

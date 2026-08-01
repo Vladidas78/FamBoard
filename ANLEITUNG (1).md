@@ -1,7 +1,7 @@
-# Wochenküche — Einrichtung
+# FamBoard — Einrichtung
 
-Vier Schritte, zusammen etwa 15 Minuten. Danach hast du eine App auf dem Homescreen,
-die sich zwischen euren Geräten abgleicht.
+Vier Schritte. Danach hast du eine App auf dem Homescreen, die sich zwischen euren
+Geräten abgleicht und sich bei jeder Änderung automatisch neu veröffentlicht.
 
 ---
 
@@ -16,15 +16,21 @@ schreiben und läuft nach 30 Tagen ab. Ersetz ihn jetzt:
 
 Danach kommt nur noch an die Daten heran, wer angemeldet ist **und** die Haushalts-ID kennt.
 
-## Schritt 2 — Dateien zu Cloudflare hochladen
+## Schritt 2 — Repo auf GitHub und mit Cloudflare Pages verbinden
 
-1. dash.cloudflare.com → **Compute (Workers)** → **Pages** → **Create** → **Upload assets**
-2. Projektname vergeben, z. B. `wochenkueche`
-3. Den kompletten Ordner (oder die ZIP-Datei) ins Feld ziehen — `index.html` muss dabei
-   direkt in der obersten Ebene liegen, nicht in einem Unterordner
-4. **Deploy site**
+FamBoard liegt als Git-Repository auf GitHub (`github.com/Vladidas78/FamBoard`) und wird
+von Cloudflare Pages automatisch von dort veröffentlicht — kein manuelles Hochladen mehr.
 
-Du bekommst eine Adresse wie `https://wochenkueche.pages.dev`. Ruf sie auf: Wenn unten im
+1. github.com → neues, leeres Repository anlegen (falls noch nicht geschehen)
+2. Lokal mit **Git Gui** (kommt mit Git für Windows) oder **GitHub Desktop**: Remote
+   hinzufügen, committen, **Push**
+3. dash.cloudflare.com → **Compute (Workers)** → **Pages** → **Create** →
+   **Connect to Git** → das GitHub-Repo auswählen
+4. Build-Einstellungen: Framework preset **None**, Build command **leer**, Output
+   directory **/**
+5. **Save and Deploy**
+
+Du bekommst eine Adresse wie `https://famboard.pages.dev`. Ruf sie auf: Wenn unten im
 Reiter „Immer zuhause“ *Verbunden · Haushalt hh-…* steht, läuft alles.
 
 ## Schritt 3 — Auf dem Handy installieren
@@ -53,9 +59,12 @@ Gruppen.
 
 ## Neue Version einspielen
 
-Cloudflare-Projekt → **Create deployment** → neue Dateien hochladen. Alte Stände bleiben
-erhalten, du kannst jederzeit zurückrollen. Auf dem Handy die App einmal schließen und neu
-öffnen; der Service Worker holt die neue Fassung beim übernächsten Start spätestens.
+Datei ändern → in Git Gui (oder GitHub Desktop) taucht sie als Änderung auf →
+Commit-Nachricht eintippen → **Commit** → **Push**. Cloudflare Pages erkennt den neuen
+Stand auf GitHub automatisch und deployed ihn von selbst — kein manuelles Hochladen mehr.
+Alte Stände bleiben in der Cloudflare-Deployment-Historie erhalten, du kannst dort
+jederzeit zurückrollen. Auf dem Handy die App einmal schließen und neu öffnen; der Service
+Worker holt die neue Fassung beim übernächsten Start spätestens.
 
 ---
 
