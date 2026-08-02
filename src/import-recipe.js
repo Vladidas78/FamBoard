@@ -177,7 +177,199 @@ function istGesperrteAdresse(hostname) {
   return false;
 }
 
-async function ladeSeitenMaterial(url) {
+const BROWSER_UA = 'Mozilla/5.0 (compatible; FamBoardBot/1.0; +https://famboard.flavor7878.workers.dev)';
+
+// Bild-URL aus strukturierten Rezeptdaten ziehen — die Schreibweise variiert je Seite.
+function bildAusJsonLd(ld) {
+  const img = ld && ld.image;
+  if (!img) return null;
+  if (typeof img === 'string') return img;
+  if (Array.isArray(img)) {
+    const first = img[0];
+    if (typeof first === 'string') return first;
+    return (first && first.url) || null;
+  }
+  return img.url || null;
+}
+
+function metaAusHtml(html, namen) {
+  for (const n of namen) {
+    const re = new RegExp('<meta[^>]+(?:property|name)=["\']' + n + '["\'][^>]*content=["\']([^"\']+)["\']', 'i');
+    const m = re.exec(html);
+    if (m) return m[1];
+    const re2 = new RegExp('<meta[^>]+content=["\']([^"\']+)["\'][^>]*(?:property|name)=["\']' + n + '["\']', 'i');
+    const m2 = re2.exec(html);
+    if (m2) return m2[1];
+  }
+  return null;
+}
+
+// Lädt ein Bild und gibt es als Data-URL zurück. Der Client verkleinert es danach
+// selbst — hier geht es nur darum, die CORS-Sperre des Browsers zu umgehen.
+async function ladeBildAlsDataUrl(url) {
+  if (!url) return null;
+  try {
+    const abs = new URL(url);
+    if (istGesperrteAdresse(abs.hostname)) return null;
+    const res = await fetch(abs.toString(), {
+      headers: { 'User-Agent': BROWSER_UA },
+      signal: AbortSignal.timeout(8000)
+    });
+    if (!res.ok) return null;
+    const typ = (res.headers.get('content-type') || '').split(';')[0].trim();
+    if (!/^image\//.test(typ)) return null;
+    const buf = await res.arrayBuffer();
+    if (buf.byteLength > 4000000) return null;
+    const bytes = new Uint8Array(buf);
+    let binaer = '';
+    for (let i = 0; i < bytes.length; i += 0x8000) {
+      binaer += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+    }
+    return 'data:' + typ + ';base64,' + btoa(binaer);
+  } catch (e) {
+    return null;
+  }
+}
+
+/* ---------- Videoplattformen ---------- */
+
+function youtubeVideoId(u) {
+  const h = u.hostname.replace(/^www\.|^m\./, '');
+  if (h === 'youtu.be') return u.pathname.slice(1).split('/')[0] || null;
+  if (!/(^|\.)youtube\.com$/.test(h) && h !== 'youtube-nocookie.com') return null;
+  const v = u.searchParams.get('v');
+  if (v) return v;
+  const m = /^\/(shorts|embed|live|v)\/([^/?#]+)/.exec(u.pathname);
+  return m ? m[2] : null;
+}
+
+function istTikTok(u) {
+  const h = u.hostname.replace(/^www\./, '');
+  return h === 'tiktok.com' || h.endsWith('.tiktok.com');
+}
+
+async function holeOembed(endpoint, ziel) {
+  try {
+    const res = await fetch(endpoint + '?format=json&url=' + encodeURIComponent(ziel), {
+      headers: { 'User-Agent': BROWSER_UA },
+      signal: AbortSignal.timeout(10000)
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (e) {
+    return null;
+  }
+}
+
+async function ladeTikTok(u) {
+  // Kurzlinks (vm.tiktok.com/…) zuerst auflösen, oEmbed mag sie nicht immer.
+  let ziel = u.toString();
+  if (/^(vm|vt)\./.test(u.hostname)) {
+    try {
+      const r = await fetch(ziel, { redirect: 'follow', headers: { 'User-Agent': BROWSER_UA }, signal: AbortSignal.timeout(8000) });
+      if (r.url) ziel = r.url.split('?')[0];
+    } catch (e) { /* dann eben mit dem Kurzlink versuchen */ }
+  }
+  const data = await holeOembed('https://www.tiktok.com/oembed', ziel);
+  if (!data || !data.title) {
+    throw new Error('Von diesem TikTok-Link ließ sich nichts abrufen. Kopier die Beschreibung und nutze „Text einfügen".');
+  }
+  const text = 'TikTok-Video von ' + (data.author_name || 'unbekannt') + '.\n' +
+    'Beschreibung/Caption des Videos:\n' + data.title;
+  return { text: text, imageUrl: data.thumbnail_url || null };
+}
+
+async function ladeYouTube(u, videoId, env) {
+  // Bester Weg: offizielle Data-API — liefert die vollständige Beschreibung.
+  if (env.YOUTUBE_API_KEY) {
+    try {
+      const res = await fetch(
+        'https://www.googleapis.com/youtube/v3/videos?part=snippet&id=' + encodeURIComponent(videoId) +
+        '&key=' + env.YOUTUBE_API_KEY,
+        { signal: AbortSignal.timeout(10000) }
+      );
+      if (res.ok) {
+        const data = await res.json();
+        const sn = data.items && data.items[0] && data.items[0].snippet;
+        if (sn) {
+          const thumbs = sn.thumbnails || {};
+          const bild = (thumbs.maxres || thumbs.standard || thumbs.high || thumbs.medium || {}).url || null;
+          return {
+            text: 'YouTube-Video „' + (sn.title || '') + '" von ' + (sn.channelTitle || 'unbekannt') + '.\n' +
+              'Videobeschreibung:\n' + (sn.description || '').slice(0, 8000),
+            imageUrl: bild
+          };
+        }
+      }
+    } catch (e) { /* auf die Notlösungen unten zurückfallen */ }
+  }
+
+  // Ohne Schlüssel: Beschreibung aus der Seite fischen (klappt nicht immer).
+  try {
+    const res = await fetch('https://www.youtube.com/watch?v=' + encodeURIComponent(videoId), {
+      headers: { 'User-Agent': BROWSER_UA, 'Accept-Language': 'de-DE,de;q=0.9' },
+      signal: AbortSignal.timeout(10000)
+    });
+    if (res.ok) {
+      const html = await res.text();
+      const m = /"shortDescription":"((?:\\.|[^"\\])*)"/.exec(html);
+      if (m) {
+        const besch = JSON.parse('"' + m[1] + '"');
+        if (besch && besch.trim()) {
+          return {
+            text: 'YouTube-Video „' + (metaAusHtml(html, ['og:title']) || '') + '".\n' +
+              'Videobeschreibung:\n' + besch.slice(0, 8000),
+            imageUrl: metaAusHtml(html, ['og:image'])
+          };
+        }
+      }
+    }
+  } catch (e) { /* weiter zur letzten Notlösung */ }
+
+  // Letzte Möglichkeit: oEmbed — nur Titel, meist zu wenig für ein Rezept.
+  const data = await holeOembed('https://www.youtube.com/oembed', 'https://www.youtube.com/watch?v=' + videoId);
+  if (data && data.title) {
+    return {
+      text: 'YouTube-Video „' + data.title + '" von ' + (data.author_name || 'unbekannt') + '.\n' +
+        '(Die Videobeschreibung war nicht abrufbar — es liegt nur der Titel vor.)',
+      imageUrl: data.thumbnail_url || null
+    };
+  }
+  throw new Error('Von diesem YouTube-Link ließ sich nichts abrufen. Kopier die Videobeschreibung und nutze „Text einfügen".');
+}
+
+function istInstagram(u) {
+  const h = u.hostname.replace(/^www\./, '');
+  return h === 'instagram.com' || h.endsWith('.instagram.com');
+}
+
+/* ---------- Normale Webseiten ---------- */
+
+async function ladeWebseite(parsed) {
+  const res = await fetch(parsed.toString(), {
+    headers: { 'User-Agent': BROWSER_UA },
+    signal: AbortSignal.timeout(12000)
+  });
+  if (!res.ok) throw new Error('Die Seite hat einen Fehler zurückgegeben (Status ' + res.status + ').');
+  const html = (await res.text()).slice(0, 900000);
+  const ld = extractJsonLdRecipe(html);
+  const bild = (ld && bildAusJsonLd(ld)) || metaAusHtml(html, ['og:image', 'twitter:image']);
+  if (ld) {
+    return {
+      text: 'Strukturierte Rezeptdaten (JSON-LD) von der Webseite:\n' + JSON.stringify(ld).slice(0, 8000),
+      imageUrl: bild
+    };
+  }
+  const text = htmlToText(html).slice(0, 10000);
+  if (!text) throw new Error('Auf der Seite ließ sich kein lesbarer Inhalt finden.');
+  return {
+    text: 'Text der Webseite (automatisch aus dem HTML extrahiert, kann Navigation/Werbung enthalten):\n' + text,
+    imageUrl: bild
+  };
+}
+
+// Verteiler: erkennt die Plattform und holt das passende Material.
+async function ladeSeitenMaterial(url, env) {
   let parsed;
   try { parsed = new URL(url); } catch (e) { throw new Error('Das ist keine gültige Internetadresse.'); }
   if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
@@ -186,17 +378,15 @@ async function ladeSeitenMaterial(url) {
   if (istGesperrteAdresse(parsed.hostname)) {
     throw new Error('Diese Adresse kann nicht geladen werden.');
   }
-  const res = await fetch(parsed.toString(), {
-    headers: { 'User-Agent': 'Mozilla/5.0 (compatible; FamBoardBot/1.0; +https://famboard.flavor7878.workers.dev)' },
-    signal: AbortSignal.timeout(12000)
-  });
-  if (!res.ok) throw new Error('Die Seite hat einen Fehler zurückgegeben (Status ' + res.status + ').');
-  const html = (await res.text()).slice(0, 900000);
-  const ld = extractJsonLdRecipe(html);
-  if (ld) return 'Strukturierte Rezeptdaten (JSON-LD) von der Webseite:\n' + JSON.stringify(ld).slice(0, 8000);
-  const text = htmlToText(html).slice(0, 10000);
-  if (!text) throw new Error('Auf der Seite ließ sich kein lesbarer Inhalt finden.');
-  return 'Text der Webseite (automatisch aus dem HTML extrahiert, kann Navigation/Werbung enthalten):\n' + text;
+
+  if (istInstagram(parsed)) {
+    throw new Error('Instagram lässt sich nicht auslesen. Tipp: Caption im Reel antippen, kopieren und hier auf „Text einfügen" wechseln.');
+  }
+  if (istTikTok(parsed)) return ladeTikTok(parsed);
+  const ytId = youtubeVideoId(parsed);
+  if (ytId) return ladeYouTube(parsed, ytId, env);
+
+  return ladeWebseite(parsed);
 }
 
 function baueNutzerNachricht(mode, body, material) {
@@ -215,7 +405,7 @@ function baueNutzerNachricht(mode, body, material) {
     return 'Hier ist ein roh eingefügter Rezepttext, strukturiere ihn:\n\n' + t.slice(0, 10000);
   }
   if (mode === 'url') {
-    return 'Extrahiere das Rezept aus diesem Material einer Webseite:\n\n' + material;
+    return 'Extrahiere das Rezept aus diesem Material:\n\n' + material;
   }
   throw new Error('Unbekannter Modus.');
 }
@@ -249,9 +439,14 @@ export async function handleImportRecipe(request, env) {
   }
 
   let userContent;
+  let bildUrl = null;
   try {
     let material = null;
-    if (mode === 'url') material = await ladeSeitenMaterial(String(body.url || '').trim());
+    if (mode === 'url') {
+      const quelle = await ladeSeitenMaterial(String(body.url || '').trim(), env);
+      material = quelle.text;
+      bildUrl = quelle.imageUrl;
+    }
     userContent = baueNutzerNachricht(mode, body, material);
   } catch (e) {
     return jsonResponse({ ok: false, error: e.message || 'Material konnte nicht geladen werden.' }, 400);
@@ -297,10 +492,14 @@ export async function handleImportRecipe(request, env) {
     return jsonResponse({ ok: false, error: 'Da war kein Rezept mit Zutaten erkennbar.' }, 200);
   }
 
+  // Bild erst jetzt holen — nur wenn wirklich ein Rezept herauskam.
+  const bildDataUrl = await ladeBildAlsDataUrl(bildUrl);
+
   return jsonResponse({
     ok: true,
     uebrig: kontingent.uebrig,
     recipe: {
+      image_data_url: bildDataUrl,
       name: r.name || '',
       servings: r.servings || 4,
       ingredients_text: r.ingredients_text || '',

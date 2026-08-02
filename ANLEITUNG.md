@@ -91,6 +91,39 @@ eingefügtem Text oder von einem Foto ein und füllt das Formular „Neues Rezep
 vor — geprüft und gespeichert wird von Hand. Dafür ruft ein Cloudflare Worker
 (`src/worker.js` → `src/import-recipe.js`) die Anthropic-API auf (Modell Sonnet).
 
+### Was der Link-Import kann
+
+| Quelle | Ergebnis |
+|---|---|
+| Rezeptseiten | sehr gut — strukturierte Rezeptdaten (JSON-LD) inkl. Bild |
+| TikTok | Caption des Videos plus Vorschaubild |
+| YouTube / Shorts | Videobeschreibung plus Vorschaubild |
+| Instagram | nicht möglich — Meta sperrt den Zugriff |
+
+**Wichtig bei Videos:** Ausgelesen wird nur, was der Creator *geschrieben* hat — Caption
+bzw. Videobeschreibung. Was im Video gesprochen oder eingeblendet wird, kommt nicht an.
+Steht das Rezept nur im Video selbst, meldet der Import, dass nichts zu finden war.
+
+Für Instagram (und als Notlösung überall sonst): Caption kopieren und in FamBoard auf
+**Text einfügen** wechseln.
+
+Nach einem erfolgreichen Import wird der Link automatisch unten in der Beschreibung als
+`Quelle: …` eingetragen, und das gefundene Bild landet direkt als Rezeptbild.
+
+### YouTube-Beschreibungen zuverlässig auslesen (optional)
+
+Ohne Schlüssel versucht der Worker, die Beschreibung aus der YouTube-Seite zu fischen —
+das klappt mal, mal nicht, weil YouTube Server-Zugriffe oft abweist. Zuverlässig wird es
+mit einem kostenlosen API-Schlüssel:
+
+1. console.cloud.google.com → Projekt `famplan-e8e4c` auswählen (dasselbe wie Firebase)
+2. **APIs & Services** → **Library** → *YouTube Data API v3* → **Enable**
+3. **APIs & Services** → **Credentials** → **Create credentials** → **API key**
+4. In Cloudflare unter **Variables and Secrets** als `YOUTUBE_API_KEY` eintragen
+   (Type **Secret**), danach neu deployen
+
+Das kostenlose Kontingent liegt weit über dem, was FamBoard je braucht.
+
 ### Wie das Projekt aufgebaut ist
 
 FamBoard läuft als **Cloudflare Worker mit statischen Assets** (nicht als Pages-Projekt):

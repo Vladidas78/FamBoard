@@ -680,8 +680,11 @@
       </div>
 
       <div class="field imp-src imp-src-url">
-        <label>Link zur Rezeptseite</label>
+        <label>Link zur Rezeptseite oder zum Video</label>
         <input id="imp-url" type="url" placeholder="https://…">
+        <p class="hint" style="margin-top:6px;">Rezeptseiten, TikTok und YouTube (auch Shorts). Bei Videos wird gelesen, was
+        in der Beschreibung steht — Gesprochenes im Video nicht. Instagram lässt sich nicht auslesen: dort die Caption
+        kopieren und „Text einfügen" nehmen.</p>
       </div>
 
       <div class="field imp-src imp-src-text" style="display:none;">
@@ -2947,12 +2950,31 @@ document.getElementById('imp-image-input').addEventListener('change', async e=>{
     setImportResult('','');
   }catch(err){ setImportResult('Das Foto ließ sich nicht laden. Versuch ein anderes Format.','err'); }
 });
-function uebernehmeImportiertesRezept(r, bildDataUrl){
+/* Verkleinert ein Bild, das schon als Data-URL vorliegt (z. B. vom Server geholtes
+   Vorschaubild) — analog zu fileToResizedDataURL, nur ohne FileReader davor. */
+function dataUrlToResized(dataUrl, maxDim, quality){
+  maxDim = maxDim || 600; quality = quality || 0.68;
+  return new Promise((resolve,reject)=>{
+    const img=new Image();
+    img.onload=()=>{
+      let w=img.width, h=img.height;
+      if(w>=h && w>maxDim){ h=Math.round(h*maxDim/w); w=maxDim; }
+      else if(h>w && h>maxDim){ w=Math.round(w*maxDim/h); h=maxDim; }
+      const c=document.createElement('canvas'); c.width=w; c.height=h;
+      c.getContext('2d').drawImage(img,0,0,w,h);
+      resolve(c.toDataURL('image/jpeg', quality));
+    };
+    img.onerror=reject; img.src=dataUrl;
+  });
+}
+function uebernehmeImportiertesRezept(r, bildDataUrl, quelle){
   resetAddForm();
   document.getElementById('r-name').value = r.name || '';
   document.getElementById('r-servings').value = r.servings || 4;
   document.getElementById('r-tags').value = r.tags || '';
-  document.getElementById('r-description').value = r.description || '';
+  let besch = r.description || '';
+  if(quelle){ besch = (besch ? besch.replace(/\s+$/,'') + '\n\n' : '') + 'Quelle: ' + quelle; }
+  document.getElementById('r-description').value = besch;
   const ingredients = parseIngredientsCell(r.ingredients_text);
   document.getElementById('ingRows').innerHTML = '';
   ingredients.forEach(ing=>addIngRow(ing));
@@ -2997,9 +3019,29 @@ document.getElementById('startImport').addEventListener('click', async ()=>{
     });
     const data = await res.json();
     if(!data.ok){ setImportResult(data.error || 'Konnte kein Rezept erkennen.','err'); return; }
-    uebernehmeImportiertesRezept(data.recipe, mode==='image' ? importImageThumbUrl : null);
+
+    // Bild: beim Foto-Import das eigene, sonst das vom Server geholte Vorschaubild
+    let bild = null;
+    if(mode==='image'){
+      bild = importImageThumbUrl;
+    } else if(data.recipe.image_data_url){
+      try{ bild = await dataUrlToResized(data.recipe.image_data_url); }
+      catch(e){ bild = null; }   // kaputtes Bild darf den Import nicht kippen
+    }
+
+    uebernehmeImportiertesRezept(data.recipe, bild, mode==='url' ? body.url : null);
+
+    // Eingaben leeren — der Link steht ab jetzt unten in der Beschreibung
+    document.getElementById('imp-url').value = '';
+    document.getElementById('imp-text').value = '';
+    document.getElementById('impImgPreview').innerHTML = '';
+    document.getElementById('imp-image-input').value = '';
+    importImageDataUrl = null; importImageThumbUrl = null;
+    setImportResult('','');
+    closeImportPanel();
+
     if(typeof data.uebrig === 'number'){
-      setImportResult('Noch ' + data.uebrig + ' Importe heute übrig.','');
+      showToast('Rezept eingelesen — noch ' + data.uebrig + ' Importe heute übrig');
     }
   } catch(err){
     setImportResult('Verbindung zum Server fehlgeschlagen.','err');
