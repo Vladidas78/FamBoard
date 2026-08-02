@@ -1,7 +1,7 @@
 /* FamBoard – Service Worker
    Shell wird gecacht, damit die App auch ohne Netz startet.
    Die Daten selbst kommen von Firebase und werden dort nie gecacht. */
-const CACHE = 'famboard-v7';
+const CACHE = 'famboard-v8';
 const SHELL = [
   './',
   './index.html',

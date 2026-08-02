@@ -174,6 +174,7 @@
   .btn{ cursor:pointer; border:none; border-radius:var(--radius-sm); font-weight:600; font-family:'Inter',sans-serif; font-size:0.85rem; padding:9px 14px; transition:.15s; }
   .btn-primary{ background:var(--accent); color:var(--accent-ink); }
   .btn-primary:hover{ filter:brightness(1.08); }
+  .btn:disabled{ opacity:.4; cursor:default; filter:none; }
   .btn-soft{ background:var(--card-2); color:var(--text); border:1px solid var(--border); }
   .btn-soft:hover{ border-color:var(--accent); }
   .btn-ghost{ background:transparent; color:var(--danger); border:1px solid var(--danger); }
@@ -581,6 +582,7 @@
   <button class="tab" data-tab="haushalt">Haushalt &amp; Drogerie</button>
   <button class="tab" data-tab="pantry">Haushalt</button>
   <button class="tab" data-tab="nutrition">Nährwerte</button>
+  <button class="tab" data-tab="settings">Einstellungen</button>
 </nav>
 
 <main>
@@ -847,15 +849,60 @@
       <p class="ex-hint">Reihenfolge, in der die Kategorien in der Einkaufsliste erscheinen — passt sie an euren Supermarkt an.</p>
       <ul class="cat-order-list" id="catOrderList"></ul>
     </div>
+    <div class="storage-note" id="storageNote"></div>
+  </section>
+
+  <section id="settings">
     <div class="card" id="hhSwitchCard" style="display:none;">
       <div class="shop-head"><div class="wk">Aktiver Haushalt</div></div>
       <p class="ex-hint">Ihr gehört zu mehreren Haushalten. Wählt, welchen ihr auf diesem Gerät seht.</p>
       <div class="hh-switch" id="hhSwitchList"></div>
     </div>
+
     <div class="card">
-      <div class="shop-head"><div class="wk">Konto</div></div>
-      <div class="acct-row"><span id="acctEmail">—</span><button class="btn btn-ghost btn-sm" id="acctSignOut" type="button">Abmelden</button></div>
+      <div class="shop-head"><div class="wk">Haushaltsname</div></div>
+      <p class="ex-hint" id="hhNameHint">So heißt euer Haushalt in der Übersicht und für alle Mitglieder.</p>
+      <div class="ing-input-row" style="grid-template-columns:1fr 100px;">
+        <input type="text" id="hhNameInput" placeholder="z. B. Familie Müller" autocomplete="off">
+        <button class="btn btn-primary" id="hhNameSave" type="button">Speichern</button>
+      </div>
+      <div class="ex-hint" id="hhNameOut" style="margin-top:10px;"></div>
     </div>
+
+    <div class="card">
+      <div class="shop-head"><div class="wk">Mein Profil</div></div>
+      <div class="field">
+        <label>Name <span class="hint">wird den anderen Mitgliedern angezeigt</span></label>
+        <div class="ing-input-row" style="grid-template-columns:1fr 100px;">
+          <input type="text" id="profilNameInput" placeholder="z. B. Vladi" autocomplete="name">
+          <button class="btn btn-soft" id="profilNameSave" type="button">Speichern</button>
+        </div>
+      </div>
+      <div class="ex-hint" id="profilNameOut" style="margin-bottom:8px;"></div>
+
+      <div class="field">
+        <label>E-Mail</label>
+        <div class="ing-input-row" style="grid-template-columns:1fr 100px;">
+          <input type="email" id="profilEmailInput" placeholder="neue@adresse.de" autocomplete="email">
+          <button class="btn btn-soft" id="profilEmailSave" type="button">Ändern</button>
+        </div>
+      </div>
+      <div class="ex-hint" id="profilEmailOut" style="margin-bottom:8px;"></div>
+
+      <div class="field">
+        <label id="profilPwLabel">Passwort ändern</label>
+        <div class="ing-input-row" style="grid-template-columns:1fr 100px;">
+          <input type="password" id="profilPwInput" placeholder="neues Passwort, mind. 6 Zeichen" autocomplete="new-password">
+          <button class="btn btn-soft" id="profilPwSave" type="button">Speichern</button>
+        </div>
+      </div>
+      <div class="ex-hint" id="profilPwOut"></div>
+
+      <div class="acct-row" style="margin-top:6px; border-top:1px solid var(--border-soft); padding-top:12px;">
+        <span id="acctEmail">—</span><button class="btn btn-ghost btn-sm" id="acctSignOut" type="button">Abmelden</button>
+      </div>
+    </div>
+
     <div class="card">
       <div class="shop-head"><div class="wk">Mitglieder</div></div>
       <p class="ex-hint">Wer Zugriff auf diesen Haushalt hat. Wer den Einladungslink öffnet und sich anmeldet, sieht Wochenplan und Einkaufsliste und kann beides ändern — also nur an Leute geben, die dazugehören.</p>
@@ -863,6 +910,7 @@
       <div class="ex-hint" id="inviteOut" style="margin-top:10px;"></div>
       <ul class="member-list" id="memberList"></ul>
     </div>
+
     <div class="card">
       <div class="shop-head"><div class="wk">Weiterem Haushalt beitreten</div></div>
       <p class="ex-hint">Für einen zusätzlichen Haushalt, den ihr schon von früher kennt (Haushalts-ID, z. B. <code>hh-…</code>), oder um einen Einladungscode einzulösen, den ihr nicht über den Link, sondern z. B. per Nachricht bekommen habt.</p>
@@ -872,7 +920,6 @@
       </div>
       <div class="ex-hint" id="joinHhOut" style="margin-top:10px;"></div>
     </div>
-    <div class="storage-note" id="storageNote"></div>
   </section>
 </main>
 
@@ -902,7 +949,8 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.0/fireba
 import {
   getAuth, onAuthStateChanged, signOut,
   createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail,
-  GoogleAuthProvider, signInWithRedirect, getRedirectResult
+  GoogleAuthProvider, signInWithRedirect, getRedirectResult,
+  updateProfile, updateEmail, updatePassword, linkWithCredential, EmailAuthProvider
 } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-auth.js";
 import { getDatabase, ref, set, remove, get, onValue } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-database.js";
 
@@ -1131,14 +1179,20 @@ async function loadHaushaltMeta(hhId){
   }catch(e){ return ''; }
 }
 
+let meineRolle = null;
 async function aktiviereHaushalt(hhId){
   HAUSHALT_ID = hhId;
   BASE = 'haushalte/' + hhId;
   CACHE_KEY = 'famboard.cache.' + hhId;
   try{ localStorage.setItem(HH_KEY, hhId); }catch(e){}
   aktivesHaushaltName = (await loadHaushaltMeta(hhId)) || hhId;
+  try{
+    const snap = await get(ref(db, 'haushalte/' + hhId + '/members/' + auth.currentUser.uid + '/rolle'));
+    meineRolle = snap.exists() ? snap.val() : null;
+  }catch(e){ meineRolle = null; }
   setOnline(istOnline);
   renderMemberList();
+  renderSettingsTab();
 }
 
 function renderHhSwitch(ids){
@@ -3659,8 +3713,9 @@ async function renderMemberList(){
     const members = snap.exists() ? snap.val() : {};
     const rows = Object.keys(members).map(uid=>{
       const m = members[uid] || {};
-      const label = (auth.currentUser && uid === auth.currentUser.uid) ? 'Ihr' : 'Mitglied ' + uid.slice(0,6);
-      return '<li class="member-row"><span>' + label + '</span><span class="role">' + (m.rolle || 'mitglied') + '</span></li>';
+      const bistDu = auth.currentUser && uid === auth.currentUser.uid;
+      const label = m.name || (bistDu ? 'Ihr' : 'Mitglied ' + uid.slice(0,6));
+      return '<li class="member-row"><span>' + label + (bistDu ? ' (ihr)' : '') + '</span><span class="role">' + (m.rolle || 'mitglied') + '</span></li>';
     });
     box.innerHTML = rows.join('') || '<li class="hh-empty">Noch keine Mitglieder geladen.</li>';
   }catch(e){ box.innerHTML = ''; }
@@ -3695,6 +3750,116 @@ document.getElementById('joinHhBtn').addEventListener('click', async ()=>{
     inp.value = '';
   }catch(e){
     out.textContent = e.message || ('Beitreten fehlgeschlagen (' + (e.code || '') + ').');
+  }
+});
+
+/* =========================================================================
+   20. Einstellungen: Haushaltsname, eigenes Profil (Name/E-Mail/Passwort)
+   ========================================================================= */
+const AUTH_ERR_DE_2 = {
+  'auth/requires-recent-login': 'Das geht aus Sicherheitsgründen nur kurz nach dem Anmelden. Einmal ab- und wieder anmelden, dann nochmal versuchen.',
+  'auth/email-already-in-use': 'Diese E-Mail-Adresse wird schon von einem anderen Konto benutzt.',
+  'auth/credential-already-in-use': 'Für dieses Konto ist schon ein Passwort hinterlegt.',
+  'auth/provider-already-linked': 'Für dieses Konto ist schon ein Passwort hinterlegt.'
+};
+function authErrText2(err){
+  return AUTH_ERR_DE_2[err.code] || AUTH_ERR_DE[err.code] || ('Fehlgeschlagen (' + (err.code || err.message) + ').');
+}
+
+function renderSettingsTab(){
+  const emailEl = document.getElementById('acctEmail');
+  if(emailEl && auth.currentUser) emailEl.textContent = auth.currentUser.email || ('Konto ' + auth.currentUser.uid.slice(0,6));
+
+  const nameInput = document.getElementById('profilNameInput');
+  if(nameInput && auth.currentUser) nameInput.value = auth.currentUser.displayName || '';
+
+  const hhInput = document.getElementById('hhNameInput');
+  const hhSave = document.getElementById('hhNameSave');
+  const hhHint = document.getElementById('hhNameHint');
+  if(hhInput){
+    hhInput.value = (aktivesHaushaltName && aktivesHaushaltName !== HAUSHALT_ID) ? aktivesHaushaltName : '';
+    const binIchOwner = meineRolle === 'owner';
+    if(hhSave) hhSave.disabled = !binIchOwner;
+    if(hhHint) hhHint.textContent = binIchOwner
+      ? 'So heißt euer Haushalt in der Übersicht und für alle Mitglieder.'
+      : 'Nur der Eigentümer dieses Haushalts kann den Namen ändern.';
+  }
+
+  const pwLabel = document.getElementById('profilPwLabel');
+  const hatPasswort = !!(auth.currentUser && auth.currentUser.providerData.some(p=>p.providerId==='password'));
+  if(pwLabel) pwLabel.textContent = hatPasswort ? 'Passwort ändern' : 'Passwort hinzufügen (bisher nur Google-Anmeldung)';
+  const pwBtn = document.getElementById('profilPwSave');
+  if(pwBtn) pwBtn.textContent = hatPasswort ? 'Speichern' : 'Hinzufügen';
+}
+
+document.getElementById('hhNameSave').addEventListener('click', async ()=>{
+  const out = document.getElementById('hhNameOut');
+  const val = (document.getElementById('hhNameInput').value || '').trim();
+  if(!val){ out.textContent = 'Bitte einen Namen eintragen.'; return; }
+  try{
+    await set(ref(db, 'haushalte/' + HAUSHALT_ID + '/meta/name'), val);
+    aktivesHaushaltName = val;
+    setOnline(istOnline);
+    const mitgliedschaften = await ladeMitgliedschaften(auth.currentUser.uid);
+    renderHhSwitch(mitgliedschaften);
+    out.textContent = 'Gespeichert.';
+  }catch(e){
+    out.textContent = authErrText2(e);
+  }
+});
+
+document.getElementById('profilNameSave').addEventListener('click', async ()=>{
+  const out = document.getElementById('profilNameOut');
+  const val = (document.getElementById('profilNameInput').value || '').trim();
+  if(!val){ out.textContent = 'Bitte einen Namen eintragen.'; return; }
+  out.textContent = 'Speichere …';
+  try{
+    await updateProfile(auth.currentUser, { displayName: val });
+    const mitgliedschaften = await ladeMitgliedschaften(auth.currentUser.uid);
+    await Promise.all(mitgliedschaften.map(hh=>
+      set(ref(db, 'haushalte/' + hh + '/members/' + auth.currentUser.uid + '/name'), val).catch(()=>{})
+    ));
+    renderMemberList();
+    out.textContent = 'Gespeichert.';
+  }catch(e){
+    out.textContent = authErrText2(e);
+  }
+});
+
+document.getElementById('profilEmailSave').addEventListener('click', async ()=>{
+  const out = document.getElementById('profilEmailOut');
+  const val = (document.getElementById('profilEmailInput').value || '').trim();
+  if(!val){ out.textContent = 'Bitte eine neue E-Mail-Adresse eintragen.'; return; }
+  out.textContent = 'Ändere …';
+  try{
+    await updateEmail(auth.currentUser, val);
+    document.getElementById('profilEmailInput').value = '';
+    renderSettingsTab();
+    out.textContent = 'Gespeichert — künftig mit ' + val + ' anmelden.';
+  }catch(e){
+    out.textContent = (e.code === 'auth/operation-not-allowed')
+      ? 'Firebase verlangt hier eine Bestätigung per Link statt einer direkten Änderung — dieses Projekt hat "Email enumeration protection" aktiv. Für jetzt: E-Mail-Adresse stattdessen direkt in der Firebase-Konsole unter Authentication ändern.'
+      : authErrText2(e);
+  }
+});
+
+document.getElementById('profilPwSave').addEventListener('click', async ()=>{
+  const out = document.getElementById('profilPwOut');
+  const val = document.getElementById('profilPwInput').value;
+  if(!val || val.length < 6){ out.textContent = 'Mindestens 6 Zeichen eintragen.'; return; }
+  out.textContent = 'Speichere …';
+  try{
+    const hatPasswort = auth.currentUser.providerData.some(p=>p.providerId==='password');
+    if(hatPasswort){
+      await updatePassword(auth.currentUser, val);
+    }else{
+      await linkWithCredential(auth.currentUser, EmailAuthProvider.credential(auth.currentUser.email, val));
+      renderSettingsTab();
+    }
+    document.getElementById('profilPwInput').value = '';
+    out.textContent = hatPasswort ? 'Gespeichert.' : 'Hinzugefügt — ihr könnt euch jetzt auch mit E-Mail und Passwort anmelden.';
+  }catch(e){
+    out.textContent = authErrText2(e);
   }
 });
 

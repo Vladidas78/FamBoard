@@ -16,6 +16,10 @@ Die Regeln lassen nur noch an einen Haushalt heran, wer als Mitglied eingetragen
 (`haushalte/<id>/members/<eure-uid>`) — nicht mehr jeden, der bloß angemeldet ist und die
 ID kennt.
 
+**Wichtig bei jedem Update von `database.rules.json`:** Die Datei im Repo ändert sich
+nur im Code — sie muss zusätzlich jedes Mal manuell hier eingefügt und veröffentlicht
+werden, das passiert nicht automatisch beim Deployen über Cloudflare Pages.
+
 ## Schritt 2 — Anmeldearten in Firebase aktivieren
 
 1. Firebase-Konsole → **Authentication** → Reiter **Sign-in method**
@@ -91,6 +95,15 @@ Codes bleiben nutzbar.
 
 Gehört jemand zu mehreren Haushalten (z. B. bei befreundeten Familien), erscheint im
 Reiter **Haushalt** oben eine Auswahl **Aktiver Haushalt** zum Umschalten.
+
+## Konto und Haushaltsname verwalten
+
+Reiter **Einstellungen** bündelt alles rund ums Konto: Haushaltsname (nur der
+Owner kann ihn ändern), euer eigener Anzeigename für die Mitgliederliste,
+E-Mail-Adresse und Passwort ändern, sowie — falls ihr euch bisher nur über Google
+angemeldet habt — nachträglich ein Passwort hinzufügen, um euch danach auch mit
+E-Mail/Passwort anmelden zu können. Mitglieder, Einladungslink und "Weiterem
+Haushalt beitreten" liegen ebenfalls hier.
 
 ## Nachträglich einem Haushalt beitreten
 

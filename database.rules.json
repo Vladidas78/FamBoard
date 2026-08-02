@@ -25,7 +25,7 @@
 
         "members": {
           "$uid2": {
-            ".write": "auth != null && ( root.child('haushalte/' + $haushalt + '/members/' + auth.uid + '/rolle').val() === 'owner' || (auth.uid === $uid2 && !newData.exists()) || (auth.uid === $uid2 && !data.exists() && ( !root.child('haushalte/' + $haushalt + '/members').hasChildren() || (newData.child('viaCode').exists() && root.child('einladungen/' + newData.child('viaCode').val() + '/haushalt').val() === $haushalt) )) )"
+            ".write": "auth != null && ( root.child('haushalte/' + $haushalt + '/members/' + auth.uid + '/rolle').val() === 'owner' || (auth.uid === $uid2 && !newData.exists()) || (auth.uid === $uid2 && !data.exists() && ( !root.child('haushalte/' + $haushalt + '/members').hasChildren() || (newData.child('viaCode').exists() && root.child('einladungen/' + newData.child('viaCode').val() + '/haushalt').val() === $haushalt) )) || (auth.uid === $uid2 && data.exists() && newData.child('rolle').val() === data.child('rolle').val()) )"
           }
         },
 
