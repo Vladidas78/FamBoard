@@ -140,6 +140,8 @@
   .meal-nutri{ font-family:'JetBrains Mono',monospace; font-size:0.72rem; color:var(--muted); margin-top:8px; display:flex; gap:8px; flex-wrap:wrap; }
   .meal-empty{ color:var(--faint); font-size:0.85rem; font-style:italic; padding:8px 2px; }
   .day-kcal{ font-family:'JetBrains Mono',monospace; font-size:0.72rem; color:var(--faint); margin:-4px 0 10px; }
+  .day-reset-btn{ display:block; width:100%; margin-top:10px; padding:6px; background:transparent; border:1px solid var(--danger); border-radius:var(--radius-sm); color:var(--danger); font-size:0.78rem; cursor:pointer; }
+  .day-reset-btn:hover{ background:var(--danger); color:#1a0808; }
   .slot{ border-top:1px solid var(--border-soft); padding-top:10px; margin-top:10px; }
   .slot:first-of-type{ border-top:none; padding-top:0; margin-top:0; }
   .slot-name{
@@ -484,6 +486,8 @@
   .nutri-week-total{ font-size:0.95rem; margin-bottom:4px; }
   .nutri-week-avg{ font-size:0.88rem; color:var(--muted); }
   .nutri-calc-row{ display:flex; justify-content:flex-end; margin:-6px 0 6px; }
+  .nutri-portion-row{ margin-top:6px; font-size:0.82rem; color:var(--muted); }
+  .nutri-portion-row input{ width:60px; margin-left:4px; padding:3px 6px; border-radius:6px; border:1px solid var(--border); background:var(--card-2); color:var(--text); }
 </style>
 </head>
 <body>
@@ -496,10 +500,10 @@
   <button class="tab active" data-tab="plan">Wochenplan</button>
   <button class="tab" data-tab="recipes">Rezepte</button>
   <button class="tab" data-tab="ingredients">Zutaten</button>
-  <button class="tab" data-tab="haushalt">Haushalt</button>
+  <button class="tab" data-tab="haushalt">Haushalt &amp; Drogerie</button>
   <button class="tab" data-tab="shop">Einkaufsliste</button>
   <button class="tab" data-tab="nutrition">Nährwerte</button>
-  <button class="tab" data-tab="pantry">Immer zuhause</button>
+  <button class="tab" data-tab="pantry">Haushalt</button>
 </nav>
 
 <main>
@@ -585,7 +589,7 @@
 
     <div class="card add-recipe" id="addPanel" style="display:none;">
       <div class="add-head">
-        <h3>Neues Rezept</h3>
+        <h3 id="addPanelTitle">Neues Rezept</h3>
         <button class="close-add" id="closeAdd" type="button" aria-label="Schließen">✕</button>
       </div>
       <div class="type-pick">
@@ -742,8 +746,9 @@
         <div class="wk" id="nutriWeekLabel">Nährwerte</div>
       </div>
       <p class="ex-hint">Auswertung auf Basis der im Wochenplan eingetragenen Rezepte. „Gesamt“ ist die
-        Summe für alle geplanten Portionen des Tages, „pro Person“ rechnet mit einer Portion je Mahlzeit.
-        Snacks zählen nicht mit, da für sie keine Nährwerte erfasst werden.</p>
+        Summe für den ganzen Haushalt an dem Tag. Trag bei „Portionen an diesem Tag“ ein, wie viele Portionen
+        du selbst isst — manche Tage sind das zwei, manche nur eine — die Werte „bei deinen Portionen“ rechnen
+        damit. Snacks zählen nicht mit, da für sie keine Nährwerte erfasst werden.</p>
       <div id="nutriDays"></div>
     </div>
     <div class="card">
@@ -759,13 +764,6 @@
       </div>
       <p class="ex-hint">Alle Zutaten aus euren Rezepten auf einen Blick. Tippt an, was ihr ohnehin immer da habt (Salz, Pfeffer, Öl …) — Ausgewähltes taucht dann in keiner Einkaufsliste mehr auf. Nochmal antippen hebt es wieder auf.</p>
       <div id="excludeChips" class="chips"></div>
-    </div>
-    <div class="card">
-      <div class="shop-head">
-        <div class="wk">Haushalt &amp; Drogerie <span class="count" id="hhExCount"></span></div>
-      </div>
-      <p class="ex-hint">Was ihr eh immer im Schrank habt — antippen markiert es als „immer zuhause“, das (+) im Reiter „Haushalt“ ist dann gesperrt.</p>
-      <div id="hhExcludeChips" class="chips"></div>
     </div>
     <div class="card">
       <div class="shop-head"><div class="wk">Abteilungen sortieren</div></div>
@@ -796,6 +794,7 @@
   </div>
 </div>
 
+<datalist id="ingNames"></datalist>
 <datalist id="units">
   <option>g</option><option>kg</option><option>ml</option><option>l</option>
   <option>Stk</option><option>EL</option><option>TL</option><option>Prise</option>
@@ -930,12 +929,12 @@ function emptyState(){
     checked: {},       // { wk: { key: true } }
     removed: {},       // { wk: { key: true } }
     qty: {},           // { wk: { key: "2 kg" } }  manuell überschriebene Mengen
+    nutriPortions: {}, // { wk: { Montag: 1.5 } }  eigene Portionenzahl fürs Nährwerte-Pro-Person
     excluded: [],      // normalisierte Zutatennamen
     catOverrides: {},  // { normKey: catId }
     marketOverrides: {}, // { normKey: "Rewe" } — welcher Laden für diese Zutat
     extras: [],        // { id, name, qty, cat, recurring, doneWk, from }
-    haushalt: [],              // { id, name, cat } — Katalog Haushalt & Drogerie, unabhängig von Rezepten
-    haushaltAusgeschlossen: [],// Haushalt-Katalog-IDs, die "immer zuhause" sind
+    haushalt: [],              // { id, name, cat, market } — Katalog Haushalt & Drogerie, unabhängig von Rezepten
     customIngredients: []      // { name } — manuell angelegte "Zutaten" ohne Rezeptbezug
   };
 }
@@ -1295,7 +1294,6 @@ function fromRemote(d){
   s.excluded = (d.excluded || []).filter(Boolean);
   s.extras   = (d.extras   || []).filter(Boolean);
   s.haushalt = (d.haushalt || []).filter(Boolean);
-  s.haushaltAusgeschlossen = (d.haushaltAusgeschlossen || []).filter(Boolean);
   s.customIngredients = (d.customIngredients || []).filter(Boolean);
   Object.keys(d.catOverrides || {}).forEach(k=>{ s.catOverrides[decKey(k)] = d.catOverrides[k]; });
   Object.keys(d.marketOverrides || {}).forEach(k=>{ s.marketOverrides[decKey(k)] = d.marketOverrides[k]; });
@@ -1319,6 +1317,7 @@ function fromRemote(d){
     Object.keys(w.checked || {}).forEach(k=>{ s.checked[wk][decKey(k)] = w.checked[k]; });
     Object.keys(w.removed || {}).forEach(k=>{ s.removed[wk][decKey(k)] = w.removed[k]; });
     Object.keys(w.qty     || {}).forEach(k=>{ s.qty[wk][decKey(k)]     = w.qty[k];     });
+    s.nutriPortions[wk] = Object.assign({}, w.nutriPortions || {});
   });
 
   // Übergangslösung: in einer früheren Fassung war "Haushalt" ein wöchentlich wiederkehrender
@@ -1359,7 +1358,6 @@ const saveRecipes  = ()          => put('data/recipes', recipesForRemote());
 const saveExcluded = ()          => put('data/excluded', state.excluded.length ? state.excluded : null);
 const saveExtras   = ()          => put('data/extras', (state.extras||[]).length ? state.extras : null);
 const saveHaushalt = ()          => put('data/haushalt', (state.haushalt||[]).length ? state.haushalt : null);
-const saveHaushaltAusgeschlossen = () => put('data/haushaltAusgeschlossen', (state.haushaltAusgeschlossen||[]).length ? state.haushaltAusgeschlossen : null);
 const saveCustomIngredients = () => put('data/customIngredients', (state.customIngredients||[]).length ? state.customIngredients : null);
 const savePersonen = ()          => put('data/settings/personen', state.settings.personen);
 const savePlanSlot = (wk,day,slot,e) => put('data/weeks/'+wk+'/plan/'+day+'/'+slot, e || null);
@@ -1368,6 +1366,7 @@ const saveCatOrder = ()          => put('data/settings/catOrder', (state.setting
 const saveChecked  = (wk,key,on) => put('data/weeks/'+wk+'/checked/'+encKey(key), on ? true : null);
 const saveRemoved  = (wk,key,on) => put('data/weeks/'+wk+'/removed/'+encKey(key), on ? true : null);
 const saveQty      = (wk,key,v)  => put('data/weeks/'+wk+'/qty/'+encKey(key), v || null);
+const saveNutriPortions = (wk,day,v) => put('data/weeks/'+wk+'/nutriPortions/'+day, (v && v!==1) ? v : null);
 const saveCatOv    = (key,cat)   => put('data/catOverrides/'+encKey(key), cat);
 const saveMarketOv = (key,markt) => put('data/marketOverrides/'+encKey(key), markt || null);
 const saveImage    = (id,data)   => put('images/'+id, data);
@@ -1462,7 +1461,7 @@ function pruneExtras(){
 function renderAll(){
   renderWeekNav(); renderMealConfig(); renderDayTrack();
   renderRecipeList(); renderShop(); renderExcludeChips(); renderIngredientsTab(); renderCatOrder();
-  renderHaushaltTab(); renderHaushaltExcludeChips(); renderNutritionReport();
+  renderHaushaltTab(); renderNutritionReport(); refreshIngNameDatalist();
 }
 
 /* =========================================================================
@@ -1734,9 +1733,11 @@ function renderDayTrack(){
       }).filter(Boolean).join(' · ');
       col.innerHTML = topHtml + '<div class="day-summary">'+(kurz ? escapeHtml(kurz) : 'nichts geplant')+'</div>';
     } else {
+      const hatEintraege = Object.keys(eintraege).length > 0;
       col.innerHTML = topHtml +
         (kcal ? '<div class="day-kcal">≈ '+kcal+' kcal pro Person</div>' : '') +
-        slots.map(sl=>renderSlot(wk, day, sl, eintraege[sl.id] || null)).join('');
+        slots.map(sl=>renderSlot(wk, day, sl, eintraege[sl.id] || null)).join('') +
+        (hatEintraege ? '<button class="day-reset-btn" type="button" data-day="'+day+'" title="Diesen Tag zurücksetzen">🗑 Tag zurücksetzen</button>' : '');
     }
     track.appendChild(col);
   });
@@ -1748,6 +1749,23 @@ function renderDayTrack(){
       renderDayTrack();
     });
   });
+
+  Array.prototype.forEach.call(track.querySelectorAll('.day-reset-btn'), b=>b.addEventListener('click', e=>{
+    const day = e.currentTarget.dataset.day;
+    const wkNow = weekKeyOf(currentMonday);
+    const backup = JSON.parse(JSON.stringify((state.plan[wkNow]||{})[day] || {}));
+    if(!Object.keys(backup).length) return;
+    if(!confirm('„'+day+'“ komplett zurücksetzen? Rezepte selbst bleiben erhalten.')) return;
+    state.plan[wkNow] = state.plan[wkNow] || {};
+    state.plan[wkNow][day] = {};
+    put('data/weeks/'+wkNow+'/plan/'+day, null);
+    renderDayTrack(); renderShop(); renderNutritionReport(); renderIngredientsTab();
+    showToast(day+' zurückgesetzt', ()=>{
+      state.plan[wkNow][day] = backup;
+      put('data/weeks/'+wkNow+'/plan/'+day, backup);
+      renderDayTrack(); renderShop(); renderNutritionReport(); renderIngredientsTab();
+    });
+  }));
 
   const setSlot = (day, slotId, wert)=>{
     const wkNow = weekKeyOf(currentMonday);
@@ -1992,6 +2010,7 @@ function renderRecipeList(){
         '</div>') +
         '<div class="add-to-week-row">' +
           '<button class="btn btn-soft btn-sm add-to-week" data-id="'+r.id+'" type="button">+ Zur Woche</button>' +
+          '<button class="btn btn-soft btn-sm edit-recipe" data-id="'+r.id+'" type="button">✏️ Bearbeiten</button>' +
           '<button class="btn btn-ghost btn-sm del-recipe" data-id="'+r.id+'" type="button">Entfernen</button>' +
         '</div>' +
         weekPickerHtml(r) +
@@ -2028,6 +2047,10 @@ function renderRecipeList(){
   };
   Array.prototype.forEach.call(list.querySelectorAll('.rv-minus'), b=>b.addEventListener('click', e=>rv(e.currentTarget.dataset.id,-1)));
   Array.prototype.forEach.call(list.querySelectorAll('.rv-plus'),  b=>b.addEventListener('click', e=>rv(e.currentTarget.dataset.id, 1)));
+
+  Array.prototype.forEach.call(list.querySelectorAll('.edit-recipe'), b=>b.addEventListener('click', e=>{
+    openEditRecipe(e.currentTarget.dataset.id);
+  }));
 
   Array.prototype.forEach.call(list.querySelectorAll('.fav-star'), b=>b.addEventListener('click', e=>{
     e.stopPropagation();
@@ -2248,7 +2271,43 @@ document.getElementById('fileInput').addEventListener('change', async (e)=>{
 const addPanel=document.getElementById('addPanel');
 const ioPanel=document.getElementById('ioPanel');
 function openAddPanel(){ ioPanel.style.display='none'; addPanel.style.display='block'; addPanel.scrollIntoView({behavior:'smooth',block:'start'}); document.getElementById('r-name').focus(); }
-function closeAddPanel(){ addPanel.style.display='none'; }
+function closeAddPanel(){ addPanel.style.display='none'; resetAddForm(); }
+function resetAddForm(){
+  editingRecipeId = null;
+  const rezeptRadio = document.querySelector('input[name=rType][value="rezept"]');
+  if(rezeptRadio) rezeptRadio.checked = true;
+  ['r-name','r-tags','r-description','r-kcal','r-protein-g','r-carbs-g','r-fat-g'].forEach(id=>{ document.getElementById(id).value=''; });
+  document.getElementById('ingRows').innerHTML=''; addIngRow();
+  pendingImage=null; document.getElementById('addImgPreview').innerHTML='';
+  syncTypFelder();
+  document.getElementById('addPanelTitle').textContent = 'Neues Rezept';
+  document.getElementById('saveRecipe').textContent = 'Rezept speichern';
+}
+async function openEditRecipe(id){
+  const r = state.recipes.filter(x=>x.id===id)[0];
+  if(!r) return;
+  editingRecipeId = id;
+  const radio = document.querySelector('input[name=rType][value="'+(istSnack(r)?'snack':'rezept')+'"]');
+  if(radio) radio.checked = true;
+  syncTypFelder();
+  document.getElementById('r-name').value = r.name || '';
+  document.getElementById('r-servings').value = r.servings || (istSnack(r) ? 1 : 4);
+  document.getElementById('r-tags').value = (r.tags||[]).join(', ');
+  document.getElementById('r-description').value = r.description || '';
+  document.getElementById('r-kcal').value = r.kcal || '';
+  document.getElementById('r-protein-g').value = r.prot || '';
+  document.getElementById('r-carbs-g').value = r.carbs || '';
+  document.getElementById('r-fat-g').value = r.fat || '';
+  document.getElementById('ingRows').innerHTML = '';
+  (r.ingredients||[]).forEach(ing=>addIngRow(ing));
+  if(!(r.ingredients||[]).length) addIngRow();
+  pendingImage = null;
+  if(r.hasImage && imageCache[id] === undefined){ await loadImage(id); }
+  document.getElementById('addImgPreview').innerHTML = (r.hasImage && imgOf(r)) ? '<img src="'+imgOf(r)+'" alt="Vorschau">' : '';
+  document.getElementById('addPanelTitle').textContent = 'Rezept bearbeiten';
+  document.getElementById('saveRecipe').textContent = 'Änderungen speichern';
+  openAddPanel();
+}
 document.getElementById('openAdd').addEventListener('click', ()=>{ addPanel.style.display==='none' ? openAddPanel() : closeAddPanel(); });
 document.getElementById('closeAdd').addEventListener('click', closeAddPanel);
 document.getElementById('openIO').addEventListener('click', ()=>{
@@ -2272,6 +2331,7 @@ document.getElementById('recSectionHead').addEventListener('click', ()=>{
 
 let ingRowCount=0;
 let pendingImage=null;
+let editingRecipeId=null;   // gesetzt, solange das Formular ein bestehendes Rezept bearbeitet
 
 function aktuellerTyp(){
   const el = document.querySelector('input[name=rType]:checked');
@@ -2297,13 +2357,20 @@ document.getElementById('r-image-input').addEventListener('change', async e=>{
     setStatus('');
   }catch(err){ setStatus('Das Bild ließ sich nicht laden. Versuch ein anderes Format.'); setTimeout(()=>setStatus(''),2500); }
 });
+function refreshIngNameDatalist(){
+  const dl = document.getElementById('ingNames');
+  if(!dl) return;
+  const names = allIngredientNames();
+  dl.innerHTML = Object.keys(names).map(k=>'<option value="'+escapeHtml(names[k])+'">').join('');
+}
 function addIngRow(pref){
+  refreshIngNameDatalist();
   const c=document.getElementById('ingRows');
   const id='ir'+(ingRowCount++);
   const row=document.createElement('div');
   row.className='ing-input-row'; row.id=id;
   row.innerHTML=
-    '<input class="in-name" placeholder="Zutat" value="'+(pref?escapeHtml(pref.name):'')+'">' +
+    '<input class="in-name" list="ingNames" placeholder="Zutat" value="'+(pref?escapeHtml(pref.name):'')+'">' +
     '<input class="in-amt" type="number" step="any" placeholder="Menge" value="'+(pref?pref.amount:'')+'">' +
     '<input class="in-unit" list="units" placeholder="Einheit" value="'+(pref?escapeHtml(pref.unit):'')+'">' +
     '<button type="button" class="x" aria-label="Zeile entfernen">✕</button>';
@@ -2335,7 +2402,6 @@ document.getElementById('saveRecipe').addEventListener('click', async ()=>{
   if(!name){ alert('Das Rezept braucht noch einen Namen.'); return; }
   const ingredients = ingRowsToIngredients();
   const serv = parseInt(document.getElementById('r-servings').value,10);
-  const neueId = 'r'+Date.now();
   const typ = aktuellerTyp();
   let kcalIn  = parseFloat(document.getElementById('r-kcal').value)||0;
   let protIn  = parseFloat(document.getElementById('r-protein-g').value)||0;
@@ -2346,27 +2412,32 @@ document.getElementById('saveRecipe').addEventListener('click', async ()=>{
     const n = computeRecipeNutrition(ingredients);
     kcalIn=n.kcal; protIn=n.prot; carbsIn=n.carbs; fatIn=n.fat;
   }
-  state.recipes.push({
-    id:neueId, name:name, ingredients:ingredients, type:typ,
+  const bestehend = editingRecipeId ? state.recipes.filter(x=>x.id===editingRecipeId)[0] : null;
+  const id = bestehend ? bestehend.id : 'r'+Date.now();
+  const eintrag = {
+    id:id, name:name, ingredients:ingredients, type:typ,
     servings: (serv && serv>0) ? serv : (typ==='snack' ? 1 : 4),
     tags: parseTags(document.getElementById('r-tags').value),
     description: typ==='snack' ? '' : document.getElementById('r-description').value.trim(),
-    hasImage: typ==='snack' ? false : !!pendingImage,
+    hasImage: typ==='snack' ? false : (pendingImage ? true : !!(bestehend && bestehend.hasImage)),
+    fav: bestehend ? !!bestehend.fav : false,
     kcal: typ==='snack' ? 0 : kcalIn,
     prot: typ==='snack' ? 0 : protIn,
     carbs:typ==='snack' ? 0 : carbsIn,
     fat:  typ==='snack' ? 0 : fatIn
-  });
-  if(pendingImage){ imageCache[neueId] = pendingImage; saveImage(neueId, pendingImage); }
+  };
+  if(bestehend){
+    state.recipes[state.recipes.indexOf(bestehend)] = eintrag;
+  } else {
+    state.recipes.push(eintrag);
+  }
+  if(pendingImage){ imageCache[id] = pendingImage; saveImage(id, pendingImage); }
   saveRecipes();
-  pendingImage=null; document.getElementById('addImgPreview').innerHTML='';
-  ['r-name','r-tags','r-description','r-kcal','r-protein-g','r-carbs-g','r-fat-g'].forEach(id=>{ document.getElementById(id).value=''; });
-  document.getElementById('ingRows').innerHTML=''; addIngRow();
-  syncTypFelder();
+  const warBearbeitung = !!bestehend;
   closeAddPanel();
   document.getElementById('recSectionHead').closest('.collapse-section').classList.remove('collapsed');
   renderAll();
-  setStatus('Rezept gespeichert ✓'); setTimeout(()=>setStatus(''),1500);
+  setStatus(warBearbeitung ? 'Änderungen gespeichert ✓' : 'Rezept gespeichert ✓'); setTimeout(()=>setStatus(''),1500);
 });
 
 /* =========================================================================
@@ -2463,7 +2534,7 @@ function buildItems(wk){
       key: 'x|'+x.id, kind:'extra', name: x.name,
       qty: x.qty || '', edited: false, recurring: !!x.recurring, from: x.from || null,
       cat: x.cat || guessCategory(x.name),
-      market: marketOf(x.name),
+      market: x.market || marketOf(x.name),
       checked: x.recurring ? !!state.checked[wk]['x|'+x.id] : (x.doneWk === wk)
     });
   });
@@ -2499,38 +2570,60 @@ function computeDayNutrition(wk, day){
   });
   return out;
 }
+function nutriPortionsFor(wk, day){
+  const v = (state.nutriPortions[wk]||{})[day];
+  return (typeof v === 'number' && v > 0) ? v : 1;
+}
 function renderNutritionReport(){
   const wk = weekKeyOf(currentMonday);
   const label = document.getElementById('nutriWeekLabel');
   if(!label) return;   // Tab noch nicht im DOM (z. B. beim allerersten Render)
   label.textContent = 'Nährwerte · KW '+isoWeek(currentMonday).week;
 
-  const rows = DAYS.map(day=>({day:day, d:computeDayNutrition(wk, day)}));
+  const rows = DAYS.map(day=>({day:day, d:computeDayNutrition(wk, day), portionen:nutriPortionsFor(wk, day)}));
   const sum = rows.reduce((acc,row)=>{
-    ['totalKcal','totalProt','totalCarbs','totalFat','perPersonKcal','perPersonProt','perPersonCarbs','perPersonFat'].forEach(k=>{
-      acc[k] += row.d[k];
-    });
+    const f = row.portionen;
+    acc.totalKcal += row.d.totalKcal; acc.totalProt += row.d.totalProt; acc.totalCarbs += row.d.totalCarbs; acc.totalFat += row.d.totalFat;
+    acc.eigenKcal  += row.d.perPersonKcal  * f;
+    acc.eigenProt  += row.d.perPersonProt  * f;
+    acc.eigenCarbs += row.d.perPersonCarbs * f;
+    acc.eigenFat   += row.d.perPersonFat   * f;
     return acc;
-  }, {totalKcal:0,totalProt:0,totalCarbs:0,totalFat:0,perPersonKcal:0,perPersonProt:0,perPersonCarbs:0,perPersonFat:0});
+  }, {totalKcal:0,totalProt:0,totalCarbs:0,totalFat:0,eigenKcal:0,eigenProt:0,eigenCarbs:0,eigenFat:0});
 
   document.getElementById('nutriDays').innerHTML = rows.map(row=>{
     const hat = row.d.totalKcal > 0;
+    const f = row.portionen;
     return '<div class="nutri-day-row'+(hat?'':' empty')+'">' +
       '<div class="nutri-day-label">'+row.day+'</div>' +
       '<div class="nutri-day-vals">' +
         '<span>'+Math.round(row.d.totalKcal)+' kcal gesamt</span>' +
-        '<span>'+Math.round(row.d.perPersonKcal)+' kcal/Person</span>' +
-        '<span>E '+Math.round(row.d.perPersonProt)+' g</span>' +
-        '<span>KH '+Math.round(row.d.perPersonCarbs)+' g</span>' +
-        '<span>F '+Math.round(row.d.perPersonFat)+' g</span>' +
+        '<span>'+Math.round(row.d.perPersonKcal*f)+' kcal bei deinen Portionen</span>' +
+        '<span>E '+Math.round(row.d.perPersonProt*f)+' g</span>' +
+        '<span>KH '+Math.round(row.d.perPersonCarbs*f)+' g</span>' +
+        '<span>F '+Math.round(row.d.perPersonFat*f)+' g</span>' +
+      '</div>' +
+      '<div class="nutri-portion-row">' +
+        '<label>Portionen an diesem Tag: <input type="number" class="nutri-portion-input" data-day="'+row.day+'" min="0" step="0.5" value="'+f+'"></label>' +
       '</div>' +
     '</div>';
   }).join('');
 
   const activeDays = rows.filter(row=>row.d.totalKcal > 0).length || 1;
   document.getElementById('nutriWeekSum').innerHTML =
-    '<div class="nutri-week-total"><strong>Gesamt:</strong> '+Math.round(sum.totalKcal)+' kcal · E '+Math.round(sum.totalProt)+' g · KH '+Math.round(sum.totalCarbs)+' g · F '+Math.round(sum.totalFat)+' g</div>' +
-    '<div class="nutri-week-avg">Ø pro Tag &amp; Person: '+Math.round(sum.perPersonKcal/activeDays)+' kcal · E '+Math.round(sum.perPersonProt/activeDays)+' g · KH '+Math.round(sum.perPersonCarbs/activeDays)+' g · F '+Math.round(sum.perPersonFat/activeDays)+' g</div>';
+    '<div class="nutri-week-total"><strong>Gesamt (Haushalt):</strong> '+Math.round(sum.totalKcal)+' kcal · E '+Math.round(sum.totalProt)+' g · KH '+Math.round(sum.totalCarbs)+' g · F '+Math.round(sum.totalFat)+' g</div>' +
+    '<div class="nutri-week-total"><strong>Bei deinen Portionen:</strong> '+Math.round(sum.eigenKcal)+' kcal · E '+Math.round(sum.eigenProt)+' g · KH '+Math.round(sum.eigenCarbs)+' g · F '+Math.round(sum.eigenFat)+' g</div>' +
+    '<div class="nutri-week-avg">Ø pro Tag: '+Math.round(sum.eigenKcal/activeDays)+' kcal · E '+Math.round(sum.eigenProt/activeDays)+' g · KH '+Math.round(sum.eigenCarbs/activeDays)+' g · F '+Math.round(sum.eigenFat/activeDays)+' g</div>';
+
+  Array.prototype.forEach.call(document.querySelectorAll('.nutri-portion-input'), inp=>inp.addEventListener('change', e=>{
+    const day = e.currentTarget.dataset.day;
+    const v = parseFloat(e.currentTarget.value);
+    const val = (v && v>0) ? v : 1;
+    state.nutriPortions[wk] = state.nutriPortions[wk] || {};
+    state.nutriPortions[wk][day] = val;
+    saveNutriPortions(wk, day, val);
+    renderNutritionReport();
+  }));
 }
 
 function renderShop(){
@@ -2843,25 +2936,35 @@ function renderHaushaltTab(){
     return;
   }
   box.innerHTML = items.map(it=>{
-    const ausgeschlossen = (state.haushaltAusgeschlossen||[]).indexOf(it.id) >= 0;
     const aufListe = haushaltIstAufListe(it);
-    const plusAttrs = ausgeschlossen
-      ? 'disabled title="Als \'immer zuhause\' markiert"'
-      : (aufListe ? 'disabled title="Schon auf der Liste"' : 'title="Zur Einkaufsliste"');
-    return '<li class="hh-row'+(ausgeschlossen?' excluded':'')+'" data-id="'+it.id+'">' +
-      '<span class="hh-name">'+escapeHtml(it.name)+(ausgeschlossen?' <span class="rep-badge">immer zuhause</span>':'')+'</span>' +
-      '<button class="hh-add-list" type="button" '+plusAttrs+'>'+((aufListe && !ausgeschlossen) ? '✓' : '+')+'</button>' +
+    const plusAttrs = aufListe ? 'disabled title="Schon auf der Liste"' : 'title="Zur Einkaufsliste"';
+    return '<li class="hh-row" data-id="'+it.id+'">' +
+      '<div style="flex:1;min-width:0;">' +
+        '<span class="hh-name">'+escapeHtml(it.name)+'</span>' +
+        '<div><button class="market-tag-btn" type="button" data-id="'+it.id+'">'+(it.market?'🏬 '+escapeHtml(it.market):'🏬 Laden zuordnen')+'</button></div>' +
+      '</div>' +
+      '<button class="hh-add-list" type="button" '+plusAttrs+'>'+(aufListe ? '✓' : '+')+'</button>' +
       '<button class="hh-del" type="button" title="Katalog-Eintrag löschen" aria-label="'+escapeHtml(it.name)+' löschen">🗑</button>' +
     '</li>';
   }).join('');
 
+  Array.prototype.forEach.call(box.querySelectorAll('.market-tag-btn'), b=>b.addEventListener('click', e=>{
+    const id = e.currentTarget.dataset.id;
+    const item = (state.haushalt||[]).filter(x=>x.id===id)[0];
+    if(!item) return;
+    const eingabe = prompt('In welchem Laden kauft ihr „'+item.name+'“ meistens? (leer lassen, um es wieder zu entfernen)', item.market||'');
+    if(eingabe === null) return;
+    const neu = eingabe.trim();
+    if(neu) item.market = neu; else delete item.market;
+    saveHaushalt(); renderHaushaltTab();
+  }));
   Array.prototype.forEach.call(box.querySelectorAll('.hh-add-list'), b=>b.addEventListener('click', e=>{
     const id = e.currentTarget.closest('.hh-row').dataset.id;
     const item = (state.haushalt||[]).filter(x=>x.id===id)[0];
     if(!item) return;
     state.extras.push({
       id: 'e'+Date.now()+Math.random().toString(36).slice(2,5),
-      name: item.name, qty:'', cat: item.cat || 'haushalt',
+      name: item.name, qty:'', cat: item.cat || 'haushalt', market: item.market || '',
       recurring:false, doneWk:null, from: item.id
     });
     saveExtras(); renderHaushaltTab(); renderShop();
@@ -2873,10 +2976,9 @@ function renderHaushaltTab(){
     if(idx<0) return;
     const backup = state.haushalt[idx];
     state.haushalt.splice(idx,1);
-    state.haushaltAusgeschlossen = (state.haushaltAusgeschlossen||[]).filter(x=>x!==id);
-    saveHaushalt(); saveHaushaltAusgeschlossen(); renderHaushaltTab(); renderHaushaltExcludeChips();
+    saveHaushalt(); renderHaushaltTab();
     showToast(backup.name+' aus dem Katalog gelöscht', ()=>{
-      state.haushalt.splice(idx,0,backup); saveHaushalt(); renderHaushaltTab(); renderHaushaltExcludeChips();
+      state.haushalt.splice(idx,0,backup); saveHaushalt(); renderHaushaltTab();
     });
   }));
 }
@@ -2890,30 +2992,10 @@ async function addHaushaltItem(){
   }
   state.haushalt.push({ id:'h'+Date.now()+Math.random().toString(36).slice(2,5), name:name, cat:'haushalt' });
   nameEl.value = '';
-  saveHaushalt(); renderHaushaltTab(); renderHaushaltExcludeChips(); nameEl.focus();
+  saveHaushalt(); renderHaushaltTab(); nameEl.focus();
 }
 document.getElementById('hhAdd').addEventListener('click', addHaushaltItem);
 document.getElementById('hhName').addEventListener('keydown', e=>{ if(e.key==='Enter') addHaushaltItem(); });
-
-/* ---------- Immer zuhause: Bereich für den Haushalt-Katalog ---------- */
-function renderHaushaltExcludeChips(){
-  const box = document.getElementById('hhExcludeChips');
-  const cnt = document.getElementById('hhExCount');
-  if(!box) return;
-  const items = (state.haushalt||[]).slice().sort((a,b)=>a.name.localeCompare(b.name,'de'));
-  const anzahl = (state.haushaltAusgeschlossen||[]).length;
-  if(cnt) cnt.textContent = anzahl ? '· '+anzahl+' ausgeschlossen' : '';
-  box.innerHTML = items.length
-    ? items.map(it=>'<span class="chip '+((state.haushaltAusgeschlossen||[]).indexOf(it.id)>=0?'excluded':'')+'" data-id="'+it.id+'">'+escapeHtml(it.name)+'</span>').join('')
-    : '<span class="chips-empty">Leg im Reiter „Haushalt“ Artikel an, dann erscheinen sie hier.</span>';
-  Array.prototype.forEach.call(box.querySelectorAll('.chip'), chip=>chip.addEventListener('click', ()=>{
-    const id = chip.dataset.id;
-    state.haushaltAusgeschlossen = state.haushaltAusgeschlossen || [];
-    const i = state.haushaltAusgeschlossen.indexOf(id);
-    if(i>=0) state.haushaltAusgeschlossen.splice(i,1); else state.haushaltAusgeschlossen.push(id);
-    saveHaushaltAusgeschlossen(); renderHaushaltExcludeChips(); renderHaushaltTab();
-  }));
-}
 
 /* =========================================================================
    16. „Immer zuhause"
