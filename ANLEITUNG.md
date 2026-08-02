@@ -21,8 +21,11 @@ ID kennt.
 1. Firebase-Konsole → **Authentication** → Reiter **Sign-in method**
 2. **E-Mail/Passwort** aktivieren
 3. **Google** aktivieren, Support-E-Mail eintragen (Firebase fragt danach), speichern
-4. Unter **Settings → Authorized domains** eure `.pages.dev`-Adresse eintragen (und später
-   eine eigene Domain, falls ihr eine anbindet) — sonst schlägt die Anmeldung dort fehl
+4. Unter **Settings → Authorized domains** eure tatsächliche Live-Adresse eintragen —
+   bei euch aktuell `famboard.flavor7878.workers.dev` (steht oben im Cloudflare-Pages-
+   Projekt; kann `.pages.dev` oder `.workers.dev` heißen, je nach Cloudflare-Projekttyp) —
+   und später eine eigene Domain, falls ihr eine anbindet. Sonst schlägt die Google-
+   Anmeldung dort fehl (`auth/unauthorized-domain`).
 
 Die alte anonyme Anmeldung wird nicht mehr gebraucht und kann in Firebase deaktiviert
 bleiben oder ausgeschaltet werden.
@@ -41,7 +44,9 @@ von Cloudflare Pages automatisch von dort veröffentlicht — kein manuelles Hoc
    directory **/**
 5. **Save and Deploy**
 
-Du bekommst eine Adresse wie `https://famboard.pages.dev`.
+Du bekommst eine Adresse wie `https://famboard.pages.dev` oder, je nach Cloudflare-
+Projekttyp, `https://famboard.<dein-konto>.workers.dev` — bei euch aktuell
+`https://famboard.flavor7878.workers.dev`.
 
 ## Schritt 4 — Auf dem Handy installieren
 
@@ -87,6 +92,16 @@ Codes bleiben nutzbar.
 Gehört jemand zu mehreren Haushalten (z. B. bei befreundeten Familien), erscheint im
 Reiter **Haushalt** oben eine Auswahl **Aktiver Haushalt** zum Umschalten.
 
+## Nachträglich einem Haushalt beitreten
+
+Ist beim ersten Login (z. B. über Google, ohne das Alt-ID-Feld beim Registrieren
+auszufüllen) aus Versehen ein neuer, leerer Haushalt entstanden, ist das kein Problem:
+Reiter **Haushalt** → Karte **Weiterem Haushalt beitreten** → dort die eigentliche
+Haushalts-ID (`hh-…`) oder einen Einladungscode eintragen → **Beitreten**. Das Konto
+gehört danach zu beiden Haushalten, umschalten geht über **Aktiver Haushalt** oben in
+demselben Reiter. Der leere Haushalt lässt sich aktuell nicht löschen, stört aber auch
+nicht weiter, wenn er einfach ignoriert wird.
+
 ## Neue Version einspielen
 
 Datei ändern → in Git Gui (oder GitHub Desktop) taucht sie als Änderung auf →
@@ -111,9 +126,9 @@ Tippfehler prüfen, sonst über **Passwort vergessen?** ein neues setzen.
 Firebase → Authentication → Sign-in method → **E-Mail/Passwort** bzw. **Google**
 aktivieren (Schritt 2).
 
-**Google-Anmeldung klappt lokal, aber nicht auf der pages.dev-Adresse**
-Firebase → Authentication → Settings → **Authorized domains** → eure `.pages.dev`-
-Adresse ergänzen.
+**Google-Anmeldung klappt lokal, aber nicht auf der Live-Adresse**
+Firebase → Authentication → Settings → **Authorized domains** → eure tatsächliche
+Live-Adresse ergänzen (bei euch `famboard.flavor7878.workers.dev`).
 
 **„Kein Zugriff auf die Datenbank … stimmen die Regeln?“**
 Die Regeln aus Schritt 1 sind nicht veröffentlicht, oder euer Konto ist (noch) kein

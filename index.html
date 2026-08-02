@@ -862,6 +862,15 @@
       <div class="ex-hint" id="inviteOut" style="margin-top:10px;"></div>
       <ul class="member-list" id="memberList"></ul>
     </div>
+    <div class="card">
+      <div class="shop-head"><div class="wk">Weiterem Haushalt beitreten</div></div>
+      <p class="ex-hint">Für einen zusätzlichen Haushalt, den ihr schon von früher kennt (Haushalts-ID, z. B. <code>hh-…</code>), oder um einen Einladungscode einzulösen, den ihr nicht über den Link, sondern z. B. per Nachricht bekommen habt.</p>
+      <div class="ing-input-row" style="grid-template-columns:1fr 100px;">
+        <input type="text" id="joinHhInput" placeholder="hh-… oder Einladungscode" autocomplete="off" style="font-family:'JetBrains Mono',monospace; font-size:0.82rem;">
+        <button class="btn btn-primary" id="joinHhBtn" type="button">Beitreten</button>
+      </div>
+      <div class="ex-hint" id="joinHhOut" style="margin-top:10px;"></div>
+    </div>
     <div class="storage-note" id="storageNote"></div>
   </section>
 </main>
@@ -3655,6 +3664,38 @@ async function renderMemberList(){
     box.innerHTML = rows.join('') || '<li class="hh-empty">Noch keine Mitglieder geladen.</li>';
   }catch(e){ box.innerHTML = ''; }
 }
+
+/* Nachträglich einem weiteren Haushalt beitreten — deckt den Fall ab, dass beim ersten
+   Login (z. B. über Google, ohne das Alt-ID-Feld auszufüllen) schon ein neuer, leerer
+   Haushalt entstanden ist und man danach noch den eigentlichen Haushalt claimen oder
+   einer Einladung folgen möchte. "hh-…" wird als Haushalts-ID behandelt, alles andere
+   als Einladungscode. */
+document.getElementById('joinHhBtn').addEventListener('click', async ()=>{
+  const out = document.getElementById('joinHhOut');
+  const inp = document.getElementById('joinHhInput');
+  const val = (inp.value || '').trim();
+  if(!auth.currentUser){ out.textContent = 'Bitte kurz warten, bis die Anmeldung fertig ist.'; return; }
+  if(!val){ out.textContent = 'Bitte eine Haushalts-ID oder einen Einladungscode eingeben.'; return; }
+  out.textContent = 'Prüfe …';
+  try{
+    let hhId;
+    if(/^hh-/.test(val)){
+      const ok = await versucheClaim(val, auth.currentUser.uid);
+      if(!ok) throw { message: 'Diese Haushalts-ID gehört schon zu einem Konto. Fragt stattdessen nach einem Einladungslink.' };
+      hhId = val;
+    } else {
+      hhId = await tritteUeberEinladungBei(val, auth.currentUser.uid);
+    }
+    await aktiviereHaushalt(hhId);
+    const mitgliedschaften = await ladeMitgliedschaften(auth.currentUser.uid);
+    renderHhSwitch(mitgliedschaften);
+    loadState();
+    out.textContent = 'Beigetreten — ihr seht jetzt „' + aktivesHaushaltName + '“.';
+    inp.value = '';
+  }catch(e){
+    out.textContent = e.message || ('Beitreten fehlgeschlagen (' + (e.code || '') + ').');
+  }
+});
 
 /* Service Worker: sorgt dafür, dass die App auch ohne Netz startet */
 if('serviceWorker' in navigator && location.protocol.indexOf('http') === 0){
