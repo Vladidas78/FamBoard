@@ -14,21 +14,11 @@
   "assets": {
     "directory": "./public",
     "binding": "ASSETS"
-  }
+  },
 
-  // ---------------------------------------------------------------------------
-  // Tageslimit für den Rezept-Import (optional, siehe ANLEITUNG.md)
-  //
-  // Ohne diesen Block funktioniert der Import trotzdem — dann greift nur die
-  // Anmeldepflicht, aber kein Tageslimit und keine Premium-Staffelung.
-  //
-  // Zum Aktivieren: in Cloudflare unter Storage & Databases → KV einen Namespace
-  // "famboard-limits" anlegen, dessen ID kopieren, dann das Komma nach der
-  // schließenden Klammer von "assets" oben ergänzen und den folgenden Block
-  // einkommentieren:
-  //
-  // "kv_namespaces": [
-  //   { "binding": "IMPORT_LIMITS", "id": "HIER_DIE_NAMESPACE_ID_EINSETZEN" }
-  // ]
-  // ---------------------------------------------------------------------------
+  // Tageslimit und Premium-Staffelung für den Rezept-Import (siehe ANLEITUNG.md).
+  // Stufen werden als KV-Einträge gepflegt: tier:<e-mail> = premium | unbegrenzt | gesperrt
+  "kv_namespaces": [
+    { "binding": "IMPORT_LIMITS", "id": "69667679030849d3a96dd6ce69379fb8" }
+  ]
 }
