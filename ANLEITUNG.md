@@ -84,6 +84,121 @@ Rezepte, die ihr vorher schon per Excel gesichert habt, holt ihr euch bei Bedarf
 
 ---
 
+## Rezept-Import per Link, Text oder Foto einrichten
+
+Reiter **Rezepte → 🤖 Rezept importieren** liest ein Rezept von einer Webseite, aus
+eingefügtem Text oder von einem Foto ein und füllt das Formular „Neues Rezept" damit
+vor — geprüft und gespeichert wird von Hand. Dafür ruft ein Cloudflare Worker
+(`src/worker.js` → `src/import-recipe.js`) die Anthropic-API auf (Modell Sonnet).
+
+### Wie das Projekt aufgebaut ist
+
+FamBoard läuft als **Cloudflare Worker mit statischen Assets** (nicht als Pages-Projekt):
+
+```
+wrangler.jsonc     Konfiguration: Name, Assets-Ordner, Bindings
+public/            die App selbst — index.html, sw.js, manifest, icons/
+src/worker.js      beantwortet /api/… , alles andere geht an public/
+src/import-recipe.js   die eigentliche Import-Logik
+```
+
+Wichtig: Der Ordner `functions/` (Pages-Konvention) funktioniert hier **nicht**. Solange
+ein Worker nur statische Dateien ausliefert, lässt Cloudflare außerdem weder
+Umgebungsvariablen noch KV-Bindings zu — die Meldung lautet dann *„Variables cannot be
+added to a Worker that only has static assets."* Erst durch `main: src/worker.js` in
+`wrangler.jsonc` wird daraus ein richtiger Worker.
+
+### Anthropic-API-Key hinterlegen
+
+1. platform.claude.com → **Settings → API keys** → **Create Key**, am besten in einem
+   eigenen Workspace mit eigenem Ausgabenlimit (siehe unten). Key beginnt mit `sk-ant-`
+   und wird nur einmal angezeigt.
+2. dash.cloudflare.com → **Workers & Pages** → Projekt **famboard** → **Settings** →
+   **Variables and Secrets** → **Add**
+3. Name `ANTHROPIC_API_KEY`, Wert der Key, Type **Secret**
+4. Speichern
+
+Das geht erst, **nachdem** die neue Struktur mit `src/worker.js` einmal deployt wurde —
+vorher zeigt Cloudflare dort nur den Hinweis auf statische Assets.
+
+Der Key liegt nur im Worker und ist im ausgelieferten Code (`index.html`) nicht
+sichtbar. Jeder Import kostet grob 1–2 Cent.
+
+### Ausgabenlimit setzen (unbedingt machen)
+
+platform.claude.com → **Manage → Limits** → monatliches Ausgabenlimit eintragen. Noch
+besser: vorher unter dem Workspace-Umschalter oben links (steht standardmäßig auf
+**Default**) einen eigenen Workspace `FamBoard` anlegen, diesem ein eigenes Limit geben
+und den API-Key darin erzeugen. Dann ist der Schaden auch dann begrenzt, wenn der Key
+abhandenkommt.
+
+Guthaben ist Prepaid — ohne aufgeladenes Guthaben schlägt jeder Import fehl,
+unabhängig vom Limit.
+
+### Wer darf wie oft importieren?
+
+Der Import ist **nur für angemeldete FamBoard-Nutzer** nutzbar: Die App schickt das
+Firebase-Token mit, der Worker prüft es bei Google nach. Fremde, die die Adresse
+`/api/import-recipe` kennen, kommen damit nicht durch.
+
+Zusätzlich gibt es ein Tageslimit pro Konto, gestaffelt nach Stufe. Dafür braucht es
+einen KV-Speicher:
+
+1. dash.cloudflare.com → **Storage & Databases** → **KV** → **Create** →
+   Name `famboard-limits`
+2. Die **Namespace-ID** kopieren (steht in der Übersicht neben dem Namen)
+3. In `wrangler.jsonc` den auskommentierten Block am Ende aktivieren: hinter der
+   schließenden Klammer von `"assets"` ein Komma setzen und einfügen:
+
+   ```jsonc
+   "kv_namespaces": [
+     { "binding": "IMPORT_LIMITS", "id": "hier-die-kopierte-id" }
+   ]
+   ```
+
+4. Committen und pushen — Cloudflare deployt neu und das Binding ist aktiv
+
+Das Binding gehört bewusst in `wrangler.jsonc` und nicht in die Weboberfläche: Bei
+einem Workers-Projekt überschreibt die Konfigurationsdatei bei jedem Deploy, was im
+Dashboard eingetragen wurde. Secrets (der API-Key) sind davon ausgenommen und bleiben
+erhalten.
+
+Standardlimits: **10 Importe pro Tag** für normale Konten, **100** für Premium. Ändern
+lässt sich das über die optionalen Variablen `IMPORT_LIMIT_FREE` und
+`IMPORT_LIMIT_PREMIUM` (gleiche Stelle wie `ANTHROPIC_API_KEY`, aber Type **Text**).
+
+**Jemanden auf Premium setzen:** KV-Namespace in der Cloudflare-Oberfläche öffnen
+(**Storage & Databases → KV → famboard-limits → KV Pairs**) und einen Eintrag anlegen:
+
+| Key | Value | Wirkung |
+|---|---|---|
+| `tier:anna@example.com` | `premium` | 100 Importe pro Tag |
+| `tier:anna@example.com` | `unbegrenzt` | kein Tageslimit |
+| `tier:anna@example.com` | `gesperrt` | darf gar nicht importieren |
+
+Statt der E-Mail geht auch `tier:<firebase-uid>`. Wer keinen Eintrag hat, ist
+automatisch auf der normalen Stufe. Änderungen wirken sofort, ohne neues Deployment.
+Das Tageslimit läuft nach deutscher Zeit und geht um Mitternacht zurück.
+
+Ohne KV-Binding funktioniert der Import trotzdem — dann greift nur die Anmeldepflicht,
+aber kein Tageslimit.
+
+**„ANTHROPIC_API_KEY ist im Worker nicht gesetzt"** — das Secret fehlt oder wurde nach
+dem Eintragen noch nicht neu deployt.
+
+**„Variables cannot be added to a Worker that only has static assets"** — der Worker
+(`src/worker.js` + `wrangler.jsonc`) ist noch nicht deployt. Erst pushen, dann lässt
+sich das Secret eintragen.
+
+**Import meldet 404 oder „Verbindung zum Server fehlgeschlagen"** — `src/` oder
+`wrangler.jsonc` wurden nicht mitgepusht, oder `main` fehlt in `wrangler.jsonc`.
+
+**„Nicht angemeldet. Bitte die Seite neu laden"** — die Anmeldung war beim Klick noch
+nicht fertig oder das Token ist abgelaufen; neu laden reicht.
+
+**„Tageslimit erreicht"** — entweder abwarten bis Mitternacht oder das Konto im
+KV-Speicher auf `premium` setzen.
+
 ## Weitere Personen einladen
 
 Reiter **Haushalt** → Karte **Mitglieder** → **🔗 Einladungslink erzeugen**. Der Link

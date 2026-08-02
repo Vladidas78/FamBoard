@@ -630,6 +630,7 @@
     <div class="rec-toolbar">
       <button class="btn btn-soft fav-toggle" id="favOnlyToggle" type="button">★ Favoriten</button>
       <button class="btn btn-soft" id="openIO" type="button">⇄ Excel</button>
+      <button class="btn btn-soft" id="openImport" type="button">🤖 Rezept importieren</button>
       <button class="btn btn-primary" id="openAdd" type="button">+ Neues Rezept</button>
     </div>
 
@@ -664,6 +665,40 @@
         <p class="hint"><em>Portionen</em> sagt, für wie viele Personen die Mengen gelten. Fehlt die Spalte, rechnet die App mit 4.</p>
         <p class="hint"><em>Typ</em> ist entweder <em>Rezept</em> oder <em>Snack</em>. Snacks brauchen nur Name und Zutaten und erscheinen im Snack-Feld des Wochenplans. Fehlt die Spalte, gilt alles als Rezept.</p>
       </div>
+    </div>
+
+    <div class="card io-panel" id="importPanel" style="display:none;">
+      <div class="add-head">
+        <h3>Rezept importieren</h3>
+        <button class="close-add" id="closeImport" type="button" aria-label="Schließen">✕</button>
+      </div>
+
+      <div class="io-mode" id="impModeRow">
+        <label><input type="radio" name="impSrc" value="url" checked> Link</label>
+        <label><input type="radio" name="impSrc" value="text"> Text einfügen</label>
+        <label><input type="radio" name="impSrc" value="image"> Foto</label>
+      </div>
+
+      <div class="field imp-src imp-src-url">
+        <label>Link zur Rezeptseite</label>
+        <input id="imp-url" type="url" placeholder="https://…">
+      </div>
+
+      <div class="field imp-src imp-src-text" style="display:none;">
+        <label>Rezepttext</label>
+        <textarea id="imp-text" placeholder="Zutaten und Zubereitung reinkopieren …" rows="6"></textarea>
+      </div>
+
+      <div class="field imp-src imp-src-image" style="display:none;">
+        <label>Foto vom Rezept <span class="hint">— z. B. aus einem Kochbuch</span></label>
+        <label class="btn btn-soft btn-sm" for="imp-image-input" style="cursor:pointer;display:inline-block;">📷 Foto wählen</label>
+        <input type="file" id="imp-image-input" accept="image/*" style="display:none;">
+        <div class="add-img-preview" id="impImgPreview"></div>
+      </div>
+
+      <button class="btn btn-primary full" id="startImport" type="button" style="margin-top:6px;">Rezept einlesen</button>
+      <div id="importResult" class="io-result"></div>
+      <p class="hint" style="margin-top:8px;">Das Ergebnis landet zur Kontrolle im Formular „Neues Rezept" — geprüft wird vor dem Speichern.</p>
     </div>
 
     <div class="card add-recipe" id="addPanel" style="display:none;">
@@ -2871,6 +2906,106 @@ document.getElementById('saveRecipe').addEventListener('click', async ()=>{
   document.getElementById('recSectionHead').closest('.collapse-section').classList.remove('collapsed');
   renderAll();
   setStatus(warBearbeitung ? 'Änderungen gespeichert ✓' : 'Rezept gespeichert ✓'); setTimeout(()=>setStatus(''),1500);
+});
+
+/* =========================================================================
+   13b. Rezept-Import (Link / Text / Foto) über die Cloudflare-Function
+   ========================================================================= */
+const importPanel = document.getElementById('importPanel');
+let importImageDataUrl = null;    // hohe Auflösung, geht an Claude
+let importImageThumbUrl = null;   // 600 px, wird als Rezeptbild gespeichert
+function openImportPanel(){
+  addPanel.style.display='none'; ioPanel.style.display='none';
+  importPanel.style.display='block'; setImportResult('','');
+  importPanel.scrollIntoView({behavior:'smooth',block:'start'});
+}
+function closeImportPanel(){ importPanel.style.display='none'; }
+function setImportResult(msg, cls){
+  const el=document.getElementById('importResult');
+  el.textContent = msg; el.className = 'io-result'+(cls?(' '+cls):'');
+}
+document.getElementById('openImport').addEventListener('click', ()=>{
+  importPanel.style.display==='none' ? openImportPanel() : closeImportPanel();
+});
+document.getElementById('closeImport').addEventListener('click', closeImportPanel);
+Array.prototype.forEach.call(document.querySelectorAll('input[name=impSrc]'), el=>
+  el.addEventListener('change', ()=>{
+    const mode = document.querySelector('input[name=impSrc]:checked').value;
+    document.querySelector('.imp-src-url').style.display = mode==='url' ? '' : 'none';
+    document.querySelector('.imp-src-text').style.display = mode==='text' ? '' : 'none';
+    document.querySelector('.imp-src-image').style.display = mode==='image' ? '' : 'none';
+  }));
+document.getElementById('imp-image-input').addEventListener('change', async e=>{
+  const file=e.target.files[0]; if(!file) return;
+  setImportResult('Foto wird verarbeitet …','');
+  try{
+    // Zum Ablesen von gedrucktem Text braucht es mehr Auflösung als fürs Rezeptbild:
+    // 1400 px zum Vorlesen an Claude, 600 px als gespeichertes Bild.
+    importImageDataUrl  = await fileToResizedDataURL(file, 1400, 0.8);
+    importImageThumbUrl = await fileToResizedDataURL(file);
+    document.getElementById('impImgPreview').innerHTML = '<img src="'+importImageThumbUrl+'" alt="Vorschau">';
+    setImportResult('','');
+  }catch(err){ setImportResult('Das Foto ließ sich nicht laden. Versuch ein anderes Format.','err'); }
+});
+function uebernehmeImportiertesRezept(r, bildDataUrl){
+  resetAddForm();
+  document.getElementById('r-name').value = r.name || '';
+  document.getElementById('r-servings').value = r.servings || 4;
+  document.getElementById('r-tags').value = r.tags || '';
+  document.getElementById('r-description').value = r.description || '';
+  const ingredients = parseIngredientsCell(r.ingredients_text);
+  document.getElementById('ingRows').innerHTML = '';
+  ingredients.forEach(ing=>addIngRow(ing));
+  if(!ingredients.length) addIngRow();
+  if(r.kcal) document.getElementById('r-kcal').value = r.kcal;
+  if(r.protein_g) document.getElementById('r-protein-g').value = r.protein_g;
+  if(r.carbs_g) document.getElementById('r-carbs-g').value = r.carbs_g;
+  if(r.fat_g) document.getElementById('r-fat-g').value = r.fat_g;
+  if(bildDataUrl){
+    pendingImage = bildDataUrl;
+    document.getElementById('addImgPreview').innerHTML = '<img src="'+bildDataUrl+'" alt="Vorschau">';
+  }
+  openAddPanel();
+  showToast('Rezept eingelesen — bitte prüfen und speichern ✓');
+}
+document.getElementById('startImport').addEventListener('click', async ()=>{
+  const mode = document.querySelector('input[name=impSrc]:checked').value;
+  const body = {mode: mode};
+  if(mode==='url'){
+    const url = document.getElementById('imp-url').value.trim();
+    if(!url){ setImportResult('Erst einen Link eintragen.','err'); return; }
+    body.url = url;
+  } else if(mode==='text'){
+    const text = document.getElementById('imp-text').value.trim();
+    if(!text){ setImportResult('Erst Text einfügen.','err'); return; }
+    body.text = text;
+  } else if(mode==='image'){
+    if(!importImageDataUrl){ setImportResult('Erst ein Foto auswählen.','err'); return; }
+    body.imageDataUrl = importImageDataUrl;
+  }
+  if(!auth.currentUser){ setImportResult('Bitte kurz warten, bis die Anmeldung fertig ist.','err'); return; }
+
+  const btn = document.getElementById('startImport');
+  btn.disabled = true;
+  setImportResult('Rezept wird gelesen … das kann ein paar Sekunden dauern.','');
+  try{
+    const idToken = await auth.currentUser.getIdToken();
+    const res = await fetch('/api/import-recipe', {
+      method:'POST',
+      headers:{'content-type':'application/json', 'authorization':'Bearer '+idToken},
+      body: JSON.stringify(body)
+    });
+    const data = await res.json();
+    if(!data.ok){ setImportResult(data.error || 'Konnte kein Rezept erkennen.','err'); return; }
+    uebernehmeImportiertesRezept(data.recipe, mode==='image' ? importImageThumbUrl : null);
+    if(typeof data.uebrig === 'number'){
+      setImportResult('Noch ' + data.uebrig + ' Importe heute übrig.','');
+    }
+  } catch(err){
+    setImportResult('Verbindung zum Server fehlgeschlagen.','err');
+  } finally {
+    btn.disabled = false;
+  }
 });
 
 /* =========================================================================

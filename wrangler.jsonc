@@ -1,0 +1,34 @@
+{
+  // FamBoard — Cloudflare Workers Konfiguration
+  // Diese Datei bestimmt, wie Cloudflare das Projekt baut und ausliefert.
+  // Nach jeder Änderung hier: committen und pushen, dann deployt Cloudflare neu.
+
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "famboard",
+  "main": "src/worker.js",
+  "compatibility_date": "2026-08-02",
+  "compatibility_flags": ["nodejs_compat"],
+
+  // Die App selbst (index.html, sw.js, Icons) liegt in ./public und wird
+  // als statische Dateien ausgeliefert. Der Worker greift über env.ASSETS darauf zu.
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS"
+  }
+
+  // ---------------------------------------------------------------------------
+  // Tageslimit für den Rezept-Import (optional, siehe ANLEITUNG.md)
+  //
+  // Ohne diesen Block funktioniert der Import trotzdem — dann greift nur die
+  // Anmeldepflicht, aber kein Tageslimit und keine Premium-Staffelung.
+  //
+  // Zum Aktivieren: in Cloudflare unter Storage & Databases → KV einen Namespace
+  // "famboard-limits" anlegen, dessen ID kopieren, dann das Komma nach der
+  // schließenden Klammer von "assets" oben ergänzen und den folgenden Block
+  // einkommentieren:
+  //
+  // "kv_namespaces": [
+  //   { "binding": "IMPORT_LIMITS", "id": "HIER_DIE_NAMESPACE_ID_EINSETZEN" }
+  // ]
+  // ---------------------------------------------------------------------------
+}
