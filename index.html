@@ -487,10 +487,86 @@
   .nutri-week-avg{ font-size:0.88rem; color:var(--muted); }
   .nutri-calc-row{ display:flex; justify-content:flex-end; margin:-6px 0 6px; }
   .nutri-portion-row{ margin-top:6px; font-size:0.82rem; color:var(--muted); }
+
+  /* ---------- Login-Gate ---------- */
+  body.pre-auth header, body.pre-auth nav, body.pre-auth main{ display:none; }
+  .auth-gate{
+    position:fixed; inset:0; z-index:200; background:var(--bg);
+    display:flex; align-items:center; justify-content:center; padding:24px; overflow-y:auto;
+  }
+  .auth-box{ width:100%; max-width:380px; background:var(--card); border:1px solid var(--border-soft); border-radius:var(--radius); padding:28px 24px; margin:auto; }
+  .auth-box h1{ font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:1.6rem; margin:0 0 4px; text-align:center; }
+  .auth-box h1 .dot{ color:var(--accent); font-weight:500; }
+  .auth-sub{ text-align:center; color:var(--muted); font-size:0.86rem; margin:0 0 20px; }
+  .auth-tabs{ display:flex; gap:4px; margin-bottom:18px; background:var(--card-2); border-radius:999px; padding:4px; }
+  .auth-tab{ flex:1; padding:8px 0; border:none; background:none; color:var(--muted); font-weight:600; font-size:0.85rem; border-radius:999px; cursor:pointer; font-family:'Inter',sans-serif; }
+  .auth-tab.active{ background:var(--accent); color:var(--accent-ink); }
+  .auth-box input[type=email], .auth-box input[type=password], .auth-box input[type=text]{
+    width:100%; padding:11px 12px; border-radius:var(--radius-sm); border:1px solid var(--border);
+    background:var(--card-2); color:var(--text); font-family:'Inter',sans-serif; font-size:0.92rem; margin-bottom:2px;
+  }
+  .auth-box input:focus{ outline:none; border-color:var(--accent); }
+  .auth-error{ color:#fecaca; background:rgba(248,113,113,0.12); border:1px solid rgba(248,113,113,0.45); border-radius:var(--radius-sm); font-size:0.82rem; line-height:1.5; padding:10px 12px; margin:0 0 14px; display:none; }
+  .auth-info{ color:var(--teal); font-size:0.82rem; margin:0 0 14px; display:none; }
+  .auth-divider{ display:flex; align-items:center; gap:10px; margin:18px 0; color:var(--faint); font-size:0.76rem; }
+  .auth-divider::before, .auth-divider::after{ content:''; flex:1; height:1px; background:var(--border-soft); }
+  .auth-forgot{ display:block; text-align:center; margin-top:14px; font-size:0.8rem; color:var(--teal); background:none; border:none; cursor:pointer; text-decoration:underline; font-family:'Inter',sans-serif; }
+  .auth-google{ width:100%; display:flex; align-items:center; justify-content:center; gap:8px; }
+  .auth-busy{ opacity:.6; pointer-events:none; }
+
+  /* ---------- Konto & Mitglieder ---------- */
+  .acct-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; padding:9px 2px; border-bottom:1px solid var(--border-soft); font-size:0.9rem; }
+  .acct-row:last-child{ border-bottom:none; }
+  .acct-row .muted{ color:var(--muted); font-size:0.8rem; }
+  .member-list{ list-style:none; margin:10px 0 0; padding:0; }
+  .member-row{ display:flex; align-items:center; justify-content:space-between; gap:8px; padding:8px 2px; border-bottom:1px solid var(--border-soft); font-size:0.88rem; }
+  .member-row:last-child{ border-bottom:none; }
+  .member-row .role{ font-size:0.72rem; color:var(--accent); font-weight:600; text-transform:uppercase; letter-spacing:.4px; }
+  .hh-switch{ display:flex; flex-wrap:wrap; gap:6px; margin:10px 0 4px; }
+  .hh-switch button{ padding:7px 12px; border-radius:999px; border:1px solid var(--border); background:var(--card-2); color:var(--muted); font-size:0.82rem; cursor:pointer; font-family:'Inter',sans-serif; }
+  .hh-switch button.active{ background:var(--accent); color:var(--accent-ink); border-color:var(--accent); }
   .nutri-portion-row input{ width:60px; margin-left:4px; padding:3px 6px; border-radius:6px; border:1px solid var(--border); background:var(--card-2); color:var(--text); }
 </style>
 </head>
-<body>
+<body class="pre-auth">
+
+<div class="auth-gate" id="authGate">
+  <div class="auth-box" id="authBox">
+    <h1>Fam<span class="dot">Board</span></h1>
+    <p class="auth-sub" id="authSub">Meldet euch an, um euren Haushalt zu sehen</p>
+
+    <div class="auth-tabs">
+      <button type="button" class="auth-tab active" id="authTabLogin">Anmelden</button>
+      <button type="button" class="auth-tab" id="authTabRegister">Registrieren</button>
+    </div>
+
+    <div class="auth-error" id="authError"></div>
+    <div class="auth-info" id="authInfo"></div>
+
+    <div class="field" id="authClaimField" style="display:none;">
+      <label>Schon FamBoard genutzt? <span class="hint">Haushalts-ID hier übernehmen, sonst leer lassen</span></label>
+      <input type="text" id="authClaimId" autocomplete="off" placeholder="z. B. hh-xxxxxxxxxxxxxxxxxxxx" style="font-family:'JetBrains Mono',monospace; font-size:0.82rem;">
+    </div>
+    <div class="field" id="authNameField" style="display:none;">
+      <label>Name eures neuen Haushalts <span class="hint">optional, nur falls oben keine ID eingetragen ist</span></label>
+      <input type="text" id="authHaushaltName" autocomplete="off" placeholder="Mein Haushalt">
+    </div>
+    <div class="field">
+      <label>E-Mail</label>
+      <input type="email" id="authEmail" autocomplete="email" placeholder="du@beispiel.de">
+    </div>
+    <div class="field">
+      <label>Passwort</label>
+      <input type="password" id="authPassword" autocomplete="current-password" placeholder="mind. 6 Zeichen">
+    </div>
+    <button class="btn btn-primary full" id="authSubmit" type="button">Anmelden</button>
+    <button type="button" class="auth-forgot" id="authForgot">Passwort vergessen?</button>
+
+    <div class="auth-divider">oder</div>
+    <button class="btn btn-soft auth-google" id="authGoogle" type="button">🔵 Mit Google anmelden</button>
+  </div>
+</div>
+
 <header>
   <h1>Fam<span class="dot">Board</span></h1>
   <p>Geplant, abgestimmt, eingekauft</p>
@@ -770,11 +846,21 @@
       <p class="ex-hint">Reihenfolge, in der die Kategorien in der Einkaufsliste erscheinen — passt sie an euren Supermarkt an.</p>
       <ul class="cat-order-list" id="catOrderList"></ul>
     </div>
+    <div class="card" id="hhSwitchCard" style="display:none;">
+      <div class="shop-head"><div class="wk">Aktiver Haushalt</div></div>
+      <p class="ex-hint">Ihr gehört zu mehreren Haushalten. Wählt, welchen ihr auf diesem Gerät seht.</p>
+      <div class="hh-switch" id="hhSwitchList"></div>
+    </div>
     <div class="card">
-      <div class="shop-head"><div class="wk">Weiteres Gerät verbinden</div></div>
-      <p class="ex-hint">Dieser Link hängt ein weiteres Handy an euren Haushalt. Wer ihn hat, sieht Wochenplan und Einkaufsliste und kann beides ändern — also nur an Leute geben, die dazugehören.</p>
-      <button class="btn btn-soft" id="copyInvite" type="button">🔗 Link kopieren</button>
+      <div class="shop-head"><div class="wk">Konto</div></div>
+      <div class="acct-row"><span id="acctEmail">—</span><button class="btn btn-ghost btn-sm" id="acctSignOut" type="button">Abmelden</button></div>
+    </div>
+    <div class="card">
+      <div class="shop-head"><div class="wk">Mitglieder</div></div>
+      <p class="ex-hint">Wer Zugriff auf diesen Haushalt hat. Wer den Einladungslink öffnet und sich anmeldet, sieht Wochenplan und Einkaufsliste und kann beides ändern — also nur an Leute geben, die dazugehören.</p>
+      <button class="btn btn-soft" id="copyInvite" type="button">🔗 Einladungslink erzeugen</button>
       <div class="ex-hint" id="inviteOut" style="margin-top:10px;"></div>
+      <ul class="member-list" id="memberList"></ul>
     </div>
     <div class="storage-note" id="storageNote"></div>
   </section>
@@ -803,31 +889,40 @@
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-app.js";
-import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-auth.js";
+import {
+  getAuth, onAuthStateChanged, signOut,
+  createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail,
+  GoogleAuthProvider, signInWithRedirect, getRedirectResult
+} from "https://www.gstatic.com/firebasejs/12.17.0/firebase-auth.js";
 import { getDatabase, ref, set, remove, get, onValue } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-database.js";
 
 const DAYS = ["Montag","Dienstag","Mittwoch","Donnerstag","Freitag","Samstag","Sonntag"];
 
 /* =========================================================================
-   1. Firebase: Haushalt, Anmeldung, Datenbank
+   1. Firebase: Konten, Haushalte, Datenbank
    Daten liegen unter haushalte/<id>/data · Bilder unter haushalte/<id>/images
+   Mitgliedschaft: haushalte/<id>/members/<uid> · Konto-Zuordnung: users/<uid>/haushalte
    ========================================================================= */
-/* Haushalt: fest verdrahtet, per #h=… überschreibbar (so kommen weitere Geräte dazu) */
-const DEFAULT_HAUSHALT = "hh-qsq6wowzlugqdn6r";
-const HH_KEY = "famboard.haushalt";
+/* Haushalt aus der Zeit vor dem Login (z. B. "hh-qsq6wowzlugqdn6r"): wird automatisch
+   übernommen, wenn dieses Gerät die ID schon in localStorage hat, oder beim Registrieren
+   manuell im Feld "Bestehende Haushalts-ID übernehmen" eingetragen wird — siehe unten. */
+const HH_KEY = "famboard.haushalt";           // zuletzt aktiver Haushalt auf diesem Gerät
+const INVITE_RE = /[#&]invite=([A-Za-z0-9_-]{10,})/;
+const LEGACY_LINK_RE = /[#&]h=([A-Za-z0-9_-]{8,})/;
 
-function resolveHaushalt(){
-  const m = location.hash.match(/[#&]h=([A-Za-z0-9_-]{8,})/);
-  if(m){
-    try{ localStorage.setItem(HH_KEY, m[1]); }catch(e){}
-    history.replaceState(null, '', location.pathname + location.search);
-    return m[1];
-  }
-  try{ return localStorage.getItem(HH_KEY) || DEFAULT_HAUSHALT; }catch(e){ return DEFAULT_HAUSHALT; }
+/* Einladungscode bzw. alten #h=-Link aus der Adresse abgreifen, bevor wir sie entfernen */
+let pendingInvite = null;
+{
+  const mInvite = location.hash.match(INVITE_RE);
+  const mLegacy = location.hash.match(LEGACY_LINK_RE);
+  if(mInvite) pendingInvite = mInvite[1];
+  else if(mLegacy){ try{ localStorage.setItem(HH_KEY, mLegacy[1]); }catch(e){} }
+  if(mInvite || mLegacy) history.replaceState(null, '', location.pathname + location.search);
 }
-const HAUSHALT_ID = resolveHaushalt();
-const BASE = 'haushalte/' + HAUSHALT_ID;
-const CACHE_KEY = 'famboard.cache.' + HAUSHALT_ID;
+
+let HAUSHALT_ID = null;   // erst bekannt, sobald Login + Haushalt aufgelöst sind
+let BASE = null;
+let CACHE_KEY = null;
 
 const firebaseConfig = {
   apiKey: "AIzaSyAd8gUlEEbA4HU4RXUuEqLwoDDUEKFwTZ4",
@@ -847,6 +942,7 @@ function encKey(k){ return encodeURIComponent(String(k)).replace(/\./g,'%2E'); }
 function decKey(k){ try{ return decodeURIComponent(k); }catch(e){ return k; } }
 
 let istOnline = false;
+let aktivesHaushaltName = '';
 function zeigeFehler(text){
   const el = document.getElementById('fehler');
   if(!el) return;
@@ -865,8 +961,279 @@ function setOnline(v){
     n.textContent = 'Offline — Änderungen werden nachgereicht, sobald ihr wieder Netz habt';
   }
   const el = document.getElementById('storageNote');
-  if(el) el.textContent = (v ? 'Verbunden' : 'Offline') + ' · Haushalt ' + HAUSHALT_ID;
+  if(el) el.textContent = (v ? 'Verbunden' : 'Offline') + (aktivesHaushaltName ? ' · ' + aktivesHaushaltName : '');
 }
+
+/* =========================================================================
+   1b. Login-Gate: Registrieren/Anmelden (E-Mail oder Google), danach
+   Haushalt auflösen — übernehmen, per Einladung beitreten oder neu anlegen
+   ========================================================================= */
+let authMode = 'login'; // 'login' | 'register'
+
+function randId(prefix, len){
+  const alphabet = 'abcdefghijklmnopqrstuvwxyz0123456789';
+  let s = '';
+  for(let i=0;i<len;i++) s += alphabet[Math.floor(Math.random()*alphabet.length)];
+  return prefix + s;
+}
+
+function authHideMessages(){
+  document.getElementById('authError').style.display = 'none';
+  document.getElementById('authInfo').style.display = 'none';
+}
+function authShowError(text){
+  const e = document.getElementById('authError');
+  e.textContent = text; e.style.display = 'block';
+  document.getElementById('authInfo').style.display = 'none';
+}
+function authShowInfo(text){
+  const i = document.getElementById('authInfo');
+  i.textContent = text; i.style.display = 'block';
+  document.getElementById('authError').style.display = 'none';
+}
+function authSetMode(mode){
+  authMode = mode;
+  document.getElementById('authTabLogin').classList.toggle('active', mode==='login');
+  document.getElementById('authTabRegister').classList.toggle('active', mode==='register');
+  document.getElementById('authClaimField').style.display = mode==='register' ? 'block' : 'none';
+  document.getElementById('authNameField').style.display = mode==='register' ? 'block' : 'none';
+  document.getElementById('authSubmit').textContent = mode==='register' ? 'Konto erstellen' : 'Anmelden';
+  document.getElementById('authPassword').setAttribute('autocomplete', mode==='register' ? 'new-password' : 'current-password');
+  authHideMessages();
+}
+document.getElementById('authTabLogin').addEventListener('click', ()=>authSetMode('login'));
+document.getElementById('authTabRegister').addEventListener('click', ()=>authSetMode('register'));
+if(pendingInvite){
+  authSetMode('register');
+  authShowInfo('Ihr folgt einem Einladungslink — meldet euch an oder erstellt ein Konto, um dem Haushalt beizutreten.');
+}
+
+const AUTH_ERR_DE = {
+  'auth/invalid-email': 'Ungültige E-Mail-Adresse.',
+  'auth/missing-password': 'Bitte ein Passwort eingeben.',
+  'auth/weak-password': 'Das Passwort muss mindestens 6 Zeichen haben.',
+  'auth/email-already-in-use': 'Für diese E-Mail gibt es schon ein Konto — oben auf „Anmelden“ wechseln.',
+  'auth/invalid-credential': 'E-Mail oder Passwort stimmt nicht.',
+  'auth/wrong-password': 'E-Mail oder Passwort stimmt nicht.',
+  'auth/user-not-found': 'Kein Konto mit dieser E-Mail gefunden.',
+  'auth/too-many-requests': 'Zu viele Versuche — kurz warten und nochmal probieren.',
+  'auth/network-request-failed': 'Keine Verbindung. Netz prüfen und nochmal versuchen.',
+  'auth/popup-closed-by-user': 'Anmeldung abgebrochen.',
+  'auth/operation-not-allowed': 'Diese Anmeldeart ist in Firebase noch nicht aktiviert.'
+};
+function authErrText(err){
+  return AUTH_ERR_DE[err.code] || ('Anmeldung fehlgeschlagen (' + (err.code || err.message) + ').');
+}
+
+document.getElementById('authSubmit').addEventListener('click', async ()=>{
+  authHideMessages();
+  const email = document.getElementById('authEmail').value.trim();
+  const pw = document.getElementById('authPassword').value;
+  if(!email || !pw){ authShowError('Bitte E-Mail und Passwort eingeben.'); return; }
+  document.getElementById('authBox').classList.add('auth-busy');
+  try{
+    if(authMode === 'register'){
+      await createUserWithEmailAndPassword(auth, email, pw);
+    } else {
+      await signInWithEmailAndPassword(auth, email, pw);
+    }
+    // onAuthStateChanged übernimmt ab hier die Haushalts-Auflösung
+  }catch(err){
+    authShowError(authErrText(err));
+  }finally{
+    document.getElementById('authBox').classList.remove('auth-busy');
+  }
+});
+
+document.getElementById('authForgot').addEventListener('click', async ()=>{
+  authHideMessages();
+  const email = document.getElementById('authEmail').value.trim();
+  if(!email){ authShowError('E-Mail-Adresse oben eintragen, dann nochmal klicken.'); return; }
+  try{
+    await sendPasswordResetEmail(auth, email);
+    authShowInfo('Link zum Passwort-Zurücksetzen ist unterwegs — E-Mail-Postfach prüfen.');
+  }catch(err){
+    authShowError(authErrText(err));
+  }
+});
+
+document.getElementById('authGoogle').addEventListener('click', async ()=>{
+  authHideMessages();
+  // Bei Google navigiert die Seite komplett weg und wieder zurück — Eingaben aus dem
+  // Formular (Alt-ID, Haushaltsname) zwischenspeichern, damit sie danach nicht weg sind
+  try{
+    if(authMode === 'register'){
+      sessionStorage.setItem('famboard.pendingClaim', document.getElementById('authClaimId').value.trim());
+      sessionStorage.setItem('famboard.pendingName', document.getElementById('authHaushaltName').value.trim());
+    }
+  }catch(e){}
+  try{
+    await signInWithRedirect(auth, new GoogleAuthProvider());
+    // Seite lädt danach neu; getRedirectResult/onAuthStateChanged übernehmen den Rest
+  }catch(err){
+    authShowError(authErrText(err));
+  }
+});
+
+document.getElementById('acctSignOut').addEventListener('click', async ()=>{
+  if(!confirm('Auf diesem Gerät abmelden?')) return;
+  try{ await signOut(auth); location.reload(); }catch(e){}
+});
+
+/* ---------- Haushalt nach Login auflösen ---------- */
+async function ladeMitgliedschaften(uid){
+  const snap = await get(ref(db, 'users/' + uid + '/haushalte'));
+  return snap.exists() ? Object.keys(snap.val()) : [];
+}
+
+/* Klappt laut database.rules.json nur, wenn der Haushalt noch kein einziges Mitglied hat
+   (frisch angelegt oder ein verwaister Alt-Haushalt aus der Zeit vor dem Login) */
+async function versucheClaim(hhId, uid){
+  try{
+    await set(ref(db, 'haushalte/' + hhId + '/members/' + uid), { rolle:'owner', beigetreten: Date.now() });
+    await set(ref(db, 'haushalte/' + hhId + '/meta'), { name:'Mein Haushalt', owner:uid, erstellt: Date.now() });
+    await set(ref(db, 'users/' + uid + '/haushalte/' + hhId), true);
+    return true;
+  }catch(e){ return false; }
+}
+
+async function tritteUeberEinladungBei(code, uid){
+  const snap = await get(ref(db, 'einladungen/' + code));
+  if(!snap.exists()) throw { message: 'Einladungslink ist ungültig oder schon abgelaufen.' };
+  const hhId = snap.val().haushalt;
+  await set(ref(db, 'haushalte/' + hhId + '/members/' + uid), { rolle:'mitglied', beigetreten: Date.now(), viaCode: code });
+  await set(ref(db, 'users/' + uid + '/haushalte/' + hhId), true);
+  return hhId;
+}
+
+async function erzeugeNeuenHaushalt(uid, name){
+  const hhId = randId('hh-', 20);
+  await set(ref(db, 'haushalte/' + hhId + '/members/' + uid), { rolle:'owner', beigetreten: Date.now() });
+  await set(ref(db, 'haushalte/' + hhId + '/meta'), { name: name || 'Mein Haushalt', owner:uid, erstellt: Date.now() });
+  await set(ref(db, 'users/' + uid + '/haushalte/' + hhId), true);
+  return hhId;
+}
+
+async function loadHaushaltMeta(hhId){
+  try{
+    const snap = await get(ref(db, 'haushalte/' + hhId + '/meta/name'));
+    return snap.exists() ? snap.val() : '';
+  }catch(e){ return ''; }
+}
+
+async function aktiviereHaushalt(hhId){
+  HAUSHALT_ID = hhId;
+  BASE = 'haushalte/' + hhId;
+  CACHE_KEY = 'famboard.cache.' + hhId;
+  try{ localStorage.setItem(HH_KEY, hhId); }catch(e){}
+  aktivesHaushaltName = (await loadHaushaltMeta(hhId)) || hhId;
+  setOnline(istOnline);
+  renderMemberList();
+}
+
+function renderHhSwitch(ids){
+  const card = document.getElementById('hhSwitchCard');
+  const list = document.getElementById('hhSwitchList');
+  if(!ids || ids.length < 2){ card.style.display = 'none'; list.innerHTML = ''; return; }
+  card.style.display = 'block';
+  Promise.all(ids.map(id=>loadHaushaltMeta(id).then(name=>({id, name: name || id})))).then(items=>{
+    list.innerHTML = items.map(it=>
+      '<button type="button" class="' + (it.id === HAUSHALT_ID ? 'active' : '') + '" data-hh="' + it.id + '">' + it.name + '</button>'
+    ).join('');
+    Array.prototype.forEach.call(list.querySelectorAll('button'), b=>b.addEventListener('click', async ()=>{
+      if(b.dataset.hh === HAUSHALT_ID) return;
+      await aktiviereHaushalt(b.dataset.hh);
+      renderHhSwitch(ids);
+      loadState();
+    }));
+  });
+}
+
+async function loesePfadNachLogin(user){
+  const acctEl = document.getElementById('acctEmail');
+  if(acctEl) acctEl.textContent = user.email || 'Konto ' + user.uid.slice(0,6);
+
+  let mitgliedschaften = await ladeMitgliedschaften(user.uid);
+
+  // 1) Einladungscode aus dem Link hat Vorrang
+  if(pendingInvite){
+    const code = pendingInvite;
+    pendingInvite = null;
+    try{
+      const hhId = await tritteUeberEinladungBei(code, user.uid);
+      mitgliedschaften = await ladeMitgliedschaften(user.uid);
+      await aktiviereHaushalt(hhId);
+      renderHhSwitch(mitgliedschaften);
+      return;
+    }catch(err){
+      zeigeFehler(err.message || 'Einladung konnte nicht eingelöst werden.');
+      // fällt durch zu den übrigen Fällen, Konto ist ja schon angelegt
+    }
+  }
+
+  // 2) Schon Mitglied irgendwo? Auf diesem Gerät zuletzt aktiven Haushalt bevorzugen
+  if(mitgliedschaften.length){
+    let vorschlag = null;
+    try{ vorschlag = localStorage.getItem(HH_KEY); }catch(e){}
+    const hhId = (vorschlag && mitgliedschaften.indexOf(vorschlag) !== -1) ? vorschlag : mitgliedschaften[0];
+    await aktiviereHaushalt(hhId);
+    renderHhSwitch(mitgliedschaften);
+    return;
+  }
+
+  // 3) Manuell eingetragene Alt-ID beim Registrieren — für den Umstieg von der alten,
+  //    linkbasierten Version auf echte Konten (siehe ANLEITUNG.md). Bei Google-Anmeldung
+  //    kommt der Wert aus sessionStorage, weil die Seite für den Redirect neu lädt.
+  const claimFeld = document.getElementById('authClaimId');
+  let manuelleId = claimFeld ? claimFeld.value.trim() : '';
+  let gespeicherterName = '';
+  try{
+    if(!manuelleId) manuelleId = sessionStorage.getItem('famboard.pendingClaim') || '';
+    gespeicherterName = sessionStorage.getItem('famboard.pendingName') || '';
+    sessionStorage.removeItem('famboard.pendingClaim');
+    sessionStorage.removeItem('famboard.pendingName');
+  }catch(e){}
+  if(manuelleId){
+    if(await versucheClaim(manuelleId, user.uid)){
+      await aktiviereHaushalt(manuelleId);
+      renderHhSwitch([manuelleId]);
+      return;
+    }
+    zeigeFehler('Die Haushalts-ID „' + manuelleId + '“ gehört schon zu einem Konto. Bittet stattdessen um einen Einladungslink.');
+  }
+
+  // 4) Kandidat aus dem localStorage dieses Geräts (z. B. alter #h=-Link)
+  let legacyKandidat = null;
+  try{ legacyKandidat = localStorage.getItem(HH_KEY); }catch(e){}
+  if(legacyKandidat && await versucheClaim(legacyKandidat, user.uid)){
+    await aktiviereHaushalt(legacyKandidat);
+    renderHhSwitch([legacyKandidat]);
+    return;
+  }
+
+  // 5) Sonst: neuen, leeren Haushalt anlegen
+  const nameFeld = document.getElementById('authHaushaltName');
+  const name = (nameFeld && nameFeld.value.trim()) || gespeicherterName;
+  const neuerId = await erzeugeNeuenHaushalt(user.uid, name);
+  await aktiviereHaushalt(neuerId);
+  renderHhSwitch([neuerId]);
+}
+
+let appGestartet = false;
+onAuthStateChanged(auth, async (user)=>{
+  if(!user){
+    document.body.classList.add('pre-auth');
+    return;
+  }
+  try{
+    await loesePfadNachLogin(user);
+    document.body.classList.remove('pre-auth');
+    if(!appGestartet){ appGestartet = true; loadState(); }
+  }catch(err){
+    authShowError('Haushalt konnte nicht geladen werden (' + (err.code || err.message) + ').');
+  }
+});
+getRedirectResult(auth).catch(err=>{ if(err && err.code) authShowError(authErrText(err)); });
 
 /* =========================================================================
    2. Zustand
@@ -1396,35 +1763,37 @@ async function loadImage(id){
 function imgOf(r){ return imageCache[r.id] || null; }
 
 /* ---------- Start ---------- */
+/* Anmeldung selbst läuft jetzt über das Login-Gate (onAuthStateChanged, siehe oben) —
+   loadState() wird erst aufgerufen, wenn HAUSHALT_ID feststeht, und erneut bei jedem
+   Haushalts-Wechsel. unsubscribeData sorgt dafür, dass beim Wechsel nicht zwei
+   Haushalte gleichzeitig mitgeschrieben werden. */
 let ersterSnapshot = true;
+let unsubscribeData = null;
+let onlineListenerAttached = false;
+
 async function loadState(){
-  // 1. Oberfläche sofort zeichnen — unabhängig von Netz, Anmeldung und Datenbank.
+  // 1. Oberfläche sofort zeichnen — unabhängig von Netz und Datenbank.
   //    Der Wochenplan zeigt damit von der ersten Sekunde an die laufende Woche.
   renderAll();
   setStatus('Verbinde …');
 
-  // 2. Falls vorhanden, den letzten Stand aus diesem Gerät einsetzen
+  // 2. Falls vorhanden, den letzten Stand dieses Haushalts auf diesem Gerät einsetzen
   try{
     const cached = localStorage.getItem(CACHE_KEY);
     if(cached){ state = fromRemote(JSON.parse(cached)); pruneExtras(); renderAll(); }
   }catch(e){}
 
-  onValue(ref(db, '.info/connected'), snap=>setOnline(!!snap.val()));
-
-  // 3. anonym anmelden
-  try{
-    await signInAnonymously(auth);
-  }catch(err){
-    zeigeFehler(err.code === 'auth/admin-restricted-operation' || err.code === 'auth/operation-not-allowed'
-      ? 'Die anonyme Anmeldung ist in Firebase noch nicht aktiviert. In der Firebase-Konsole unter Authentication → Sign-in method den Anbieter „Anonym“ einschalten. Bis dahin lassen sich Änderungen nicht speichern.'
-      : 'Anmeldung fehlgeschlagen (' + err.code + '). Änderungen werden gerade nicht gespeichert.');
-    setStatus('');
-    renderAll();
-    return;
+  if(!onlineListenerAttached){
+    onlineListenerAttached = true;
+    onValue(ref(db, '.info/connected'), snap=>setOnline(!!snap.val()));
   }
 
+  // 3. alten Zuhörer abmelden, falls wir gerade den Haushalt gewechselt haben
+  if(unsubscribeData){ unsubscribeData(); unsubscribeData = null; }
+  ersterSnapshot = true;
+
   // 4. dauerhaft zuhören: jede Änderung von jedem Gerät kommt hier an
-  onValue(ref(db, BASE + '/data'), snap=>{
+  unsubscribeData = onValue(ref(db, BASE + '/data'), snap=>{
     const d = snap.val();
     if(!d && ersterSnapshot){ ersterSnapshot = false; seed(); return; }
     ersterSnapshot = false;
@@ -3249,17 +3618,43 @@ document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) zurueck
 window.addEventListener('focus', zurueckZurAktuellenWoche);
 window.addEventListener('pageshow', zurueckZurAktuellenWoche);
 
-/* Einladungslink für weitere Geräte */
+/* Einladungslink für weitere Konten/Geräte: legt einen Code unter einladungen/<code>
+   an, der auf den aktuellen Haushalt zeigt (siehe database.rules.json + tritteUeberEinladungBei) */
 document.getElementById('copyInvite').addEventListener('click', async ()=>{
-  const link = location.origin + location.pathname + '#h=' + HAUSHALT_ID;
   const out = document.getElementById('inviteOut');
+  if(!auth.currentUser || !HAUSHALT_ID){ out.textContent = 'Bitte kurz warten, bis die Anmeldung fertig ist.'; return; }
+  out.textContent = 'Erzeuge Link …';
   try{
-    await navigator.clipboard.writeText(link);
-    out.textContent = 'Kopiert. Auf dem anderen Gerät öffnen und dort „Zum Startbildschirm hinzufügen“ wählen.';
+    const code = randId('', 24);
+    await set(ref(db, 'einladungen/' + code), { haushalt: HAUSHALT_ID, erstelltVon: auth.currentUser.uid, erstellt: Date.now() });
+    const link = location.origin + location.pathname + '#invite=' + code;
+    try{
+      await navigator.clipboard.writeText(link);
+      out.textContent = 'Kopiert. Auf dem anderen Gerät öffnen, dort ein Konto erstellen oder anmelden — tritt danach automatisch diesem Haushalt bei.';
+    }catch(e){
+      out.textContent = link;
+    }
+    renderMemberList();
   }catch(e){
-    out.textContent = link;
+    out.textContent = 'Konnte keinen Einladungslink erzeugen (' + (e.code || e.message) + ').';
   }
 });
+
+/* Mitgliederliste im Reiter „Haushalt“ */
+async function renderMemberList(){
+  const box = document.getElementById('memberList');
+  if(!box || !HAUSHALT_ID) return;
+  try{
+    const snap = await get(ref(db, 'haushalte/' + HAUSHALT_ID + '/members'));
+    const members = snap.exists() ? snap.val() : {};
+    const rows = Object.keys(members).map(uid=>{
+      const m = members[uid] || {};
+      const label = (auth.currentUser && uid === auth.currentUser.uid) ? 'Ihr' : 'Mitglied ' + uid.slice(0,6);
+      return '<li class="member-row"><span>' + label + '</span><span class="role">' + (m.rolle || 'mitglied') + '</span></li>';
+    });
+    box.innerHTML = rows.join('') || '<li class="hh-empty">Noch keine Mitglieder geladen.</li>';
+  }catch(e){ box.innerHTML = ''; }
+}
 
 /* Service Worker: sorgt dafür, dass die App auch ohne Netz startet */
 if('serviceWorker' in navigator && location.protocol.indexOf('http') === 0){
@@ -3268,7 +3663,8 @@ if('serviceWorker' in navigator && location.protocol.indexOf('http') === 0){
 
 addIngRow();
 syncTypFelder();
-loadState();
+/* loadState() wird nicht mehr hier, sondern von onAuthStateChanged aufgerufen,
+   sobald Login und Haushalt feststehen (siehe Abschnitt 1b weiter oben). */
 </script>
 </body>
 </html>

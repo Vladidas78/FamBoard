@@ -1,9 +1,34 @@
 {
   "rules": {
+    "users": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid"
+      }
+    },
+
+    "einladungen": {
+      ".read": "auth != null",
+      "$code": {
+        ".write": "auth != null && !data.exists() && newData.hasChildren(['haushalt','erstelltVon']) && newData.child('erstelltVon').val() === auth.uid && root.child('haushalte/' + newData.child('haushalt').val() + '/members/' + auth.uid).exists()"
+      }
+    },
+
     "haushalte": {
       "$haushalt": {
-        ".read":  "auth != null && $haushalt.length >= 12",
-        ".write": "auth != null && $haushalt.length >= 12",
+        ".read":  "auth != null && $haushalt.length >= 12 && root.child('haushalte/' + $haushalt + '/members/' + auth.uid).exists()",
+        ".write": "auth != null && $haushalt.length >= 12 && root.child('haushalte/' + $haushalt + '/members/' + auth.uid).exists()",
+
+        "meta": {
+          ".write": "auth != null && (!data.exists() || root.child('haushalte/' + $haushalt + '/members/' + auth.uid + '/rolle').val() === 'owner')"
+        },
+
+        "members": {
+          "$uid2": {
+            ".write": "auth != null && ( root.child('haushalte/' + $haushalt + '/members/' + auth.uid + '/rolle').val() === 'owner' || (auth.uid === $uid2 && !newData.exists()) || (auth.uid === $uid2 && !data.exists() && ( !root.child('haushalte/' + $haushalt + '/members').hasChildren() || (newData.child('viaCode').exists() && root.child('einladungen/' + newData.child('viaCode').val() + '/haushalt').val() === $haushalt) )) )"
+          }
+        },
+
         "data": {
           ".validate": true
         },
