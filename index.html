@@ -498,12 +498,12 @@
 
 <nav>
   <button class="tab active" data-tab="plan">Wochenplan</button>
+  <button class="tab" data-tab="shop">Einkaufsliste</button>
   <button class="tab" data-tab="recipes">Rezepte</button>
   <button class="tab" data-tab="ingredients">Zutaten</button>
   <button class="tab" data-tab="haushalt">Haushalt &amp; Drogerie</button>
-  <button class="tab" data-tab="shop">Einkaufsliste</button>
-  <button class="tab" data-tab="nutrition">Nährwerte</button>
   <button class="tab" data-tab="pantry">Haushalt</button>
+  <button class="tab" data-tab="nutrition">Nährwerte</button>
 </nav>
 
 <main>
@@ -2626,6 +2626,39 @@ function renderNutritionReport(){
   }));
 }
 
+/* Leert die "Erledigt"-Gruppe der Einkaufsliste, damit sie sich nicht endlos füllt:
+   einmalige eigene Einträge werden ganz gelöscht, aus Rezepten stammende Zutaten werden
+   für diese Woche als "entfernt" markiert (wie beim einzelnen 🗑). Wiederkehrende
+   "jede Woche wieder"-Einträge bleiben unangetastet, die setzen sich ohnehin wöchentlich zurück. */
+function leereErledigte(wk, doneItems){
+  const removedKeys = [];
+  const backupExtras = [];
+  doneItems.forEach(it=>{
+    if(it.kind==='recipe'){
+      if(!state.removed[wk][it.key]){
+        state.removed[wk][it.key] = true;
+        saveRemoved(wk, it.key, true);
+        removedKeys.push(it.key);
+      }
+    } else if(it.kind==='extra' && !it.recurring){
+      const idx = state.extras.findIndex(x=>('x|'+x.id)===it.key);
+      if(idx>=0){
+        backupExtras.push(state.extras[idx]);
+        state.extras.splice(idx,1);
+      }
+    }
+  });
+  if(backupExtras.length) saveExtras();
+  const anzahl = removedKeys.length + backupExtras.length;
+  renderShop();
+  if(!anzahl){ showToast('Nichts zu leeren — wiederkehrende Einträge bleiben stehen.'); return; }
+  showToast(anzahl+' Erledigte geleert', ()=>{
+    removedKeys.forEach(k=>{ delete state.removed[wk][k]; saveRemoved(wk, k, false); });
+    if(backupExtras.length){ state.extras = state.extras.concat(backupExtras); saveExtras(); }
+    renderShop();
+  });
+}
+
 function renderShop(){
   const wk = weekKeyOf(currentMonday);
   document.getElementById('shopWeekLabel').textContent = 'Einkaufsliste · KW '+isoWeek(currentMonday).week;
@@ -2690,10 +2723,16 @@ function renderShop(){
   });
   if(done.length){
     html += '<div class="cat-group done">' +
-      '<div class="cat-title">✓ Erledigt<span class="cat-n">'+done.length+'</span></div>' +
+      '<div class="cat-title">✓ Erledigt' +
+        '<button class="btn btn-ghost btn-sm clear-done-btn" type="button" style="margin-left:auto;">🗑 Erledigte leeren</button>' +
+        '<span class="cat-n">'+done.length+'</span>' +
+      '</div>' +
       '<ul class="shop-list">'+done.map(itemHtml).join('')+'</ul></div>';
   }
   box.innerHTML = html;
+
+  const clearDoneBtn = box.querySelector('.clear-done-btn');
+  if(clearDoneBtn) clearDoneBtn.addEventListener('click', ()=>leereErledigte(wk, done));
 
   const byKey = {}; items.forEach(i=>{ byKey[i.key]=i; });
 
