@@ -272,7 +272,6 @@ export async function handleImportRecipe(request, env) {
       body: JSON.stringify({
         model: MODEL,
         max_tokens: 1500,
-        temperature: 0.2,
         system: SYSTEM_PROMPT,
         tools: [TOOL],
         tool_choice: { type: 'tool', name: TOOL.name },
