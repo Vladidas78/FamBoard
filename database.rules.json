@@ -14,6 +14,15 @@
       }
     },
 
+    "umfragen": {
+      ".read": "auth != null && auth.uid === 'DEINE_UID_HIER'",
+      ".write": false,
+      "$eintrag": {
+        ".read": "auth != null && auth.uid === 'DEINE_UID_HIER'",
+        ".write": "(auth != null && auth.uid === 'DEINE_UID_HIER') || (!data.exists() && newData.hasChildren(['code','text','gesendet']) && newData.child('code').val() === 'umfrage-2026-haushalt' && newData.child('text').isString() && newData.child('text').val().length < 30000 && newData.child('gesendet').isNumber())"
+      }
+    },
+
     "haushalte": {
       "$haushalt": {
         ".read":  "auth != null && $haushalt.length >= 12 && root.child('haushalte/' + $haushalt + '/members/' + auth.uid).exists()",
@@ -29,13 +38,9 @@
           }
         },
 
-        "data": {
-          ".validate": true
-        },
+        "data": { ".validate": true },
         "images": {
-          "$rezept": {
-            ".validate": "newData.isString() && newData.val().length < 400000"
-          }
+          "$rezept": { ".validate": "newData.isString() && newData.val().length < 400000" }
         }
       }
     }
