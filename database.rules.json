@@ -15,11 +15,11 @@
     },
 
     "umfragen": {
-      ".read": "auth != null && auth.uid === 'DEINE_UID_HIER'",
+      ".read": "auth != null && auth.uid === 'zTP4xYoXAcNgn9AEv8xBWDfSiRL2'",
       ".write": false,
       "$eintrag": {
-        ".read": "auth != null && auth.uid === 'DEINE_UID_HIER'",
-        ".write": "(auth != null && auth.uid === 'DEINE_UID_HIER') || (!data.exists() && newData.hasChildren(['code','text','gesendet']) && newData.child('code').val() === 'umfrage-2026-haushalt' && newData.child('text').isString() && newData.child('text').val().length < 30000 && newData.child('gesendet').isNumber())"
+        ".read": "auth != null && auth.uid === 'zTP4xYoXAcNgn9AEv8xBWDfSiRL2'",
+        ".write": "(auth != null && auth.uid === 'zTP4xYoXAcNgn9AEv8xBWDfSiRL2') || (!data.exists() && newData.hasChildren(['code','text','gesendet']) && newData.child('code').val() === 'umfrage-2026-haushalt' && newData.child('text').isString() && newData.child('text').val().length < 30000 && newData.child('gesendet').isNumber())"
       }
     },
 
