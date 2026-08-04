@@ -1,0 +1,1263 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fragebogen zur Haushaltsorganisation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Karla:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#17211e;
+  --ink-soft:#54635d;
+  --paper:#f8f6f1;
+  --card:#ffffff;
+  --tint:#e8eee9;
+  --green:#254036;
+  --green-mid:#3d6153;
+  --brass:#a5762a;
+  --brass-pale:#f0e4cb;
+  --line:#d9ded7;
+  --line-strong:#b8c2ba;
+  --radius:3px;
+}
+
+*{box-sizing:border-box}
+
+html{-webkit-text-size-adjust:100%}
+
+body{
+  margin:0;
+  background:var(--paper);
+  color:var(--ink);
+  font-family:"Karla",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:16px;
+  line-height:1.6;
+  padding-bottom:96px;
+}
+
+.wrap{max-width:790px;margin:0 auto;padding:0 20px}
+
+/* ---------- Kopf ---------- */
+.masthead{
+  background:var(--green);
+  color:#f3f0e8;
+  padding:44px 0 0;
+  position:relative;
+}
+.masthead .wrap{padding-bottom:38px}
+.eyebrow{
+  font-family:"IBM Plex Mono",ui-monospace,monospace;
+  font-size:11px;
+  letter-spacing:.18em;
+  text-transform:uppercase;
+  color:var(--brass-pale);
+  margin:0 0 18px;
+}
+.masthead h1{
+  font-family:"Fraunces","Iowan Old Style",Georgia,serif;
+  font-weight:600;
+  font-size:clamp(34px,7vw,54px);
+  line-height:1.02;
+  letter-spacing:-.015em;
+  margin:0 0 14px;
+}
+.masthead h1 em{font-style:normal;color:var(--brass-pale)}
+.masthead p{
+  margin:0;
+  max-width:52ch;
+  color:#cfd9d2;
+  font-size:15.5px;
+}
+.tearline{
+  height:12px;
+  background:
+    radial-gradient(circle at 6px 12px, var(--paper) 6px, transparent 6.5px) repeat-x;
+  background-size:16px 12px;
+  background-position:0 0;
+}
+
+/* ---------- Blöcke ---------- */
+.block{
+  background:var(--card);
+  border:1px solid var(--line);
+  border-radius:var(--radius);
+  padding:26px 26px 24px;
+  margin:26px 0;
+}
+.block.quiet{background:var(--tint);border-color:var(--line-strong)}
+
+.block h2{
+  font-family:"Fraunces",Georgia,serif;
+  font-size:21px;
+  font-weight:600;
+  margin:0 0 12px;
+  letter-spacing:-.01em;
+}
+.block p{margin:0 0 12px}
+.block p:last-child{margin-bottom:0}
+.block strong{font-weight:700}
+
+/* ---------- Was die App kann ---------- */
+.status-grid{display:grid;grid-template-columns:1fr 1fr;gap:26px;margin-top:20px}
+@media(max-width:640px){.status-grid{grid-template-columns:1fr;gap:22px}}
+
+.status-head{
+  font-family:"IBM Plex Mono",monospace;
+  font-size:11px;
+  letter-spacing:.14em;
+  text-transform:uppercase;
+  padding-bottom:7px;
+  margin-bottom:12px;
+  border-bottom:2px solid var(--ink);
+}
+.status-head.pending{border-bottom-color:var(--line-strong);color:var(--ink-soft)}
+
+.status-list{list-style:none;margin:0;padding:0;font-size:14.5px;line-height:1.5}
+.status-list li{padding:0 0 11px 22px;position:relative}
+.status-list li::before{
+  content:"";
+  position:absolute;left:0;top:.55em;
+  width:9px;height:9px;
+  background:var(--brass);
+}
+.status-list.pending li::before{background:none;border:1px solid var(--line-strong)}
+.status-list b{font-weight:700}
+
+/* ---------- Abschnitts-Trenner ---------- */
+.part{margin:52px 0 22px}
+.part-num{
+  font-family:"IBM Plex Mono",monospace;
+  font-size:11px;
+  letter-spacing:.18em;
+  text-transform:uppercase;
+  color:var(--brass);
+  display:block;
+  margin-bottom:6px;
+}
+.part h2{
+  font-family:"Fraunces",Georgia,serif;
+  font-size:clamp(24px,4.5vw,31px);
+  font-weight:600;
+  margin:0 0 8px;
+  letter-spacing:-.015em;
+}
+.part p{margin:0;color:var(--ink-soft);font-size:15px;max-width:60ch}
+
+/* ---------- Frage-Karte ---------- */
+.q{
+  background:var(--card);
+  border:1px solid var(--line);
+  border-left:3px solid var(--line-strong);
+  border-radius:var(--radius);
+  padding:20px 22px;
+  margin:14px 0;
+  position:relative;
+  transition:border-color .18s ease;
+}
+.q.answered{border-left-color:var(--brass)}
+.q:focus-within{border-color:var(--green-mid)}
+
+.q-num{
+  font-family:"IBM Plex Mono",monospace;
+  font-size:11px;
+  font-weight:600;
+  color:var(--brass);
+  letter-spacing:.08em;
+  display:block;
+  margin-bottom:5px;
+}
+.q-title{
+  font-weight:700;
+  font-size:16.5px;
+  line-height:1.35;
+  margin:0 0 4px;
+}
+.q-hint{
+  font-size:14px;
+  color:var(--ink-soft);
+  margin:0 0 14px;
+}
+.q-hint:last-of-type{margin-bottom:14px}
+
+.sublabel{
+  font-family:"IBM Plex Mono",monospace;
+  font-size:10.5px;
+  letter-spacing:.12em;
+  text-transform:uppercase;
+  color:var(--ink-soft);
+  display:block;
+  margin:16px 0 8px;
+}
+.sublabel:first-of-type{margin-top:0}
+
+/* ---------- Chips ---------- */
+.chips{display:flex;flex-wrap:wrap;gap:7px;margin:0 0 4px}
+.chip{position:relative;display:inline-flex}
+.chip input{
+  position:absolute;
+  opacity:0;
+  width:100%;height:100%;
+  margin:0;
+  cursor:pointer;
+}
+.chip span{
+  display:inline-block;
+  padding:7px 13px;
+  border:1px solid var(--line-strong);
+  border-radius:999px;
+  font-size:14px;
+  line-height:1.25;
+  background:#fff;
+  cursor:pointer;
+  transition:background .14s ease,border-color .14s ease,color .14s ease;
+  -webkit-print-color-adjust:exact;
+  print-color-adjust:exact;
+}
+.chip input:hover + span{border-color:var(--green-mid);background:var(--tint)}
+.chip input:checked + span{
+  background:var(--green);
+  border-color:var(--green);
+  color:#fff;
+  font-weight:500;
+}
+.chip input:focus-visible + span{outline:2px solid var(--brass);outline-offset:2px}
+
+/* ---------- Textfelder ---------- */
+textarea,input[type=text]{
+  width:100%;
+  font-family:inherit;
+  font-size:15px;
+  color:var(--ink);
+  background:#fcfbf8;
+  border:1px solid var(--line-strong);
+  border-radius:var(--radius);
+  padding:10px 12px;
+  margin-top:10px;
+  resize:vertical;
+  line-height:1.5;
+}
+textarea{min-height:64px}
+textarea:focus,input[type=text]:focus{
+  outline:none;
+  border-color:var(--green-mid);
+  background:#fff;
+  box-shadow:0 0 0 3px rgba(61,97,83,.12);
+}
+textarea::placeholder,input::placeholder{color:#9aa69f}
+
+/* ---------- Kopfdaten ---------- */
+.meta-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:560px){.meta-grid{grid-template-columns:1fr}}
+.field label{
+  font-family:"IBM Plex Mono",monospace;
+  font-size:10.5px;
+  letter-spacing:.12em;
+  text-transform:uppercase;
+  color:var(--ink-soft);
+}
+.field input{margin-top:6px}
+
+/* ---------- Matrix ---------- */
+.matrix-note{
+  font-size:13px;
+  color:var(--ink-soft);
+  font-family:"IBM Plex Mono",monospace;
+  letter-spacing:.04em;
+}
+.tag{
+  display:inline-block;
+  font-family:"IBM Plex Mono",monospace;
+  font-size:10px;
+  letter-spacing:.1em;
+  text-transform:uppercase;
+  padding:3px 8px;
+  border-radius:2px;
+  margin-left:8px;
+  vertical-align:2px;
+  -webkit-print-color-adjust:exact;
+  print-color-adjust:exact;
+}
+.tag.built{background:var(--brass-pale);color:#7d5615}
+.tag.todo{background:var(--tint);color:var(--ink-soft);border:1px solid var(--line-strong)}
+
+/* ---------- Leiste unten ---------- */
+.bar{
+  position:fixed;
+  left:0;right:0;bottom:0;
+  background:var(--green);
+  color:#eef2ee;
+  border-top:3px solid var(--brass);
+  z-index:20;
+}
+.bar-inner{
+  max-width:790px;margin:0 auto;
+  padding:12px 20px;
+  display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+}
+.progress{flex:1;min-width:150px}
+.progress-label{
+  font-family:"IBM Plex Mono",monospace;
+  font-size:11px;letter-spacing:.1em;text-transform:uppercase;
+  display:block;margin-bottom:6px;color:var(--brass-pale);
+}
+.progress-track{height:4px;background:rgba(255,255,255,.18);border-radius:2px;overflow:hidden}
+.progress-fill{height:100%;width:0;background:var(--brass);transition:width .3s ease}
+
+.btn{
+  font-family:inherit;
+  font-size:14px;
+  font-weight:700;
+  padding:10px 16px;
+  border-radius:var(--radius);
+  border:1px solid transparent;
+  cursor:pointer;
+  background:var(--brass);
+  color:#1b1608;
+  transition:filter .15s ease;
+}
+.btn:hover{filter:brightness(1.08)}
+.btn.ghost{background:transparent;border-color:rgba(255,255,255,.35);color:#eef2ee}
+.btn.ghost:hover{background:rgba(255,255,255,.1);filter:none}
+.btn:focus-visible{outline:2px solid #fff;outline-offset:2px}
+
+/* ---------- Ausgabe-Fenster ---------- */
+.sheet{
+  position:fixed;inset:0;
+  background:rgba(23,33,30,.6);
+  display:none;
+  align-items:center;justify-content:center;
+  padding:20px;z-index:40;
+}
+.sheet.open{display:flex}
+.sheet-box{
+  background:var(--card);
+  border-radius:var(--radius);
+  max-width:640px;width:100%;
+  padding:24px;
+  max-height:82vh;display:flex;flex-direction:column;
+}
+.sheet-box h3{font-family:"Fraunces",Georgia,serif;margin:0 0 6px;font-size:20px}
+.sheet-box p{margin:0 0 12px;font-size:14px;color:var(--ink-soft)}
+.sheet-box textarea{flex:1;min-height:260px;font-family:"IBM Plex Mono",monospace;font-size:12.5px}
+.sheet-actions{display:flex;gap:10px;margin-top:14px;justify-content:flex-end;flex-wrap:wrap}
+.btn.dark{background:var(--green);color:#fff}
+.btn.plain{background:#fff;border-color:var(--line-strong);color:var(--ink)}
+
+/* ---------- Fuß ---------- */
+.closing{
+  margin:44px 0 10px;
+  padding:26px;
+  background:var(--green);
+  color:#dbe4de;
+  border-radius:var(--radius);
+}
+.closing p{margin:0;font-size:15.5px}
+.closing p + p{margin-top:10px}
+.closing b{color:#fff}
+
+@media (prefers-reduced-motion:reduce){
+  *{transition:none !important;animation:none !important}
+}
+
+/* ---------- Druck ---------- */
+@media print{
+  body{background:#fff;padding-bottom:0;font-size:11.5pt}
+  .bar,.sheet{display:none !important}
+  .masthead{padding-top:20px}
+  .tearline{display:none}
+  .q,.block{break-inside:avoid;page-break-inside:avoid}
+  .part{break-before:auto}
+  textarea{min-height:52px}
+}
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+<body>
+
+<header class="masthead">
+  <div class="wrap">
+    <p class="eyebrow">Fragebogen · August 2026 · ca. 12 Minuten</p>
+    <h1>Wie organisiert<br>ihr euren <em>Haushalt?</em></h1>
+    <p>Einkaufen, Kochen, Termine, Aufgaben — und die Frage, ob eine App daran wirklich etwas ändert.</p>
+  </div>
+</header>
+<div class="tearline"></div>
+
+<main class="wrap">
+
+  <section class="block">
+    <h2>Worum es geht</h2>
+    <p>Ich baue seit einiger Zeit an einer App, mit der sich ein Haushalt an einer Stelle organisieren lässt. Sie ist kein Konzept auf Papier: Wir nutzen sie zu Hause täglich, sie läuft im Browser und auf dem Handy, und die meisten Sachen unten drunter funktionieren schon. Einen endgültigen Namen hat sie noch nicht.</p>
+    <p>Bevor ich hier Arbeit reinstecke, die gar nicht nötig wäre, will ich wissen, ob das außer uns noch jemandem hilft — und an welchen Stellen. <b>Dafür brauche ich keine Ermutigung, sondern Ehrlichkeit.</b></p>
+    <p>Die nützlichsten Antworten sind die unbequemen: <i>„das würde ich nie benutzen“</i>, <i>„das machen wir gar nicht“</i>, <i>„dafür habe ich schon etwas Besseres“</i>. Wenn alle nett antworten, entsteht am Ende etwas, das niemand öffnet.</p>
+    <p style="margin-top:14px;font-size:14.5px;color:var(--ink-soft)">Fragen, zu denen dir nichts einfällt, überspring einfach. Angeklickte Felder reichen völlig — Freitext nur, wenn du Lust hast.</p>
+  </section>
+
+  <section class="block quiet">
+    <h2>Was die App heute schon kann</h2>
+    <p style="font-size:15px">Damit du eine Vorstellung hast, worüber wir reden — das ist der Stand von heute, nicht die Wunschliste.</p>
+
+    <div class="status-grid">
+      <div>
+        <div class="status-head">Läuft bereits</div>
+        <ul class="status-list">
+          <li><b>Wochenplan</b> — Frühstück, Mittag, Abend und Snack für jeden Tag. Pro Mahlzeit lässt sich einstellen, wie viele mitessen; die Mengen rechnen sich hoch. Auch „Reste von gestern“ und „auswärts“ sind eintragbar.</li>
+          <li><b>Rezeptsammlung</b> — mit Bild, Zutaten, Zubereitung, Schlagwörtern und Favoriten. Suche über Namen und Schlagwörter.</li>
+          <li><b>Rezepte einlesen</b> — Link zu einer Rezeptseite, TikTok- oder YouTube-Link oder Foto einer Kochbuchseite; Zutaten, Zubereitung und Bild werden automatisch übernommen.</li>
+          <li><b>Einkaufsliste</b> — entsteht automatisch aus dem Wochenplan, sortiert nach Supermarkt-Abteilungen in einer Reihenfolge, die ihr selbst festlegt. Auf allen Geräten gleichzeitig aktuell. Sachen, die bei euch immer da sind, tauchen gar nicht erst auf.</li>
+          <li><b>Haushalt &amp; Drogerie</b> — eigener Katalog für Spülmittel, Zahnpasta und Co., per Klick auf die Liste.</li>
+          <li><b>Nährwerte</b> — Kalorien, Eiweiß, Kohlenhydrate, Fett pro Tag und pro Woche, aus einer eingebauten Tabelle berechnet.</li>
+          <li><b>Konten und Haushalte</b> — Anmeldung per E-Mail oder Google, mehrere Haushalte pro Konto, Einladung per Link. Daten liegen in Europa.</li>
+          <li><b>Aufs Handy installierbar</b> wie eine echte App, funktioniert auch kurz ohne Netz. Rezepte lassen sich rein- und rausschreiben.</li>
+        </ul>
+      </div>
+      <div>
+        <div class="status-head pending">Gibt es noch nicht</div>
+        <ul class="status-list pending">
+          <li><b>Kalender und Termine</b> — von Anfang an mitgedacht, aber noch nicht gebaut.</li>
+          <li><b>Aufgaben und To-dos</b> für die Familie.</li>
+          <li><b>Vorratsbestand</b> — also: was ist noch da und wie viel. Bisher gibt es nur „das ist bei uns immer im Haus“.</li>
+          <li><b>Benachrichtigungen</b> aufs Handy.</li>
+          <li><b>Die Optik.</b> Alles funktioniert, sieht aber noch nach Werkstatt aus. Das Aufhübschen ist der nächste große Schritt — und einer der Gründe, warum ich vorher frage, was überhaupt bleiben soll.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ TEIL 1 ============ -->
+  <div class="part">
+    <span class="part-num">Teil 1</span>
+    <h2>Euer Haushalt</h2>
+    <p>Damit ich die Antworten später einordnen kann.</p>
+  </div>
+
+  <div class="q" data-q="0" data-title="Kopfdaten">
+    <div class="meta-grid">
+      <div class="field">
+        <label for="metaName">Ausgefüllt von</label>
+        <input type="text" id="metaName" data-label="Name" placeholder="Name">
+      </div>
+      <div class="field">
+        <label for="metaDate">Datum</label>
+        <input type="text" id="metaDate" data-label="Datum" placeholder="TT.MM.JJJJ">
+      </div>
+    </div>
+  </div>
+
+  <div class="q" data-q="1" data-title="Wer gehört zu eurem Haushalt?">
+    <span class="q-num">Frage 01</span>
+    <p class="q-title">Wer gehört zu eurem Haushalt?</p>
+    <span class="sublabel">Erwachsene</span>
+    <div class="chips">
+      <label class="chip"><input type="radio" name="q1a" value="1 Erwachsener"><span>1</span></label>
+      <label class="chip"><input type="radio" name="q1a" value="2 Erwachsene"><span>2</span></label>
+      <label class="chip"><input type="radio" name="q1a" value="3 oder mehr Erwachsene"><span>3 oder mehr</span></label>
+    </div>
+    <span class="sublabel">Kinder im Haushalt</span>
+    <div class="chips">
+      <label class="chip"><input type="checkbox" name="q1b" value="keine Kinder"><span>Keine</span></label>
+      <label class="chip"><input type="checkbox" name="q1b" value="Kind unter 3"><span>unter 3</span></label>
+      <label class="chip"><input type="checkbox" name="q1b" value="Kind 3–6"><span>3–6</span></label>
+      <label class="chip"><input type="checkbox" name="q1b" value="Kind 7–12"><span>7–12</span></label>
+      <label class="chip"><input type="checkbox" name="q1b" value="Jugendliche 13–17"><span>13–17</span></label>
+      <label class="chip"><input type="checkbox" name="q1b" value="erwachsene Kinder im Haushalt"><span>über 18, wohnt noch da</span></label>
+    </div>
+    <textarea data-label="Ergänzung" placeholder="Etwas, das da nicht reinpasst? (Wechselmodell, WG, Großeltern im Haus …)"></textarea>
+  </div>
+
+  <div class="q" data-q="2" data-title="Wer kümmert sich bei euch um was?">
+    <span class="q-num">Frage 02</span>
+    <p class="q-title">Wer kümmert sich bei euch um was?</p>
+    <p class="q-hint">Grob geschätzt reicht.</p>
+
+    <span class="sublabel">Einkaufen</span>
+    <div class="chips">
+      <label class="chip"><input type="radio" name="q2a" value="Einkaufen: meistens ich"><span>meistens ich</span></label>
+      <label class="chip"><input type="radio" name="q2a" value="Einkaufen: meistens jemand anderes"><span>meistens jemand anderes</span></label>
+      <label class="chip"><input type="radio" name="q2a" value="Einkaufen: abwechselnd"><span>abwechselnd</span></label>
+    </div>
+
+    <span class="sublabel">Kochen</span>
+    <div class="chips">
+      <label class="chip"><input type="radio" name="q2b" value="Kochen: meistens ich"><span>meistens ich</span></label>
+      <label class="chip"><input type="radio" name="q2b" value="Kochen: meistens jemand anderes"><span>meistens jemand anderes</span></label>
+      <label class="chip"><input type="radio" name="q2b" value="Kochen: abwechselnd"><span>abwechselnd</span></label>
+    </div>
+
+    <span class="sublabel">Termine im Blick behalten</span>
+    <div class="chips">
+      <label class="chip"><input type="radio" name="q2c" value="Termine: meistens ich"><span>meistens ich</span></label>
+      <label class="chip"><input type="radio" name="q2c" value="Termine: meistens jemand anderes"><span>meistens jemand anderes</span></label>
+      <label class="chip"><input type="radio" name="q2c" value="Termine: beide / alle gleichermaßen"><span>beide, alle</span></label>
+      <label class="chip"><input type="radio" name="q2c" value="Termine: jeder für sich"><span>jeder für sich</span></label>
+      <label class="chip"><input type="radio" name="q2c" value="Termine: niemand richtig"><span>niemand richtig</span></label>
+    </div>
+
+    <span class="sublabel">Nachschub &amp; Vorräte</span>
+    <div class="chips">
+      <label class="chip"><input type="radio" name="q2d" value="Vorräte: meistens ich"><span>meistens ich</span></label>
+      <label class="chip"><input type="radio" name="q2d" value="Vorräte: meistens jemand anderes"><span>meistens jemand anderes</span></label>
+      <label class="chip"><input type="radio" name="q2d" value="Vorräte: abwechselnd"><span>abwechselnd</span></label>
+      <label class="chip"><input type="radio" name="q2d" value="Vorräte: niemand richtig"><span>niemand richtig</span></label>
+    </div>
+  </div>
+
+  <!-- ============ TEIL 2 ============ -->
+  <div class="part">
+    <span class="part-num">Teil 2</span>
+    <h2>Was ihr heute nutzt</h2>
+    <p>Bitte konkret: nicht „wir organisieren uns schon irgendwie“, sondern womit genau. Mehrfachauswahl möglich.</p>
+  </div>
+
+  <div class="q" data-q="3" data-title="Termine und Kalender">
+    <span class="q-num">Frage 03</span>
+    <p class="q-title">Termine und Kalender</p>
+    <div class="chips">
+      <label class="chip"><input type="checkbox" name="q3" value="Gemeinsamer Google-/Apple-Kalender"><span>Gemeinsamer Google-/Apple-Kalender</span></label>
+      <label class="chip"><input type="checkbox" name="q3" value="Familien-App (FamilyWall o. ä.)"><span>Familien-App</span></label>
+      <label class="chip"><input type="checkbox" name="q3" value="Wandkalender / Papier"><span>Wandkalender, Papier</span></label>
+      <label class="chip"><input type="checkbox" name="q3" value="WhatsApp"><span>WhatsApp</span></label>
+      <label class="chip"><input type="checkbox" name="q3" value="Zuruf / mündlich"><span>Zuruf</span></label>
+      <label class="chip"><input type="checkbox" name="q3" value="Jeder für sich"><span>Jeder für sich</span></label>
+      <label class="chip"><input type="checkbox" name="q3" value="Gar nicht"><span>Gar nicht</span></label>
+    </div>
+    <textarea data-label="Was genau" placeholder="Welche App, welcher Kalender — und wo klemmt es?"></textarea>
+  </div>
+
+  <div class="q" data-q="4" data-title="Einkaufsliste">
+    <span class="q-num">Frage 04</span>
+    <p class="q-title">Einkaufsliste</p>
+    <div class="chips">
+      <label class="chip"><input type="checkbox" name="q4" value="Bring!"><span>Bring!</span></label>
+      <label class="chip"><input type="checkbox" name="q4" value="Notizen-App am Handy"><span>Notizen-App</span></label>
+      <label class="chip"><input type="checkbox" name="q4" value="Zettel"><span>Zettel</span></label>
+      <label class="chip"><input type="checkbox" name="q4" value="WhatsApp an sich selbst"><span>WhatsApp an mich selbst</span></label>
+      <label class="chip"><input type="checkbox" name="q4" value="WhatsApp-Gruppe"><span>WhatsApp-Gruppe</span></label>
+      <label class="chip"><input type="checkbox" name="q4" value="Alexa / Siri"><span>Alexa, Siri</span></label>
+      <label class="chip"><input type="checkbox" name="q4" value="Im Kopf"><span>Im Kopf</span></label>
+      <label class="chip"><input type="checkbox" name="q4" value="Andere App"><span>Andere App</span></label>
+    </div>
+    <textarea data-label="Was genau" placeholder="Falls App: welche? Und schreibt ihr gemeinsam drauf oder nur einer?"></textarea>
+  </div>
+
+  <div class="q" data-q="5" data-title="Rezepte">
+    <span class="q-num">Frage 05</span>
+    <p class="q-title">Rezepte</p>
+    <div class="chips">
+      <label class="chip"><input type="checkbox" name="q5" value="Kochbücher"><span>Kochbücher</span></label>
+      <label class="chip"><input type="checkbox" name="q5" value="Rezept-App (Chefkoch o. ä.)"><span>Rezept-App</span></label>
+      <label class="chip"><input type="checkbox" name="q5" value="Screenshots in der Galerie"><span>Screenshots</span></label>
+      <label class="chip"><input type="checkbox" name="q5" value="Gespeicherte Instagram-/TikTok-Beiträge"><span>Instagram, TikTok gespeichert</span></label>
+      <label class="chip"><input type="checkbox" name="q5" value="Browser-Lesezeichen"><span>Lesezeichen im Browser</span></label>
+      <label class="chip"><input type="checkbox" name="q5" value="Handgeschriebene Sammlung"><span>Handgeschriebenes</span></label>
+      <label class="chip"><input type="checkbox" name="q5" value="Im Kopf / gar keine"><span>Im Kopf, gar keine</span></label>
+    </div>
+    <textarea data-label="Was genau" placeholder="Findet ihr wieder, was ihr gespeichert habt?"></textarea>
+  </div>
+
+  <div class="q" data-q="6" data-title="Essensplanung für die Woche">
+    <span class="q-num">Frage 06</span>
+    <p class="q-title">Essensplanung für die Woche</p>
+    <div class="chips">
+      <label class="chip"><input type="radio" name="q6" value="Fester Wochenplan"><span>Fester Wochenplan</span></label>
+      <label class="chip"><input type="radio" name="q6" value="Grobe Idee für ein paar Tage"><span>Grobe Idee für ein paar Tage</span></label>
+      <label class="chip"><input type="radio" name="q6" value="Rein spontan"><span>Rein spontan</span></label>
+      <label class="chip"><input type="radio" name="q6" value="Was gerade da ist"><span>Was gerade da ist</span></label>
+      <label class="chip"><input type="radio" name="q6" value="Gar nicht"><span>Gar nicht</span></label>
+    </div>
+    <textarea data-label="Anmerkung" placeholder="Und wie oft steht ihr trotzdem um 18 Uhr vor dem offenen Kühlschrank?"></textarea>
+  </div>
+
+  <div class="q" data-q="7" data-title="Aufgaben und To-dos">
+    <span class="q-num">Frage 07</span>
+    <p class="q-title">Aufgaben und To-dos</p>
+    <p class="q-hint">Gemeint ist alles, was jemand erledigen muss und was sonst untergeht: Müll rausbringen, Rechnung überweisen, Geschenk besorgen, Termin beim Kinderarzt machen, Winterreifen wechseln lassen.</p>
+    <div class="chips">
+      <label class="chip"><input type="checkbox" name="q7" value="Todoist / Apple Erinnerungen / Google Tasks"><span>Todoist, Erinnerungen, Tasks</span></label>
+      <label class="chip"><input type="checkbox" name="q7" value="Notion / Trello"><span>Notion, Trello</span></label>
+      <label class="chip"><input type="checkbox" name="q7" value="Zettel"><span>Zettel</span></label>
+      <label class="chip"><input type="checkbox" name="q7" value="WhatsApp-Gruppe"><span>WhatsApp-Gruppe</span></label>
+      <label class="chip"><input type="checkbox" name="q7" value="Gedächtnis"><span>Gedächtnis</span></label>
+      <label class="chip"><input type="checkbox" name="q7" value="Gar nicht"><span>Gar nicht</span></label>
+    </div>
+    <textarea data-label="Was genau" placeholder="Optional"></textarea>
+  </div>
+
+  <div class="q" data-q="8" data-title="Vorräte und Haushaltsartikel">
+    <span class="q-num">Frage 08</span>
+    <p class="q-title">Vorräte und Haushaltsartikel</p>
+    <span class="sublabel">Wisst ihr, was da ist?</span>
+    <div class="chips">
+      <label class="chip"><input type="radio" name="q8a" value="Ziemlich genau"><span>Ziemlich genau</span></label>
+      <label class="chip"><input type="radio" name="q8a" value="Ungefähr"><span>Ungefähr</span></label>
+      <label class="chip"><input type="radio" name="q8a" value="Keine Ahnung"><span>Keine Ahnung</span></label>
+    </div>
+    <span class="sublabel">Kommt das vor?</span>
+    <div class="chips">
+      <label class="chip"><input type="checkbox" name="q8b" value="Wir kaufen regelmäßig etwas doppelt"><span>Wir kaufen doppelt</span></label>
+      <label class="chip"><input type="checkbox" name="q8b" value="Es geht regelmäßig etwas aus"><span>Es geht etwas aus</span></label>
+      <label class="chip"><input type="checkbox" name="q8b" value="Es verdirbt regelmäßig etwas"><span>Es verdirbt etwas</span></label>
+      <label class="chip"><input type="checkbox" name="q8b" value="Läuft eigentlich rund"><span>Läuft eigentlich rund</span></label>
+    </div>
+  </div>
+
+  <div class="q" data-q="9" data-title="Kostet etwas davon Geld?">
+    <span class="q-num">Frage 09</span>
+    <p class="q-title">Kostet etwas davon Geld?</p>
+    <div class="chips">
+      <label class="chip"><input type="radio" name="q9" value="Nein, alles kostenlos"><span>Nein, alles kostenlos</span></label>
+      <label class="chip"><input type="radio" name="q9" value="Ja"><span>Ja</span></label>
+      <label class="chip"><input type="radio" name="q9" value="Weiß ich nicht"><span>Weiß ich nicht</span></label>
+    </div>
+    <textarea data-label="Was und wie viel" placeholder="Falls ja: was, und wie viel im Monat?"></textarea>
+  </div>
+
+  <div class="q" data-q="10" data-title="Schon mal eine Haushalts-App wieder aufgegeben?">
+    <span class="q-num">Frage 10</span>
+    <p class="q-title">Habt ihr schon mal eine Haushalts- oder Familien-App ausprobiert und wieder aufgegeben?</p>
+    <div class="chips">
+      <label class="chip"><input type="radio" name="q10" value="Ja"><span>Ja</span></label>
+      <label class="chip"><input type="radio" name="q10" value="Nein"><span>Nein</span></label>
+      <label class="chip"><input type="radio" name="q10" value="Nie eine ausprobiert"><span>Nie eine ausprobiert</span></label>
+    </div>
+    <textarea data-label="Welche und warum" placeholder="Welche — und woran lag es? Das ist für mich eine der wertvollsten Antworten."></textarea>
+  </div>
+
+  <!-- ============ TEIL 3 ============ -->
+  <div class="part">
+    <span class="part-num">Teil 3</span>
+    <h2>Was ihr davon nutzen würdet</h2>
+    <p>Jetzt bitte besonders streng. „Klingt nett, würde ich aber nicht anfassen“ ist eine sehr wertvolle Antwort — und für mich billiger als jede höfliche Zustimmung.</p>
+  </div>
+
+  <div class="q" data-q="11" data-title="Gemeinsame Einkaufsliste">
+    <span class="q-num">Frage 11</span>
+    <p class="q-title">Gemeinsame Einkaufsliste <span class="tag built">gibt es</span></p>
+    <p class="q-hint">Auf allen Geräten gleichzeitig aktuell, sortiert nach Abteilungen im Supermarkt, füllt sich automatisch aus dem Wochenplan.</p>
+    <span class="sublabel">Wie oft würdest du das nutzen?</span>
+    <div class="chips">
+      <label class="chip"><input type="radio" name="q11a" value="Täglich"><span>Täglich</span></label>
+      <label class="chip"><input type="radio" name="q11a" value="Mehrfach die Woche"><span>Mehrfach die Woche</span></label>
+      <label class="chip"><input type="radio" name="q11a" value="1× die Woche"><span>1× die Woche</span></label>
+      <label class="chip"><input type="radio" name="q11a" value="Gelegentlich"><span>Gelegentlich</span></label>
+      <label class="chip"><input type="radio" name="q11a" value="Nie"><span>Nie</span></label>
+    </div>
+    <span class="sublabel">Würdest du dafür euer jetziges System aufgeben?</span>
+    <div class="chips">
+      <label class="chip"><input type="radio" name="q11b" value="Ja, sofort"><span>Ja, sofort</span></label>
+      <label class="chip"><input type="radio" name="q11b" value="Nur wenn alle mitziehen"><span>Nur wenn alle mitziehen</span></label>
+      <label class="chip"><input type="radio" name="q11b" value="Nein, ich bleibe bei meinem"><span>Nein, bleibe bei meinem</span></label>
+      <label class="chip"><input type="radio" name="q11b" value="Wir haben nichts, was ersetzt werden müsste"><span>Haben nichts zu ersetzen</span></label>
+    </div>
+  </div>
+
+  <div class="q" data-q="12" data-title="Rezeptsammlung">
+    <span class="q-num">Frage 12</span>
+    <p class="q-title">Rezeptsammlung <span class="tag built">gibt es</span></p>
+    <p class="q-hint">Eigene Rezepte mit Bild, Schlagwörtern, Favoriten und Suche.</p>
+    <span class="sublabel">Wie oft würdest du das nutzen?</span>
+    <div class="chips">
+      <label class="chip"><input type="radio" name="q12a" value="Täglich"><span>Täglich</span></label>
+      <label class="chip"><input type="radio" name="q12a" value="Mehrfach die Woche"><span>Mehrfach die Woche</span></label>
+      <label class="chip"><input type="radio" name="q12a" value="1× die Woche"><span>1× die Woche</span></label>
+      <label class="chip"><input type="radio" name="q12a" value="Gelegentlich"><span>Gelegentlich</span></label>
+      <label class="chip"><input type="radio" name="q12a" value="Nie"><span>Nie</span></label>
+    </div>
+    <span class="sublabel">Würdest du deine Rezepte wirklich dort hinein umziehen?</span>
+    <div class="chips">
+      <label class="chip"><input type="radio" name="q12b" value="Ja"><span>Ja</span></label>
+      <label class="chip"><input type="radio" name="q12b" value="Nur die wichtigsten"><span>Nur die wichtigsten</span></label>
+      <label class="chip"><input type="radio" name="q12b" value="Nein, zu viel Arbeit"><span>Nein, zu viel Arbeit</span></label>
+      <label class="chip"><input type="radio" name="q12b" value="Ich sammle keine Rezepte"><span>Ich sammle keine Rezepte</span></label>
+    </div>
+  </div>
+
+  <div class="q" data-q="13" data-title="Wochenplan fürs Essen">
+    <span class="q-num">Frage 13</span>
+    <p class="q-title">Wochenplan fürs Essen <span class="tag built">gibt es</span></p>
+    <p class="q-hint">Was gibt es wann, Portionen rechnen sich nach Personenzahl hoch, Zutaten wandern mit einem Klick auf die Einkaufsliste.</p>
+    <span class="sublabel">Wie oft würdest du das nutzen?</span>
+    <div class="chips">
+      <label class="chip"><input type="radio" name="q13a" value="Täglich"><span>Täglich</span></label>
+      <label class="chip"><input type="radio" name="q13a" value="Mehrfach die Woche"><span>Mehrfach die Woche</span></label>
+      <label class="chip"><input type="radio" name="q13a" value="1× die Woche"><span>1× die Woche</span></label>
+      <label class="chip"><input type="radio" name="q13a" value="Gelegentlich"><span>Gelegentlich</span></label>
+      <label class="chip"><input type="radio" name="q13a" value="Nie"><span>Nie</span></label>
+    </div>
+    <span class="sublabel">Ehrlich: Würdet ihr euch an einen geplanten Wochenplan halten?</span>
+    <div class="chips">
+      <label class="chip"><input type="radio" name="q13b" value="Ja"><span>Ja</span></label>
+      <label class="chip"><input type="radio" name="q13b" value="Eher als grobe Richtung"><span>Als grobe Richtung</span></label>
+      <label class="chip"><input type="radio" name="q13b" value="Nein, wir kochen spontan"><span>Nein, wir kochen spontan</span></label>
+    </div>
+  </div>
+
+  <div class="q" data-q="14" data-title="Nährwerte">
+    <span class="q-num">Frage 14</span>
+    <p class="q-title">Nährwerte pro Tag und Woche <span class="tag built">gibt es</span></p>
+    <p class="q-hint">Kalorien, Eiweiß, Kohlenhydrate, Fett — automatisch aus dem Wochenplan.</p>
+    <div class="chips">
+      <label class="chip"><input type="radio" name="q14" value="Würde ich regelmäßig anschauen"><span>Schaue ich regelmäßig an</span></label>
+      <label class="chip"><input type="radio" name="q14" value="Ab und zu interessant"><span>Ab und zu interessant</span></label>
+      <label class="chip"><input type="radio" name="q14" value="Interessiert mich nicht"><span>Interessiert mich nicht</span></label>
+      <label class="chip"><input type="radio" name="q14" value="Stört mich sogar"><span>Stört mich sogar</span></label>
+    </div>
+  </div>
+
+  <div class="q" data-q="15" data-title="Vorräte und Haushaltsartikel">
+    <span class="q-num">Frage 15</span>
+    <p class="q-title">Vorräte und Haushaltsartikel <span class="tag todo">geplant</span></p>
+    <p class="q-hint">Was ist immer da, was muss nachgekauft werden — und pflegen müsste man das selbst.</p>
+    <span class="sublabel">Wie oft würdest du das nutzen?</span>
+    <div class="chips">
+      <label class="chip"><input type="radio" name="q15a" value="Täglich"><span>Täglich</span></label>
+      <label class="chip"><input type="radio" name="q15a" value="Mehrfach die Woche"><span>Mehrfach die Woche</span></label>
+      <label class="chip"><input type="radio" name="q15a" value="1× die Woche"><span>1× die Woche</span></label>
+      <label class="chip"><input type="radio" name="q15a" value="Gelegentlich"><span>Gelegentlich</span></label>
+      <label class="chip"><input type="radio" name="q15a" value="Nie"><span>Nie</span></label>
+    </div>
+    <span class="sublabel">Würdest du den Bestand wirklich pflegen?</span>
+    <div class="chips">
+      <label class="chip"><input type="radio" name="q15b" value="Ja"><span>Ja</span></label>
+      <label class="chip"><input type="radio" name="q15b" value="Zwei Wochen lang, dann nicht mehr"><span>Zwei Wochen lang, dann nicht mehr</span></label>
+      <label class="chip"><input type="radio" name="q15b" value="Nein"><span>Nein</span></label>
+    </div>
+  </div>
+
+  <div class="q" data-q="16" data-title="Gemeinsamer Kalender">
+    <span class="q-num">Frage 16</span>
+    <p class="q-title">Gemeinsamer Kalender <span class="tag todo">geplant</span></p>
+    <p class="q-hint">Monats- und Wochenansicht, Termine je Person farblich, wiederkehrende und mehrtägige Einträge.</p>
+    <span class="sublabel">Wie oft würdest du das nutzen?</span>
+    <div class="chips">
+      <label class="chip"><input type="radio" name="q16a" value="Täglich"><span>Täglich</span></label>
+      <label class="chip"><input type="radio" name="q16a" value="Mehrfach die Woche"><span>Mehrfach die Woche</span></label>
+      <label class="chip"><input type="radio" name="q16a" value="1× die Woche"><span>1× die Woche</span></label>
+      <label class="chip"><input type="radio" name="q16a" value="Gelegentlich"><span>Gelegentlich</span></label>
+      <label class="chip"><input type="radio" name="q16a" value="Nie"><span>Nie</span></label>
+    </div>
+    <span class="sublabel">Würdest du dafür euren jetzigen Kalender aufgeben?</span>
+    <div class="chips">
+      <label class="chip"><input type="radio" name="q16b" value="Ja"><span>Ja</span></label>
+      <label class="chip"><input type="radio" name="q16b" value="Nur wenn er sich mit Google/Apple abgleicht"><span>Nur mit Google-/Apple-Abgleich</span></label>
+      <label class="chip"><input type="radio" name="q16b" value="Nein, auf keinen Fall"><span>Nein, auf keinen Fall</span></label>
+      <label class="chip"><input type="radio" name="q16b" value="Wir haben keinen"><span>Wir haben keinen</span></label>
+    </div>
+  </div>
+
+  <div class="q" data-q="17" data-title="Notizen, Listen und Aufgaben">
+    <span class="q-num">Frage 17</span>
+    <p class="q-title">Notizen, Listen und Aufgaben <span class="tag todo">geplant</span></p>
+    <p class="q-hint">Frei aufbaubar, optional mit Zuständigkeit und Fälligkeitsdatum.</p>
+    <span class="sublabel">Wie oft würdest du das nutzen?</span>
+    <div class="chips">
+      <label class="chip"><input type="radio" name="q17a" value="Täglich"><span>Täglich</span></label>
+      <label class="chip"><input type="radio" name="q17a" value="Mehrfach die Woche"><span>Mehrfach die Woche</span></label>
+      <label class="chip"><input type="radio" name="q17a" value="1× die Woche"><span>1× die Woche</span></label>
+      <label class="chip"><input type="radio" name="q17a" value="Gelegentlich"><span>Gelegentlich</span></label>
+      <label class="chip"><input type="radio" name="q17a" value="Nie"><span>Nie</span></label>
+    </div>
+    <span class="sublabel">Würdest du dafür euer jetziges System aufgeben?</span>
+    <div class="chips">
+      <label class="chip"><input type="radio" name="q17b" value="Ja"><span>Ja</span></label>
+      <label class="chip"><input type="radio" name="q17b" value="Nur wenn alle mitziehen"><span>Nur wenn alle mitziehen</span></label>
+      <label class="chip"><input type="radio" name="q17b" value="Nein"><span>Nein</span></label>
+      <label class="chip"><input type="radio" name="q17b" value="Wir haben nichts"><span>Wir haben nichts</span></label>
+    </div>
+  </div>
+
+  <div class="q" data-q="18" data-title="Private Termine">
+    <span class="q-num">Frage 18</span>
+    <p class="q-title">Private Termine — also Termine, die nur du siehst</p>
+    <p class="q-hint">Wichtige Frage für mich, weil sie die ganze Datenstruktur beeinflusst.</p>
+    <div class="chips">
+      <label class="chip"><input type="radio" name="q18" value="Brauche ich unbedingt"><span>Brauche ich unbedingt</span></label>
+      <label class="chip"><input type="radio" name="q18" value="Wäre nett, aber kein Muss"><span>Wäre nett, kein Muss</span></label>
+      <label class="chip"><input type="radio" name="q18" value="Ein rein gemeinsamer Kalender reicht völlig"><span>Gemeinsam reicht völlig</span></label>
+    </div>
+    <textarea data-label="Anmerkung" placeholder="Optional: wofür?"></textarea>
+  </div>
+
+  <div class="q" data-q="19" data-title="Benachrichtigungen">
+    <span class="q-num">Frage 19</span>
+    <p class="q-title">Benachrichtigungen aufs Handy — willst du das überhaupt?</p>
+    <div class="chips">
+      <label class="chip"><input type="checkbox" name="q19" value="Termin steht an"><span>Termin steht an</span></label>
+      <label class="chip"><input type="checkbox" name="q19" value="Einkaufsliste wurde geändert"><span>Einkaufsliste geändert</span></label>
+      <label class="chip"><input type="checkbox" name="q19" value="Mir wurde eine Aufgabe zugewiesen"><span>Aufgabe zugewiesen</span></label>
+      <label class="chip"><input type="checkbox" name="q19" value="Erinnerung: Wochenplan machen"><span>Erinnerung: Wochenplan machen</span></label>
+      <label class="chip"><input type="checkbox" name="q19" value="Gar keine Benachrichtigungen"><span>Gar keine</span></label>
+    </div>
+  </div>
+
+  <div class="q" data-q="20" data-title="Rezepte automatisch einlesen">
+    <span class="q-num">Frage 20</span>
+    <p class="q-title">Rezepte automatisch einlesen <span class="tag built">gibt es</span></p>
+    <p class="q-hint">Link, Video-Link oder Foto einer Kochbuchseite rein — Zutaten, Zubereitung und Bild werden automatisch angelegt. Das ist die <b>einzige</b> Funktion, die im Hintergrund echtes Geld kostet. Alles andere bliebe kostenlos.</p>
+    <span class="sublabel">Würdest du sie nutzen?</span>
+    <div class="chips">
+      <label class="chip"><input type="radio" name="q20a" value="Ständig"><span>Ständig</span></label>
+      <label class="chip"><input type="radio" name="q20a" value="Ab und zu"><span>Ab und zu</span></label>
+      <label class="chip"><input type="radio" name="q20a" value="Einmal zum Ausprobieren"><span>Einmal zum Ausprobieren</span></label>
+      <label class="chip"><input type="radio" name="q20a" value="Nie"><span>Nie</span></label>
+    </div>
+    <span class="sublabel">Was würdest du dafür im Monat tatsächlich zahlen?</span>
+    <div class="chips">
+      <label class="chip"><input type="radio" name="q20b" value="0 € — dann tippe ich lieber ab"><span>0 € — dann tippe ich ab</span></label>
+      <label class="chip"><input type="radio" name="q20b" value="bis 2 €"><span>bis 2 €</span></label>
+      <label class="chip"><input type="radio" name="q20b" value="2–5 €"><span>2–5 €</span></label>
+      <label class="chip"><input type="radio" name="q20b" value="mehr als 5 €"><span>mehr als 5 €</span></label>
+    </div>
+  </div>
+
+  <div class="q" data-q="21" data-title="Geräte">
+    <span class="q-num">Frage 21</span>
+    <p class="q-title">Auf welchen Geräten würdest du das nutzen?</p>
+    <span class="sublabel">Gerät und Situation</span>
+    <div class="chips">
+      <label class="chip"><input type="checkbox" name="q21a" value="Handy unterwegs"><span>Handy unterwegs</span></label>
+      <label class="chip"><input type="checkbox" name="q21a" value="Handy zuhause"><span>Handy zuhause</span></label>
+      <label class="chip"><input type="checkbox" name="q21a" value="Tablet in der Küche"><span>Tablet in der Küche</span></label>
+      <label class="chip"><input type="checkbox" name="q21a" value="Laptop am Abend"><span>Laptop am Abend</span></label>
+    </div>
+    <span class="sublabel">Android oder iPhone?</span>
+    <div class="chips">
+      <label class="chip"><input type="radio" name="q21b" value="Android"><span>Android</span></label>
+      <label class="chip"><input type="radio" name="q21b" value="iPhone"><span>iPhone</span></label>
+      <label class="chip"><input type="radio" name="q21b" value="Im Haushalt gemischt"><span>Bei uns gemischt</span></label>
+    </div>
+  </div>
+
+  <div class="q" data-q="22" data-title="Ziehen bei euch wirklich alle mit?">
+    <span class="q-num">Frage 22</span>
+    <p class="q-title">Ganz ehrlich: Wie wahrscheinlich ist es, dass in eurem Haushalt wirklich <i>alle</i> mitmachen?</p>
+    <p class="q-hint">Das ist die Frage, an der so etwas normalerweise stirbt. Einer richtet es ein, der Rest zieht nicht mit — und dann ist eine gemeinsame Liste schlechter als ein Zettel am Kühlschrank.</p>
+    <div class="chips">
+      <label class="chip"><input type="radio" name="q22" value="Alle sofort"><span>Alle sofort</span></label>
+      <label class="chip"><input type="radio" name="q22" value="Die meisten, einer wird schwierig"><span>Die meisten, einer wird schwierig</span></label>
+      <label class="chip"><input type="radio" name="q22" value="Ich allein, der Rest schaut zu"><span>Ich allein, der Rest schaut zu</span></label>
+      <label class="chip"><input type="radio" name="q22" value="Ehrlich: eher nicht"><span>Ehrlich: eher nicht</span></label>
+    </div>
+    <textarea data-label="Wer und warum" placeholder="Wer wäre am schwersten zu überzeugen — und woran liegt das?"></textarea>
+  </div>
+
+  <!-- ============ TEIL 4 ============ -->
+  <div class="part">
+    <span class="part-num">Teil 4</span>
+    <h2>Wünsche, Anregungen, Kritik</h2>
+    <p>Der Teil, in dem meistens das Nützlichste steht.</p>
+  </div>
+
+  <div class="q" data-q="23" data-title="Was fehlt?">
+    <span class="q-num">Frage 23</span>
+    <p class="q-title">Was fehlt in der Liste oben? Was hättest du erwartet und nicht gefunden?</p>
+    <textarea data-label="Antwort" placeholder="…"></textarea>
+  </div>
+
+  <div class="q" data-q="24" data-title="Löschgrund nach zwei Wochen">
+    <span class="q-num">Frage 24</span>
+    <p class="q-title">Was wäre für dich ein Grund, so eine App nach zwei Wochen wieder zu löschen?</p>
+    <div class="chips">
+      <label class="chip"><input type="checkbox" name="q24" value="Zu kompliziert"><span>Zu kompliziert</span></label>
+      <label class="chip"><input type="checkbox" name="q24" value="Zu langsam"><span>Zu langsam</span></label>
+      <label class="chip"><input type="checkbox" name="q24" value="Zu viel Pflegeaufwand"><span>Zu viel Pflegeaufwand</span></label>
+      <label class="chip"><input type="checkbox" name="q24" value="Niemand sonst im Haushalt nutzt sie"><span>Niemand sonst nutzt sie</span></label>
+      <label class="chip"><input type="checkbox" name="q24" value="Sieht hässlich aus"><span>Sieht hässlich aus</span></label>
+      <label class="chip"><input type="checkbox" name="q24" value="Ich vergesse sie einfach"><span>Ich vergesse sie einfach</span></label>
+      <label class="chip"><input type="checkbox" name="q24" value="Bedenken wegen der Daten"><span>Bedenken wegen der Daten</span></label>
+      <label class="chip"><input type="checkbox" name="q24" value="Mein bisheriges System war besser"><span>Mein System war besser</span></label>
+    </div>
+    <textarea data-label="Genauer" placeholder="Optional: was davon wäre bei dir der wahrscheinlichste Grund?"></textarea>
+  </div>
+
+  <div class="q" data-q="25" data-title="Warum kann das eigentlich keine App?">
+    <span class="q-num">Frage 25</span>
+    <p class="q-title">Gibt es etwas, von dem du schon mal gedacht hast: „Warum kann das eigentlich keine App?“</p>
+    <p class="q-hint">Muss nichts mit Haushalt zu tun haben.</p>
+    <textarea data-label="Antwort" placeholder="…"></textarea>
+  </div>
+
+  <div class="q" data-q="26" data-title="Daten in Europa">
+    <span class="q-num">Frage 26</span>
+    <p class="q-title">Wie wichtig wäre dir, dass die Daten in Europa liegen und nicht ausgewertet werden?</p>
+    <div class="chips">
+      <label class="chip"><input type="radio" name="q26" value="Sehr wichtig, sonst nutze ich es nicht"><span>Sehr wichtig</span></label>
+      <label class="chip"><input type="radio" name="q26" value="Wichtig"><span>Wichtig</span></label>
+      <label class="chip"><input type="radio" name="q26" value="Nebensächlich"><span>Nebensächlich</span></label>
+      <label class="chip"><input type="radio" name="q26" value="Völlig egal"><span>Völlig egal</span></label>
+    </div>
+  </div>
+
+  <div class="q" data-q="27" data-title="Frühe Version ausprobieren?">
+    <span class="q-num">Frage 27</span>
+    <p class="q-title">Möchtest du irgendwann eine frühe Version ausprobieren?</p>
+    <p class="q-hint">Ein Nein ist völlig in Ordnung und für mich genauso brauchbar.</p>
+    <div class="chips">
+      <label class="chip"><input type="radio" name="q27" value="Ja"><span>Ja</span></label>
+      <label class="chip"><input type="radio" name="q27" value="Vielleicht"><span>Vielleicht</span></label>
+      <label class="chip"><input type="radio" name="q27" value="Nein"><span>Nein</span></label>
+    </div>
+  </div>
+
+  <div class="q" data-q="28" data-title="Sonst noch etwas?">
+    <span class="q-num">Frage 28</span>
+    <p class="q-title">Sonst noch etwas?</p>
+    <textarea data-label="Antwort" placeholder="…"></textarea>
+  </div>
+
+  <section class="closing">
+    <p><b>Danke</b> — vor allem für die Antworten, die mir nicht gefallen werden.</p>
+    <p>Wenn du fertig bist: unten auf <b>Antworten absenden</b> tippen. Das war's — die Antworten landen direkt bei mir, du musst nichts verschicken.</p>
+    <p style="font-size:14px;color:#b9c6be">Sie gehen in eine Datenbank in Europa, die nur ich lesen kann. Wenn du zusätzlich eine Kopie für dich willst, gibt es daneben <b>PDF sichern</b>.</p>
+  </section>
+
+</main>
+
+<div class="bar">
+  <div class="bar-inner">
+    <div class="progress">
+      <span class="progress-label" id="progressLabel">0 von 28 beantwortet</span>
+      <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+    </div>
+    <button class="btn ghost" id="btnPdf" type="button">PDF sichern</button>
+    <button class="btn" id="btnSend" type="button">Antworten absenden</button>
+  </div>
+</div>
+
+<div class="sheet" id="sheet">
+  <div class="sheet-box">
+    <h3 id="sheetTitle">Deine Antworten</h3>
+    <p id="sheetMsg"></p>
+    <textarea id="sheetText" readonly></textarea>
+    <div class="sheet-actions">
+      <button class="btn plain" id="btnClose" type="button">Schließen</button>
+      <button class="btn plain" id="btnPdf2" type="button">Als PDF sichern</button>
+      <button class="btn dark" id="btnCopyAgain" type="button">Text kopieren</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  /* ====== Zieladresse für die Antworten ====================================
+     DB   = Firebase Realtime Database (europe-west1)
+     CODE = muss mit dem Wert in database.rules.json übereinstimmen
+     ======================================================================== */
+  var DB   = 'https://famplan-e8e4c-default-rtdb.europe-west1.firebasedatabase.app';
+  var CODE = 'umfrage-2026-haushalt';
+
+  var cards = Array.prototype.slice.call(document.querySelectorAll('.q'));
+  var total = cards.filter(function(c){ return c.dataset.q !== '0'; }).length;
+
+  function hasAnswer(card){
+    var checked = card.querySelector('input[type=radio]:checked, input[type=checkbox]:checked');
+    if(checked) return true;
+    var fields = card.querySelectorAll('textarea, input[type=text]');
+    for(var i=0;i<fields.length;i++){ if(fields[i].value.trim()) return true; }
+    return false;
+  }
+
+  function refresh(){
+    var done = 0;
+    cards.forEach(function(card){
+      var ok = hasAnswer(card);
+      card.classList.toggle('answered', ok);
+      if(ok && card.dataset.q !== '0') done++;
+    });
+    document.getElementById('progressLabel').textContent = done + ' von ' + total + ' beantwortet';
+    document.getElementById('progressFill').style.width = (done/total*100) + '%';
+  }
+
+  document.addEventListener('change', refresh);
+  document.addEventListener('input', refresh);
+
+  /* Antworten strukturiert einsammeln */
+  function collectData(){
+    var res = { name: document.getElementById('metaName').value.trim(),
+                date: document.getElementById('metaDate').value.trim(),
+                items: [], skipped: [] };
+
+    cards.forEach(function(card){
+      if(card.dataset.q === '0') return;
+      if(!hasAnswer(card)){ res.skipped.push(card.dataset.q); return; }
+
+      var lines = [], kids = card.children, pendingLabel = '';
+      for(var i=0;i<kids.length;i++){
+        var el = kids[i];
+        if(el.classList.contains('sublabel')){ pendingLabel = el.textContent.trim(); continue; }
+        if(el.classList.contains('chips')){
+          var sel = Array.prototype.slice.call(el.querySelectorAll('input:checked'))
+                    .map(function(x){ return x.value; });
+          if(sel.length) lines.push((pendingLabel ? pendingLabel + ': ' : '') + sel.join(', '));
+          pendingLabel = '';
+          continue;
+        }
+        if(el.tagName === 'TEXTAREA' && el.value.trim()){
+          lines.push((el.dataset.label ? el.dataset.label + ': ' : '') + el.value.trim());
+        }
+      }
+      if(lines.length) res.items.push({ num: card.dataset.q, title: card.dataset.title, lines: lines });
+      else res.skipped.push(card.dataset.q);
+    });
+    return res;
+  }
+
+  function collect(){
+    var d = collectData(), out = [];
+    out.push('FRAGEBOGEN HAUSHALTSORGANISATION');
+    out.push('Ausgefüllt von: ' + (d.name || '-'));
+    out.push('Datum: ' + (d.date || '-'));
+    out.push('');
+    d.items.forEach(function(it){
+      out.push(it.num + '. ' + it.title);
+      it.lines.forEach(function(l){ out.push('  ' + l.replace(/\n/g,'\n    ')); });
+      out.push('');
+    });
+    if(d.skipped.length) out.push('Übersprungen: ' + d.skipped.join(', '));
+    return out.join('\n');
+  }
+
+  function dateiname(ext){
+    var n = (document.getElementById('metaName').value.trim() || 'Antworten')
+              .replace(/[^\wäöüÄÖÜß -]+/g,'').replace(/\s+/g,'-');
+    return 'Fragebogen-' + n + '.' + ext;
+  }
+
+  /* Zeichen, die die PDF-Standardschrift nicht kennt, entschärfen */
+  function clean(t){
+    return String(t)
+      .replace(/[\u2014\u2013]/g,'-')
+      .replace(/[\u201e\u201c\u201d]/g,'"')
+      .replace(/[\u2018\u2019]/g,"'")
+      .replace(/\u2026/g,'...')
+      .replace(/\u2192/g,'->')
+      .replace(/\u00d7/g,'x')
+      .replace(/\u00b7/g,'-');
+  }
+
+  function buildPdf(){
+    var JSPDF = window.jspdf && window.jspdf.jsPDF;
+    if(!JSPDF) return null;
+
+    var d = collectData();
+    var doc = new JSPDF({ unit:'mm', format:'a4' });
+    var L = 18, R = 192, W = R - L, y = 0;
+
+    function newPage(){
+      doc.addPage(); y = 20;
+    }
+    function room(h){ if(y + h > 280) newPage(); }
+
+    /* Kopf */
+    doc.setFillColor(37,64,54);
+    doc.rect(0,0,210,32,'F');
+    doc.setTextColor(255,255,255);
+    doc.setFont('helvetica','bold'); doc.setFontSize(16);
+    doc.text('Fragebogen Haushaltsorganisation', L, 15);
+    doc.setFont('helvetica','normal'); doc.setFontSize(10);
+    doc.text(clean('Ausgefüllt von: ' + (d.name || '-') + '   |   Datum: ' + (d.date || '-')), L, 23);
+    doc.setTextColor(30,30,30);
+    y = 44;
+
+    d.items.forEach(function(it){
+      var title = doc.splitTextToSize(clean(it.num + '. ' + it.title), W);
+      room(title.length * 5.4 + 10);
+      doc.setFont('helvetica','bold'); doc.setFontSize(11);
+      doc.setTextColor(37,64,54);
+      doc.text(title, L, y);
+      y += title.length * 5.4 + 1.5;
+
+      doc.setFont('helvetica','normal'); doc.setFontSize(10);
+      doc.setTextColor(30,30,30);
+      it.lines.forEach(function(line){
+        var parts = doc.splitTextToSize(clean(line), W - 4);
+        room(parts.length * 4.8 + 4);
+        doc.text(parts, L + 4, y);
+        y += parts.length * 4.8 + 1;
+      });
+      y += 4.5;
+    });
+
+    if(d.skipped.length){
+      room(12);
+      doc.setFont('helvetica','italic'); doc.setFontSize(9);
+      doc.setTextColor(120,120,120);
+      var sk = doc.splitTextToSize('Übersprungen: ' + d.skipped.join(', '), W);
+      doc.text(sk, L, y);
+    }
+
+    /* Seitenzahlen */
+    var n = doc.getNumberOfPages();
+    for(var i=1;i<=n;i++){
+      doc.setPage(i);
+      doc.setFont('helvetica','normal'); doc.setFontSize(8);
+      doc.setTextColor(150,150,150);
+      doc.text('Seite ' + i + ' von ' + n, R, 289, {align:'right'});
+    }
+    return doc;
+  }
+
+  var sheet      = document.getElementById('sheet');
+  var sheetText  = document.getElementById('sheetText');
+  var sheetTitle = document.getElementById('sheetTitle');
+  var sheetMsg   = document.getElementById('sheetMsg');
+  var btnCopyAgain = document.getElementById('btnCopyAgain');
+  var btnPdf2      = document.getElementById('btnPdf2');
+  var btnPdf       = document.getElementById('btnPdf');
+  var btnSend      = document.getElementById('btnSend');
+  var abgeschickt  = false;
+
+  function zeigeDialog(titel, text, opt){
+    opt = opt || {};
+    sheetTitle.textContent = titel;
+    sheetMsg.textContent = text;
+    sheetText.style.display   = opt.zeigeText ? '' : 'none';
+    btnCopyAgain.style.display = opt.zeigeText ? '' : 'none';
+    btnPdf2.style.display      = opt.zeigePdf === false ? 'none' : '';
+    if(opt.zeigeText) sheetText.value = collect();
+    sheet.classList.add('open');
+  }
+
+  function copyNow(){
+    sheetText.select();
+    sheetText.setSelectionRange(0, 999999);
+    try{
+      if(navigator.clipboard && navigator.clipboard.writeText){
+        navigator.clipboard.writeText(sheetText.value);
+      } else {
+        document.execCommand('copy');
+      }
+      btnCopyAgain.textContent = 'Kopiert';
+      setTimeout(function(){ btnCopyAgain.textContent = 'Text kopieren'; }, 2000);
+    }catch(e){ /* dann eben von Hand markieren */ }
+  }
+
+  function flash(btn, text){
+    var alt = btn.dataset.label || btn.textContent;
+    btn.dataset.label = alt;
+    btn.textContent = text;
+    setTimeout(function(){ btn.textContent = alt; }, 2200);
+  }
+
+  /* ---------- PDF ---------- */
+  function pdfRaus(btn){
+    var doc;
+    try{ doc = buildPdf(); }catch(e){ doc = null; }
+    if(!doc){
+      zeigeDialog('PDF geht gerade nicht',
+        'Dafür fehlt die Internetverbindung. Nimm den Text unten — den kannst du überall einfügen.',
+        {zeigeText:true, zeigePdf:false});
+      return;
+    }
+    var name = dateiname('pdf');
+    var blob = doc.output('blob');
+    var file = null;
+    try{ file = new File([blob], name, {type:'application/pdf'}); }catch(e){}
+
+    if(file && navigator.canShare && navigator.canShare({files:[file]}) && navigator.share){
+      navigator.share({ files:[file], title:'Fragebogen' })
+        .then(function(){ if(btn) flash(btn,'Verschickt'); })
+        .catch(function(){ try{ doc.save(name); if(btn) flash(btn,'Gesichert'); }catch(e2){} });
+    } else {
+      doc.save(name);
+      if(btn) flash(btn,'Gesichert');
+    }
+  }
+
+  /* ---------- Absenden ---------- */
+  function absenden(){
+    if(abgeschickt){
+      zeigeDialog('Schon angekommen',
+        'Deine Antworten sind bereits abgeschickt. Wenn du etwas geändert hast, kannst du sie einfach nochmal senden.',
+        {zeigePdf:true});
+      abgeschickt = false;
+      return;
+    }
+
+    var d = collectData();
+    if(!d.items.length){
+      zeigeDialog('Noch nichts ausgefüllt',
+        'Beantworte erst ein paar Fragen — dann geht das Absenden.',
+        {zeigePdf:false});
+      return;
+    }
+    if(!d.name){
+      var w = document.getElementById('metaName');
+      w.focus();
+      w.scrollIntoView({block:'center', behavior:'smooth'});
+      zeigeDialog('Name fehlt',
+        'Trag oben bitte kurz deinen Namen ein — sonst weiß ich nachher nicht, wer geantwortet hat.',
+        {zeigePdf:false});
+      return;
+    }
+
+    btnSend.disabled = true;
+    var altLabel = btnSend.textContent;
+    btnSend.textContent = 'Wird gesendet …';
+
+    var payload = {
+      code: CODE,
+      name: d.name,
+      datum: d.date || '',
+      gesendet: Date.now(),
+      geraet: (navigator.userAgent || '').slice(0,140),
+      beantwortet: d.items.length,
+      uebersprungen: d.skipped.join(', '),
+      text: collect(),
+      items: d.items
+    };
+
+    fetch(DB + '/umfragen.json', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(payload)
+    })
+    .then(function(r){
+      if(!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    })
+    .then(function(){
+      abgeschickt = true;
+      btnSend.textContent = 'Angekommen ✓';
+      btnSend.disabled = true;
+      zeigeDialog('Angekommen. Danke!',
+        'Deine Antworten sind bei mir gelandet — du musst nichts mehr verschicken. Wenn du eine Kopie für dich willst, sichere sie als PDF.',
+        {zeigePdf:true});
+    })
+    .catch(function(){
+      btnSend.disabled = false;
+      btnSend.textContent = altLabel;
+      zeigeDialog('Das Absenden hat nicht geklappt',
+        'Vielleicht ist die Verbindung gerade weg. Versuch es gleich nochmal — oder kopier den Text unten und schick ihn mir einfach per Nachricht.',
+        {zeigeText:true, zeigePdf:true});
+    });
+  }
+
+  btnSend.addEventListener('click', absenden);
+  btnPdf.addEventListener('click', function(){ pdfRaus(btnPdf); });
+  btnPdf2.addEventListener('click', function(){ sheet.classList.remove('open'); pdfRaus(btnPdf); });
+  btnCopyAgain.addEventListener('click', copyNow);
+  document.getElementById('btnClose').addEventListener('click', function(){ sheet.classList.remove('open'); });
+  sheet.addEventListener('click', function(e){ if(e.target === sheet) sheet.classList.remove('open'); });
+  document.addEventListener('keydown', function(e){ if(e.key === 'Escape') sheet.classList.remove('open'); });
+
+  /* Nach einer Änderung darf erneut gesendet werden */
+  document.addEventListener('input', function(){
+    if(btnSend.disabled && abgeschickt){ btnSend.disabled = false; btnSend.textContent = 'Nochmal senden'; }
+  });
+  document.addEventListener('change', function(){
+    if(btnSend.disabled && abgeschickt){ btnSend.disabled = false; btnSend.textContent = 'Nochmal senden'; }
+  });
+
+  // Datum vorbelegen
+  var d = new Date();
+  document.getElementById('metaDate').value =
+    String(d.getDate()).padStart(2,'0') + '.' + String(d.getMonth()+1).padStart(2,'0') + '.' + d.getFullYear();
+
+  refresh();
+})();
+</script>
+</body>
+</html>

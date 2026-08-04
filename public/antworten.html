@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fragebogen — eingegangene Antworten</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Karla:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#17211e; --ink-soft:#54635d; --paper:#f8f6f1; --card:#fff;
+  --tint:#e8eee9; --green:#254036; --green-mid:#3d6153;
+  --brass:#a5762a; --brass-pale:#f0e4cb; --line:#d9ded7; --line-strong:#b8c2ba;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);
+  font-family:"Karla",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-size:16px;line-height:1.6}
+.wrap{max-width:860px;margin:0 auto;padding:0 20px}
+
+header{background:var(--green);color:#f3f0e8;padding:30px 0 26px}
+header h1{font-family:"Fraunces",Georgia,serif;font-size:30px;margin:0 0 4px;font-weight:600}
+header p{margin:0;color:#c3d0c8;font-size:14px}
+.eyebrow{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.18em;
+  text-transform:uppercase;color:var(--brass-pale);margin:0 0 10px}
+
+.panel{background:var(--card);border:1px solid var(--line);border-radius:3px;padding:22px;margin:22px 0}
+.panel h2{font-family:"Fraunces",Georgia,serif;font-size:19px;margin:0 0 10px;font-weight:600}
+label.f{display:block;font-family:"IBM Plex Mono",monospace;font-size:10.5px;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--ink-soft);margin-top:12px}
+input{width:100%;font-family:inherit;font-size:15px;padding:10px 12px;margin-top:6px;
+  border:1px solid var(--line-strong);border-radius:3px;background:#fcfbf8}
+input:focus{outline:none;border-color:var(--green-mid);background:#fff}
+
+.btn{font-family:inherit;font-size:14px;font-weight:700;padding:10px 16px;border-radius:3px;
+  border:1px solid transparent;cursor:pointer;background:var(--brass);color:#1b1608}
+.btn:hover{filter:brightness(1.08)}
+.btn.dark{background:var(--green);color:#fff}
+.btn.plain{background:#fff;border-color:var(--line-strong);color:var(--ink)}
+.btn.small{font-size:12.5px;padding:6px 11px;font-weight:500}
+.btn:disabled{opacity:.5;cursor:default}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:16px}
+
+.hint{font-size:13.5px;color:var(--ink-soft);margin-top:10px}
+.err{background:#fdeeee;border:1px solid #e6b9b9;color:#8a2b2b;padding:12px 14px;
+  border-radius:3px;font-size:14px;margin-top:14px}
+code{font-family:"IBM Plex Mono",monospace;font-size:12.5px;background:var(--tint);
+  padding:2px 6px;border-radius:2px;word-break:break-all}
+
+.bogen{background:var(--card);border:1px solid var(--line);border-left:3px solid var(--brass);
+  border-radius:3px;margin:16px 0;overflow:hidden}
+.bogen-kopf{padding:16px 20px;display:flex;justify-content:space-between;
+  align-items:baseline;gap:12px;flex-wrap:wrap;cursor:pointer}
+.bogen-kopf:hover{background:#fbfaf7}
+.bogen-name{font-weight:700;font-size:17px}
+.bogen-meta{font-family:"IBM Plex Mono",monospace;font-size:11.5px;color:var(--ink-soft)}
+.bogen-body{padding:0 20px 18px;display:none}
+.bogen.offen .bogen-body{display:block}
+.frage{padding:10px 0;border-top:1px solid var(--line)}
+.frage-t{font-weight:700;font-size:14.5px;color:var(--green)}
+.frage-a{font-size:14.5px;margin-left:2px;white-space:pre-wrap}
+.frage-a span{color:var(--ink-soft)}
+.leer{padding:40px 0;text-align:center;color:var(--ink-soft)}
+.tools{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
+.hidden{display:none}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <p class="eyebrow">Auswertung · intern</p>
+    <h1>Eingegangene Antworten</h1>
+    <p id="stand">Noch nicht angemeldet</p>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <section class="panel" id="loginPanel">
+    <h2>Anmelden</h2>
+    <p class="hint">Nur dein eigenes Konto kann die Antworten lesen.</p>
+    <label class="f" for="mail">E-Mail</label>
+    <input type="email" id="mail" autocomplete="username">
+    <label class="f" for="pw">Passwort</label>
+    <input type="password" id="pw" autocomplete="current-password">
+    <div class="row">
+      <button class="btn dark" id="btnLogin" type="button">Anmelden</button>
+      <button class="btn plain" id="btnGoogle" type="button">Mit Google</button>
+    </div>
+    <div class="err hidden" id="loginErr"></div>
+  </section>
+
+  <section class="panel hidden" id="uidPanel">
+    <h2>Deine Konto-Kennung</h2>
+    <p class="hint">Diese Zeichenfolge gehört in <code>database.rules.json</code> an die Stellen, wo aktuell
+      <code>DEINE_UID_HIER</code> steht — danach die Regeln in der Firebase-Konsole veröffentlichen.</p>
+    <p style="margin-top:10px"><code id="uidOut"></code></p>
+    <div class="row">
+      <button class="btn plain small" id="btnUidCopy" type="button">Kennung kopieren</button>
+      <button class="btn plain small" id="btnLogout" type="button">Abmelden</button>
+    </div>
+  </section>
+
+  <div id="fehler"></div>
+  <div id="liste"></div>
+
+  <div class="tools hidden" id="tools">
+    <button class="btn plain small" id="btnAlle" type="button">Alle auf-/zuklappen</button>
+    <button class="btn plain small" id="btnExport" type="button">Alles als Text kopieren</button>
+  </div>
+
+</main>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-app.js";
+import { getAuth, signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup,
+         onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-auth.js";
+import { getDatabase, ref, onValue, remove } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAd8gUlEEbA4HU4RXUuEqLwoDDUEKFwTZ4",
+  authDomain: "famplan-e8e4c.firebaseapp.com",
+  databaseURL: "https://famplan-e8e4c-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "famplan-e8e4c",
+  storageBucket: "famplan-e8e4c.firebasestorage.app",
+  messagingSenderId: "537038536809",
+  appId: "1:537038536809:web:411d6d6e26f549ec2722f8"
+};
+const app  = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db   = getDatabase(app);
+
+const $ = id => document.getElementById(id);
+let daten = {};
+
+/* ---------- Anmeldung ---------- */
+function loginFehler(t){ const e = $('loginErr'); e.textContent = t; e.classList.remove('hidden'); }
+
+$('btnLogin').addEventListener('click', async () => {
+  try{
+    await signInWithEmailAndPassword(auth, $('mail').value.trim(), $('pw').value);
+  }catch(e){ loginFehler('Anmeldung fehlgeschlagen: ' + (e.code || e.message)); }
+});
+$('btnGoogle').addEventListener('click', async () => {
+  try{ await signInWithPopup(auth, new GoogleAuthProvider()); }
+  catch(e){ loginFehler('Anmeldung fehlgeschlagen: ' + (e.code || e.message)); }
+});
+$('btnLogout').addEventListener('click', () => signOut(auth));
+$('btnUidCopy').addEventListener('click', () => {
+  navigator.clipboard && navigator.clipboard.writeText($('uidOut').textContent);
+  $('btnUidCopy').textContent = 'Kopiert';
+  setTimeout(() => $('btnUidCopy').textContent = 'Kennung kopieren', 1800);
+});
+
+onAuthStateChanged(auth, user => {
+  if(!user){
+    $('loginPanel').classList.remove('hidden');
+    $('uidPanel').classList.add('hidden');
+    $('tools').classList.add('hidden');
+    $('liste').innerHTML = '';
+    $('stand').textContent = 'Noch nicht angemeldet';
+    return;
+  }
+  $('loginPanel').classList.add('hidden');
+  $('uidPanel').classList.remove('hidden');
+  $('uidOut').textContent = user.uid;
+  $('stand').textContent = 'Angemeldet als ' + (user.email || user.uid);
+  lauschen();
+});
+
+/* ---------- Daten ---------- */
+function lauschen(){
+  onValue(ref(db, 'umfragen'), snap => {
+    $('fehler').innerHTML = '';
+    daten = snap.val() || {};
+    zeichnen();
+  }, err => {
+    $('fehler').innerHTML =
+      '<div class="err"><b>Kein Zugriff auf die Antworten.</b><br>' +
+      'Vermutlich steht in <code>database.rules.json</code> noch <code>DEINE_UID_HIER</code> ' +
+      'statt der Kennung oben — oder die Regeln sind noch nicht veröffentlicht.<br>' +
+      '<span style="font-size:12.5px">Meldung: ' + (err.code || err.message) + '</span></div>';
+    $('liste').innerHTML = '';
+    $('tools').classList.add('hidden');
+  });
+}
+
+function zeitText(ms){
+  if(!ms) return '';
+  const d = new Date(ms);
+  const p = n => String(n).padStart(2,'0');
+  return p(d.getDate()) + '.' + p(d.getMonth()+1) + '.' + d.getFullYear() + ' um ' + p(d.getHours()) + ':' + p(d.getMinutes());
+}
+function esc(t){
+  return String(t == null ? '' : t)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function zeichnen(){
+  const ids = Object.keys(daten).sort((a,b) => (daten[b].gesendet||0) - (daten[a].gesendet||0));
+  const liste = $('liste');
+
+  if(!ids.length){
+    liste.innerHTML = '<div class="leer">Noch keine Antworten eingegangen.</div>';
+    $('tools').classList.add('hidden');
+    return;
+  }
+  $('tools').classList.remove('hidden');
+
+  liste.innerHTML = ids.map(id => {
+    const b = daten[id];
+    const fragen = (b.items || []).map(it =>
+      '<div class="frage"><div class="frage-t">' + esc(it.num + '. ' + it.title) + '</div>' +
+      (it.lines || []).map(l => '<div class="frage-a">' + esc(l) + '</div>').join('') +
+      '</div>').join('');
+
+    return '<article class="bogen" data-id="' + id + '">' +
+      '<div class="bogen-kopf">' +
+        '<span class="bogen-name">' + esc(b.name || 'ohne Namen') + '</span>' +
+        '<span class="bogen-meta">' + esc(zeitText(b.gesendet)) +
+          ' · ' + esc(b.beantwortet || 0) + ' beantwortet' +
+          (b.uebersprungen ? ' · übersprungen: ' + esc(b.uebersprungen) : '') +
+        '</span>' +
+      '</div>' +
+      '<div class="bogen-body">' + fragen +
+        '<div class="tools"><button class="btn plain small loesch" type="button">Diesen Bogen löschen</button></div>' +
+      '</div>' +
+    '</article>';
+  }).join('');
+
+  liste.querySelectorAll('.bogen-kopf').forEach(k => {
+    k.addEventListener('click', () => k.parentElement.classList.toggle('offen'));
+  });
+  liste.querySelectorAll('.loesch').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const art = btn.closest('.bogen');
+      const name = art.querySelector('.bogen-name').textContent;
+      if(!confirm('Den Bogen von ' + name + ' wirklich löschen?')) return;
+      try{ await remove(ref(db, 'umfragen/' + art.dataset.id)); }
+      catch(e){ alert('Löschen nicht möglich: ' + (e.code || e.message)); }
+    });
+  });
+}
+
+$('btnAlle').addEventListener('click', () => {
+  const alle = document.querySelectorAll('.bogen');
+  const zu = Array.prototype.some.call(alle, a => !a.classList.contains('offen'));
+  alle.forEach(a => a.classList.toggle('offen', zu));
+});
+
+$('btnExport').addEventListener('click', () => {
+  const ids = Object.keys(daten).sort((a,b) => (daten[a].gesendet||0) - (daten[b].gesendet||0));
+  const text = ids.map(id => {
+    const b = daten[id];
+    return '===== ' + (b.name || 'ohne Namen') + ' · ' + zeitText(b.gesendet) + ' =====\n\n' + (b.text || '');
+  }).join('\n\n');
+  navigator.clipboard && navigator.clipboard.writeText(text);
+  $('btnExport').textContent = 'Kopiert';
+  setTimeout(() => $('btnExport').textContent = 'Alles als Text kopieren', 1800);
+});
+</script>
+</body>
+</html>
