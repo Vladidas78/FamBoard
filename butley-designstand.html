@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="de" data-mode="hell">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Butley — Designstand 05.08.2026</title>
+<style>
+:root {
+  --flaeche-seite: #FAF7F2;
+  --flaeche-karte: #FFFFFF;
+  --linie: #E7E0D6;
+  --text: #262220;
+  --text-leise: #6E6560;
+  --messing-aktion: #8A6520;
+  --messing-gedrueckt: #6E5019;
+  --messing-marke: #B08D57;
+  --messing-flaeche: #F3E7D2;
+  --auf-aktion: #FFFFFF;
+  --erledigt: #4E7A52;
+  --loeschen: #A8442A;
+  --abstand-xs: 4px;
+  --abstand-s: 8px;
+  --abstand-m: 12px;
+  --abstand-l: 16px;
+  --abstand-xl: 24px;
+  --abstand-xxl: 32px;
+  --radius-s: 8px;
+  --radius-m: 12px;
+  --radius-l: 16px;
+  --radius-rund: 999px;
+  --hoehe-control: 44px;
+  --hoehe-chip: 36px;
+  --schrift: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+[data-mode="dunkel"] {
+  --flaeche-seite: #1B1917;
+  --flaeche-karte: #24211E;
+  --linie: #383029;
+  --text: #F1ECE4;
+  --text-leise: #A29889;
+  --messing-aktion: #D9A94A;
+  --messing-gedrueckt: #C0912F;
+  --messing-marke: #C9A46A;
+  --messing-flaeche: #3A2E16;
+  --auf-aktion: #33240A;
+  --erledigt: #7FB185;
+  --loeschen: #E08A6B;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  padding: var(--abstand-xxl);
+  background: var(--flaeche-seite);
+  color: var(--text);
+  font-family: var(--schrift);
+  font-size: 15px;
+  line-height: 1.6;
+}
+header { display: flex; align-items: baseline; gap: var(--abstand-l); flex-wrap: wrap; margin-bottom: var(--abstand-xxl); }
+h1 { font-size: 26px; font-weight: 500; margin: 0; }
+h2 { font-size: 18px; font-weight: 500; margin: var(--abstand-xxl) 0 var(--abstand-xs); }
+.hinweis { color: var(--text-leise); font-size: 13px; margin: 0 0 var(--abstand-l); max-width: 60ch; }
+.reihe { display: flex; gap: var(--abstand-m); flex-wrap: wrap; align-items: center; margin-bottom: var(--abstand-m); }
+.spalte { color: var(--text-leise); font-size: 12px; width: 92px; flex: none; }
+
+/* Button */
+.btn {
+  height: var(--hoehe-control);
+  padding: 0 var(--abstand-xl);
+  border-radius: var(--radius-s);
+  font: 500 15px var(--schrift);
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid transparent;
+  cursor: pointer;
+}
+.btn-primaer { background: var(--messing-aktion); color: var(--auf-aktion); }
+.btn-primaer:active { background: var(--messing-gedrueckt); }
+.btn-sekundaer { background: var(--flaeche-karte); color: var(--text); border-color: var(--linie); }
+.btn-sekundaer:active { background: var(--messing-flaeche); }
+.btn-ruhig { background: transparent; color: var(--messing-aktion); padding: 0 var(--abstand-m); }
+.btn-ruhig:active { background: var(--messing-flaeche); }
+.btn[disabled] { background: var(--linie); color: var(--text-leise); border-color: transparent; cursor: default; }
+.btn-ruhig[disabled] { background: transparent; }
+.btn:focus-visible { outline: 2px solid var(--messing-aktion); outline-offset: 2px; }
+
+/* Eingabefeld */
+.feld {
+  height: var(--hoehe-control);
+  width: 280px;
+  padding: 0 var(--abstand-l);
+  border-radius: var(--radius-s);
+  border: 1px solid var(--linie);
+  background: var(--flaeche-karte);
+  color: var(--text);
+  font: 400 15px var(--schrift);
+}
+.feld::placeholder { color: var(--text-leise); }
+.feld:focus { outline: none; border: 2px solid var(--messing-aktion); }
+.feld.fehler { border: 2px solid var(--loeschen); }
+
+/* Chip */
+.chip {
+  height: var(--hoehe-chip);
+  padding: 0 var(--abstand-m);
+  border-radius: var(--radius-rund);
+  border: 1px solid var(--linie);
+  background: var(--flaeche-karte);
+  color: var(--text);
+  font: 500 14px var(--schrift);
+  display: inline-flex; align-items: center;
+  cursor: pointer;
+}
+.chip-gewaehlt { background: var(--messing-flaeche); border-color: var(--messing-aktion); color: var(--messing-aktion); }
+.chip-erledigt { color: var(--text-leise); text-decoration: line-through; }
+
+/* Karte */
+.karte {
+  width: 280px;
+  background: var(--flaeche-karte);
+  border: 1px solid var(--linie);
+  border-radius: var(--radius-m);
+  overflow: hidden;
+}
+.karte-bild { height: 140px; background: var(--messing-flaeche); }
+.karte-inhalt { padding: var(--abstand-l); display: flex; flex-direction: column; gap: var(--abstand-xs); }
+.karte-titel { font-size: 16px; font-weight: 500; }
+.karte-zusatz { font-size: 13px; color: var(--text-leise); }
+
+/* Listenzeile */
+.liste { background: var(--flaeche-karte); border: 1px solid var(--linie); border-radius: var(--radius-s); width: 340px; overflow: hidden; }
+.zeile { display: flex; align-items: center; justify-content: space-between; padding: var(--abstand-m) var(--abstand-l); border-bottom: 1px solid var(--linie); }
+.zeile:last-child { border-bottom: none; }
+.zeile button { background: none; border: none; color: var(--messing-aktion); font: 500 15px var(--schrift); cursor: pointer; padding: 0; }
+.abgehakt { color: var(--text-leise); text-decoration: line-through; }
+.abgehakt + button { color: var(--erledigt); }
+
+/* Farbtafel */
+.tafel { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: var(--abstand-m); max-width: 900px; }
+.probe { border: 1px solid var(--linie); border-radius: var(--radius-s); overflow: hidden; }
+.probe-farbe { height: 56px; }
+.probe-text { padding: var(--abstand-s) var(--abstand-m); }
+.probe-name { font-size: 13px; font-weight: 500; }
+.probe-var { font-size: 12px; color: var(--text-leise); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Butley — Designstand</h1>
+  <span class="probe-var">05.08.2026 · Welle A, Schritt 1</span>
+  <button class="btn btn-sekundaer" id="umschalter" style="margin-left:auto">Dunkel</button>
+</header>
+
+<h2>Farben</h2>
+<p class="hinweis">Sechzehn Werte. Alles Weitere leitet sich daraus ab. Der Umschalter oben wechselt beide Sätze.</p>
+<div class="tafel" id="tafel"></div>
+
+<h2>Button</h2>
+<p class="hinweis">Primär höchstens einmal pro Bildschirm. Ruhig für Aktionen, die pro Listenzeile vorkommen. Höhe fest 44 px. Gedrückter Zustand ist hier echt — halte die Maustaste gedrückt.</p>
+<div class="reihe"><span class="spalte">Primär</span><button class="btn btn-primaer">Speichern</button><button class="btn btn-primaer" disabled>Speichern</button></div>
+<div class="reihe"><span class="spalte">Sekundär</span><button class="btn btn-sekundaer">Abbrechen</button><button class="btn btn-sekundaer" disabled>Abbrechen</button></div>
+<div class="reihe"><span class="spalte">Ruhig</span><button class="btn btn-ruhig">Auf die Liste</button><button class="btn btn-ruhig" disabled>Auf die Liste</button></div>
+
+<h2>Eingabefeld</h2>
+<p class="hinweis">Fokus und Fehler unterscheiden sich nur im Rand, die Fläche bleibt immer die Kartenfarbe. Klick ins erste Feld zeigt den Fokuszustand.</p>
+<div class="reihe"><input class="feld" placeholder="Artikel suchen"></div>
+<div class="reihe"><input class="feld" value="Rote Linsen"></div>
+<div class="reihe"><input class="feld fehler" value="Rote Linsen"></div>
+
+<h2>Chip</h2>
+<p class="hinweis">Für Abteilungen, Filter und Einkaufsposten. Erledigt bleibt sichtbar statt zu verschwinden — sonst fehlt die Rückmeldung, dass etwas passiert ist.</p>
+<div class="reihe">
+  <span class="chip">Gemüse</span>
+  <span class="chip chip-gewaehlt">Gemüse</span>
+  <span class="chip chip-erledigt">Gemüse</span>
+</div>
+
+<h2>Karte</h2>
+<p class="hinweis">Rezept mit Bild, Snack ohne. Snacks haben bewusst kein Bild und keine Nährwerte — die Karte muss ohne funktionieren, nicht mit einem grauen Platzhalter.</p>
+<div class="reihe" style="align-items: flex-start">
+  <div class="karte">
+    <div class="karte-bild"></div>
+    <div class="karte-inhalt">
+      <span class="karte-titel">Linsensuppe</span>
+      <span class="karte-zusatz">4 Portionen · 35 Min · 420 kcal</span>
+    </div>
+  </div>
+  <div class="karte">
+    <div class="karte-inhalt">
+      <span class="karte-titel">Apfel mit Erdnussbutter</span>
+      <span class="karte-zusatz">Snack</span>
+    </div>
+  </div>
+</div>
+
+<h2>Im Zusammenspiel</h2>
+<p class="hinweis">Die Bauteile in der Anordnung, für die sie gedacht sind. Kein entworfener Bildschirm — die Bildschirme entstehen erst in Welle B.</p>
+<div class="reihe" style="align-items: flex-start">
+  <div class="liste">
+    <div class="zeile"><span>Rote Linsen</span><button>Auf die Liste</button></div>
+    <div class="zeile"><span>Karotten</span><button>Auf die Liste</button></div>
+    <div class="zeile"><span class="abgehakt">Gemüsebrühe</span><button>Erledigt</button></div>
+  </div>
+</div>
+
+<script>
+var farben = [
+  ["Fläche/Seite", "--flaeche-seite"],
+  ["Fläche/Karte", "--flaeche-karte"],
+  ["Linie", "--linie"],
+  ["Text", "--text"],
+  ["Text leise", "--text-leise"],
+  ["Messing Aktion", "--messing-aktion"],
+  ["Messing gedrückt", "--messing-gedrueckt"],
+  ["Messing Marke", "--messing-marke"],
+  ["Messing Fläche", "--messing-flaeche"],
+  ["Auf Aktion", "--auf-aktion"],
+  ["Status erledigt", "--erledigt"],
+  ["Status löschen", "--loeschen"]
+];
+var tafel = document.getElementById("tafel");
+farben.forEach(function (f) {
+  var d = document.createElement("div");
+  d.className = "probe";
+  d.innerHTML = '<div class="probe-farbe" style="background: var(' + f[1] + ')"></div>' +
+                '<div class="probe-text"><div class="probe-name">' + f[0] + '</div>' +
+                '<div class="probe-var">var(' + f[1] + ')</div></div>';
+  tafel.appendChild(d);
+});
+
+var u = document.getElementById("umschalter");
+u.addEventListener("click", function () {
+  var dunkel = document.documentElement.getAttribute("data-mode") === "dunkel";
+  document.documentElement.setAttribute("data-mode", dunkel ? "hell" : "dunkel");
+  u.textContent = dunkel ? "Dunkel" : "Hell";
+});
+</script>
+</body>
+</html>

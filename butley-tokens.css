@@ -1,0 +1,81 @@
+/* Butley — Design-Token
+   Stand 05.08.2026 · Quelle: Figma-Datei "Butley — Design"
+   Namen entsprechen exakt der Code-Syntax der Figma-Variablen.
+   Diese Datei ist die Vorlage fuer den :root-Block in index.html. */
+
+:root {
+  /* Flaechen */
+  --flaeche-seite: #FAF7F2;
+  --flaeche-karte: #FFFFFF;
+
+  /* Linien */
+  --linie: #E7E0D6;
+
+  /* Text */
+  --text: #262220;
+  --text-leise: #6E6560;
+
+  /* Messing */
+  --messing-aktion: #8A6520;
+  --messing-gedrueckt: #6E5019;
+  --messing-marke: #B08D57;
+  --messing-flaeche: #F3E7D2;
+  --auf-aktion: #FFFFFF;
+
+  /* Status */
+  --erledigt: #4E7A52;
+  --loeschen: #A8442A;
+
+  /* Abstaende */
+  --abstand-xs: 4px;
+  --abstand-s: 8px;
+  --abstand-m: 12px;
+  --abstand-l: 16px;
+  --abstand-xl: 24px;
+  --abstand-xxl: 32px;
+
+  /* Radien */
+  --radius-s: 8px;
+  --radius-m: 12px;
+  --radius-l: 16px;
+  --radius-rund: 999px;
+
+  /* Hoehen */
+  --hoehe-control: 44px;
+  --hoehe-chip: 36px;
+
+  /* Schrift */
+  --schrift: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+[data-mode="dark"] {
+  --flaeche-seite: #1B1917;
+  --flaeche-karte: #24211E;
+  --linie: #383029;
+  --text: #F1ECE4;
+  --text-leise: #A29889;
+  --messing-aktion: #D9A94A;
+  --messing-gedrueckt: #C0912F;
+  --messing-marke: #C9A46A;
+  --messing-flaeche: #3A2E16;
+  --auf-aktion: #33240A;
+  --erledigt: #7FB185;
+  --loeschen: #E08A6B;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-mode="hell"]) {
+    --flaeche-seite: #1B1917;
+    --flaeche-karte: #24211E;
+    --linie: #383029;
+    --text: #F1ECE4;
+    --text-leise: #A29889;
+    --messing-aktion: #D9A94A;
+    --messing-gedrueckt: #C0912F;
+    --messing-marke: #C9A46A;
+    --messing-flaeche: #3A2E16;
+    --auf-aktion: #33240A;
+    --erledigt: #7FB185;
+    --loeschen: #E08A6B;
+  }
+}
