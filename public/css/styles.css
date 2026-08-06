@@ -16,10 +16,14 @@
     --text-leise:#6E6560;
     /* Messing */
     --messing-aktion:#8A6520;
-    --messing-gedrueckt:#6E5019;
+    /* Gedrueckt: 1,92:1 zum Ruhezustand. Der frueher hinterlegte #6E5019 kam
+       nur auf 1,40:1 und war bei Tageslicht nicht als Zustand erkennbar (D-21) */
+    --messing-gedrueckt:#553D13;
     --messing-marke:#B08D57;
     --messing-flaeche:#F3E7D2;
     --auf-aktion:#FFFFFF;
+    /* Text auf der hellen Messingflaeche - 9,5:1 (D-20) */
+    --auf-messing-flaeche:#4A3510;
     /* Status */
     --erledigt-farbe:#4E7A52;
     --loeschen-farbe:#A8442A;
@@ -42,8 +46,8 @@
     --flaeche-senke:#1B1917; --flaeche-feld:#24211E;
     --linie:#383029; --linie-leise:#2E2822;
     --text-haupt:#F1ECE4; --text-leise:#A29889;
-    --messing-aktion:#D9A94A; --messing-gedrueckt:#C0912F; --messing-marke:#C9A46A;
-    --messing-flaeche:#3A2E16; --auf-aktion:#33240A;
+    --messing-aktion:#D9A94A; --messing-gedrueckt:#B98A28; --messing-marke:#C9A46A;
+    --messing-flaeche:#3A2E16; --auf-aktion:#33240A; --auf-messing-flaeche:#E8D4A8;
     --erledigt-farbe:#7FB185; --loeschen-farbe:#E08A6B; --auf-loeschen:#2B1208;
   }
   *{box-sizing:border-box;}
@@ -208,6 +212,21 @@
   .btn-primary{ background:var(--messing-aktion); color:var(--auf-aktion); }
   .btn-primary:hover{ filter:brightness(1.08); }
   .btn:disabled{ opacity:.4; cursor:default; filter:none; }
+  /* Gedrueckt-Zustand (D-21). Gilt fuer alles, was mit Messing gefuellt ist,
+     nicht nur fuer den Primaerbutton - sonst gaebe es die Rueckmeldung
+     ausgerechnet bei den Reitern und Filterpillen nicht, die am haeufigsten
+     angetippt werden. filter:none, damit der Hover-Aufheller nicht dagegenhaelt. */
+  .btn-primary:active,
+  .tab.active:active,
+  .filter-pill.active:active,
+  .chip.tag-active:active,
+  .cat-opt.on:active,
+  .auth-tab.active:active,
+  .hh-switch button.active:active,
+  .fav-toggle.active:active{
+    background:var(--messing-gedrueckt); border-color:var(--messing-gedrueckt);
+    color:var(--auf-aktion); filter:none;
+  }
   .btn-soft{ background:var(--flaeche-senke); color:var(--text-haupt); border:1px solid var(--linie); }
   .btn-soft:hover{ border-color:var(--messing-aktion); }
   .btn-ghost{ background:transparent; color:var(--text-leise); border:1px solid var(--linie); }
@@ -447,8 +466,12 @@
 
   .img-loading{ font-size:0.82rem; color:var(--text-leise); font-style:italic; padding:10px 0; }
   .empty{ text-align:center; color:var(--text-leise); padding:34px 10px; font-style:italic; }
+  /* Hinweis, kein Bedienelement: helle Messingflaeche statt Vollton (D-20).
+     Der Vollton bleibt Dingen vorbehalten, die man antippen kann. Der Rand ist
+     noetig, weil Flaeche und Seitenfarbe nur 1,14:1 auseinanderliegen. */
   .netnote{
-    text-align:center; font-size:0.76rem; color:var(--auf-aktion); background:var(--messing-aktion);
+    text-align:center; font-size:0.76rem; color:var(--auf-messing-flaeche); background:var(--messing-flaeche);
+    border:1px solid color-mix(in srgb, var(--messing-aktion) 30%, transparent);
     border-radius:999px; padding:5px 12px; margin:0 auto 8px; max-width:max-content; font-weight:600;
   }
   .fehler{
