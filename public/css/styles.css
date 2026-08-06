@@ -73,8 +73,9 @@
     overflow-x:auto;
   }
   .tab{
-    font-family:var(--schrift); font-weight:600; font-size:0.9rem; white-space:nowrap;
-    padding:9px 18px; border-radius:999px; border:1px solid var(--linie-leise);
+    font-family:var(--schrift); font-weight:500; font-size:15px; white-space:nowrap;
+    min-height:var(--hoehe-control); padding:0 18px; border-radius:999px; border:1px solid var(--linie-leise);
+    display:inline-flex; align-items:center; justify-content:center;
     background:var(--flaeche-karte); color:var(--text-leise); cursor:pointer; transition:all .15s ease;
   }
   .tab:hover{ color:var(--text-haupt); border-color:var(--linie); }
@@ -96,7 +97,7 @@
     padding:12px 14px; margin-bottom:14px; user-select:none;
   }
   .weeknav .arrow{
-    width:40px; height:40px; flex:none; border-radius:10px; border:1px solid var(--linie);
+    width:var(--hoehe-control); height:var(--hoehe-control); flex:none; border-radius:10px; border:1px solid var(--linie);
     background:var(--flaeche-senke); color:var(--text-haupt); font-size:1.2rem; cursor:pointer; transition:.15s;
   }
   .weeknav .arrow:hover{ background:var(--messing-aktion); color:var(--auf-aktion); border-color:var(--messing-aktion); }
@@ -151,7 +152,7 @@
   .meal-nutri{ font-family:var(--schrift); font-variant-numeric:tabular-nums; font-size:0.72rem; color:var(--text-leise); margin-top:8px; display:flex; gap:8px; flex-wrap:wrap; }
   .meal-empty{ color:var(--text-leise); font-size:0.85rem; font-style:italic; padding:8px 2px; }
   .day-kcal{ font-family:var(--schrift); font-variant-numeric:tabular-nums; font-size:0.72rem; color:var(--text-leise); margin:-4px 0 10px; }
-  .day-reset-btn{ display:block; width:100%; margin-top:10px; padding:6px; background:transparent; border:1px solid var(--loeschen-farbe); border-radius:var(--radius-s); color:var(--loeschen-farbe); font-size:0.78rem; cursor:pointer; }
+  .day-reset-btn{ display:flex; align-items:center; justify-content:center; width:100%; margin-top:10px; min-height:var(--hoehe-control); padding:0 var(--abstand-m); background:transparent; border:1px solid var(--loeschen-farbe); border-radius:var(--radius-s); color:var(--loeschen-farbe); font-family:var(--schrift); font-size:14px; cursor:pointer; }
   .day-reset-btn:hover{ background:var(--loeschen-farbe); color:var(--auf-loeschen); }
   .slot{ border-top:1px solid var(--linie-leise); padding-top:10px; margin-top:10px; }
   .slot:first-of-type{ border-top:none; padding-top:0; margin-top:0; }
@@ -176,21 +177,46 @@
     letter-spacing:.4px; font-family:var(--schrift); font-weight:600;
   }
   select, input, textarea{
-    font-family:var(--schrift); font-size:0.9rem; padding:9px 10px;
+    font-family:var(--schrift); font-size:15px;
+    min-height:var(--hoehe-control); padding:10px var(--abstand-l);
     border-radius:var(--radius-s); border:1px solid var(--linie); background:var(--flaeche-feld); color:var(--text-haupt); width:100%;
   }
-  select:focus,input:focus,textarea:focus{ outline:none; border-color:var(--messing-aktion); }
-  textarea{ resize:vertical; min-height:64px; line-height:1.5; }
+  /* Fokus: 2px Messing, ueber Inset-Schatten statt Randbreite - kein Umbruch der Umgebung */
+  select:focus,input:focus,textarea:focus{ outline:none; border-color:var(--messing-aktion); box-shadow:0 0 0 1px var(--messing-aktion) inset; }
+  /* Fehlerzustand - gab es bisher nicht */
+  select.fehlerhaft, input.fehlerhaft, textarea.fehlerhaft,
+  select[aria-invalid="true"], input[aria-invalid="true"], textarea[aria-invalid="true"]{
+    border-color:var(--loeschen-farbe); box-shadow:0 0 0 1px var(--loeschen-farbe) inset;
+  }
+  .feld-fehler{ color:var(--loeschen-farbe); font-size:0.8rem; line-height:1.4; margin:5px 0 0; }
+  textarea{ resize:vertical; min-height:64px; line-height:1.5; padding:12px var(--abstand-l); }
+  input[type=checkbox], input[type=radio]{ min-height:0; padding:0; width:auto; }
 
-  .btn{ cursor:pointer; border:none; border-radius:var(--radius-s); font-weight:600; font-family:var(--schrift); font-size:0.85rem; padding:9px 14px; transition:.15s; }
+  /* Drei Buttonstile nach D-13: Primaer, Sekundaer (soft), Ruhig (ghost).
+     Loeschen ist ein Zusatz (.btn-loeschen) ueber alle drei, kein vierter Stil.
+     Hoehe nach D-4/D-12: sichtbare 44px, auch bei .btn-sm */
+  .btn{
+    cursor:pointer; border:none; border-radius:var(--radius-s);
+    font-family:var(--schrift); font-size:15px; font-weight:500; line-height:1.2;
+    min-height:var(--hoehe-control); padding:0 var(--abstand-xl);
+    display:inline-flex; align-items:center; justify-content:center; gap:var(--abstand-s);
+    text-align:center; transition:.15s;
+  }
   .btn-primary{ background:var(--messing-aktion); color:var(--auf-aktion); }
   .btn-primary:hover{ filter:brightness(1.08); }
   .btn:disabled{ opacity:.4; cursor:default; filter:none; }
   .btn-soft{ background:var(--flaeche-senke); color:var(--text-haupt); border:1px solid var(--linie); }
   .btn-soft:hover{ border-color:var(--messing-aktion); }
-  .btn-ghost{ background:transparent; color:var(--loeschen-farbe); border:1px solid var(--loeschen-farbe); }
-  .btn-ghost:hover{ background:var(--loeschen-farbe); color:var(--auf-loeschen); }
-  .btn-sm{ font-size:0.78rem; padding:7px 11px; }
+  .btn-ghost{ background:transparent; color:var(--text-leise); border:1px solid var(--linie); }
+  .btn-ghost:hover{ background:var(--flaeche-senke); color:var(--text-haupt); }
+  /* Zusatz Loeschen - legt sich ueber jeden der drei Stile */
+  .btn-loeschen{ color:var(--loeschen-farbe); border-color:var(--loeschen-farbe); }
+  .btn-soft.btn-loeschen, .btn-ghost.btn-loeschen{ background:transparent; border:1px solid var(--loeschen-farbe); }
+  .btn-soft.btn-loeschen:hover, .btn-ghost.btn-loeschen:hover{ background:var(--loeschen-farbe); color:var(--auf-loeschen); }
+  .btn-primary.btn-loeschen{ background:var(--loeschen-farbe); color:var(--auf-loeschen); border-color:var(--loeschen-farbe); }
+  .btn-primary.btn-loeschen:hover{ filter:brightness(1.08); }
+  /* Kompakt, aber gleiche Trefferhoehe */
+  .btn-sm{ font-size:14px; padding:0 var(--abstand-l); }
   .full{ width:100%; }
   .danger-zone{ margin-top:24px; }
 
@@ -257,7 +283,7 @@
   .io-format p{ margin:8px 0; }
   .add-head{ display:flex; align-items:center; justify-content:space-between; }
   .add-head h3{ margin:0 0 14px; }
-  .close-add{ background:var(--flaeche-senke); border:1px solid var(--linie); color:var(--text-leise); border-radius:8px; width:34px; height:34px; cursor:pointer; font-size:0.95rem; }
+  .close-add{ background:var(--flaeche-senke); border:1px solid var(--linie); color:var(--text-leise); border-radius:8px; width:var(--hoehe-control); height:var(--hoehe-control); flex:none; cursor:pointer; font-size:0.95rem; }
   .close-add:hover{ color:var(--loeschen-farbe); border-color:var(--loeschen-farbe); }
 
   .collapse-section{ background:var(--flaeche-karte); border:1px solid var(--linie-leise); border-radius:var(--radius-m); overflow:hidden; }
@@ -275,8 +301,9 @@
   .field{ margin-bottom:13px; }
   .field label{ display:block; font-size:0.76rem; color:var(--text-leise); margin-bottom:5px; font-weight:600; letter-spacing:.2px; }
   .field .hint{ font-weight:400; color:var(--text-leise); }
-  .ing-input-row{ display:grid; grid-template-columns:1fr 78px 92px 40px; gap:6px; margin-bottom:6px; }
-  .ing-input-row .x{ background:var(--flaeche-senke); border:1px solid var(--linie); border-radius:var(--radius-s); color:var(--loeschen-farbe); cursor:pointer; font-size:1rem; }
+  .ing-input-row{ display:grid; grid-template-columns:1fr 82px 96px 40px; gap:6px; margin-bottom:6px; align-items:center; }
+  .ing-input-row input, .ing-input-row select{ padding:0 var(--abstand-s); }
+  .ing-input-row .x{ height:40px; background:var(--flaeche-senke); border:1px solid var(--linie); border-radius:var(--radius-s); color:var(--loeschen-farbe); cursor:pointer; font-size:1rem; }
   .ing-input-row .x:hover{ background:var(--loeschen-farbe); color:var(--auf-loeschen); }
   .grid4{ display:grid; grid-template-columns:repeat(4,1fr); gap:8px; align-items:end; }
   .grid4 .field{ display:flex; flex-direction:column; justify-content:flex-end; margin-bottom:13px; }
@@ -340,7 +367,8 @@
   .cat-picker{ display:none; gap:6px; flex-wrap:wrap; padding:2px 4px 12px 34px; }
   .shop-item.picking .cat-picker{ display:flex; }
   .cat-opt{
-    font-size:0.76rem; padding:6px 11px; border-radius:999px; cursor:pointer;
+    font-size:14px; min-height:var(--hoehe-chip); padding:0 var(--abstand-m); border-radius:var(--radius-rund); cursor:pointer;
+    display:inline-flex; align-items:center; justify-content:center;
     background:var(--flaeche-senke); border:1px solid var(--linie); color:var(--text-haupt);
   }
   .cat-opt:hover{ border-color:var(--messing-aktion); }
@@ -366,7 +394,8 @@
   .ex-hint{ font-size:0.82rem; color:var(--text-leise); margin:2px 0 12px; line-height:1.5; }
   .chips{ display:flex; flex-wrap:wrap; gap:8px; }
   .chip{
-    font-size:0.84rem; padding:7px 13px; border-radius:999px; cursor:pointer;
+    font-size:14px; min-height:var(--hoehe-chip); padding:0 var(--abstand-m); border-radius:var(--radius-rund); cursor:pointer;
+    display:inline-flex; align-items:center; justify-content:center;
     background:var(--flaeche-senke); border:1px solid var(--linie); color:var(--text-haupt); transition:.12s; user-select:none;
   }
   .chip:hover{ border-color:var(--messing-aktion); }
@@ -403,7 +432,7 @@
 
   /* ---------- Filter-Pillen (Zutaten-Tab) ---------- */
   .filter-row{ display:flex; gap:8px; margin:4px 0 14px; flex-wrap:wrap; }
-  .filter-pill{ font-size:0.82rem; font-weight:600; padding:7px 14px; border-radius:999px; border:1px solid var(--linie); background:var(--flaeche-senke); color:var(--text-leise); cursor:pointer; }
+  .filter-pill{ font-size:14px; font-weight:500; min-height:var(--hoehe-chip); padding:0 var(--abstand-m); border-radius:var(--radius-rund); border:1px solid var(--linie); display:inline-flex; align-items:center; justify-content:center; background:var(--flaeche-senke); color:var(--text-leise); cursor:pointer; }
   .filter-pill:hover{ color:var(--text-haupt); border-color:var(--messing-aktion); }
   .filter-pill.active{ background:var(--messing-aktion); color:var(--auf-aktion); border-color:var(--messing-aktion); }
 
@@ -425,6 +454,21 @@
     border-radius:var(--radius-s); padding:11px 14px; margin:0 0 14px;
   }
   .storage-note{ text-align:center; font-size:0.72rem; color:var(--text-leise); padding:6px 0 0; }
+
+  /* ---------- Trefferflaechen kleiner Symbolknoepfe (D-12) ----------
+     Optische Groesse bleibt, damit Listenzeilen nicht wachsen. Die Flaeche
+     wird per Pseudoelement auf 44px Hoehe gezogen. In der Breite nur bis in
+     den Zwischenraum hinein, sonst wuerden nebeneinanderliegende Knoepfe
+     einander die Beruehrung stehlen. */
+  .del-item, .ing-overview .ci-del, .hh-row .hh-del, .hh-row .hh-add-list,
+  .ing-input-row .x, .cat-order-row .col-arrows button, .fav-star, .stepper button, .qty-btn{
+    position:relative;
+  }
+  .del-item::after, .ing-overview .ci-del::after, .hh-row .hh-del::after, .hh-row .hh-add-list::after,
+  .ing-input-row .x::after, .cat-order-row .col-arrows button::after, .fav-star::after, .stepper button::after, .qty-btn::after{
+    content:''; position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
+    width:calc(100% + var(--abstand-s)); min-width:100%; height:var(--hoehe-control);
+  }
 
   /* ---------- Vergangene Tage einklappen ---------- */
   .day-top-toggle{ width:100%; background:none; border:none; cursor:pointer; text-align:left; padding:0; font:inherit; color:inherit; display:flex; align-items:baseline; justify-content:space-between; margin-bottom:10px; }
@@ -512,13 +556,16 @@
   .auth-box h1 .dot{ color:var(--messing-aktion); font-weight:500; }
   .auth-sub{ text-align:center; color:var(--text-leise); font-size:0.86rem; margin:0 0 20px; }
   .auth-tabs{ display:flex; gap:4px; margin-bottom:18px; background:var(--flaeche-senke); border-radius:999px; padding:4px; }
-  .auth-tab{ flex:1; padding:8px 0; border:none; background:none; color:var(--text-leise); font-weight:600; font-size:0.85rem; border-radius:999px; cursor:pointer; font-family:var(--schrift); }
+  .auth-tab{ flex:1; min-height:var(--hoehe-control); padding:0; border:none; background:none; display:inline-flex; align-items:center; justify-content:center; color:var(--text-leise); font-weight:500; font-size:15px; border-radius:var(--radius-rund); cursor:pointer; font-family:var(--schrift); }
   .auth-tab.active{ background:var(--messing-aktion); color:var(--auf-aktion); }
+  /* Ausnahme zu D-9: In der Anmeldebox traegt das Feld die Senkenfarbe.
+     Die Box ist keine Karte auf der Seitenflaeche, sondern fuellt selbst den
+     Bildschirm - mit der Kartenfarbe stuende das Feld weiss auf weiss. */
   .auth-box input[type=email], .auth-box input[type=password], .auth-box input[type=text]{
-    width:100%; padding:11px 12px; border-radius:var(--radius-s); border:1px solid var(--linie);
-    background:var(--flaeche-senke); color:var(--text-haupt); font-family:var(--schrift); font-size:0.92rem; margin-bottom:2px;
+    width:100%; min-height:var(--hoehe-control); padding:10px var(--abstand-l); border-radius:var(--radius-s); border:1px solid var(--linie);
+    background:var(--flaeche-senke); color:var(--text-haupt); font-family:var(--schrift); font-size:15px; margin-bottom:2px;
   }
-  .auth-box input:focus{ outline:none; border-color:var(--messing-aktion); }
+  .auth-box input:focus{ outline:none; border-color:var(--messing-aktion); box-shadow:0 0 0 1px var(--messing-aktion) inset; }
   .auth-error{ color:var(--loeschen-farbe); background:color-mix(in srgb, var(--loeschen-farbe) 12%, transparent); border:1px solid color-mix(in srgb, var(--loeschen-farbe) 45%, transparent); border-radius:var(--radius-s); font-size:0.82rem; line-height:1.5; padding:10px 12px; margin:0 0 14px; display:none; }
   .auth-info{ color:var(--messing-aktion); font-size:0.82rem; margin:0 0 14px; display:none; }
   .auth-divider{ display:flex; align-items:center; gap:10px; margin:18px 0; color:var(--text-leise); font-size:0.76rem; }
@@ -536,6 +583,6 @@
   .member-row:last-child{ border-bottom:none; }
   .member-row .role{ font-size:0.72rem; color:var(--messing-aktion); font-weight:600; text-transform:uppercase; letter-spacing:.4px; }
   .hh-switch{ display:flex; flex-wrap:wrap; gap:6px; margin:10px 0 4px; }
-  .hh-switch button{ padding:7px 12px; border-radius:999px; border:1px solid var(--linie); background:var(--flaeche-senke); color:var(--text-leise); font-size:0.82rem; cursor:pointer; font-family:var(--schrift); }
+  .hh-switch button{ min-height:var(--hoehe-chip); padding:0 var(--abstand-m); border-radius:var(--radius-rund); border:1px solid var(--linie); display:inline-flex; align-items:center; justify-content:center; background:var(--flaeche-senke); color:var(--text-leise); font-size:14px; cursor:pointer; font-family:var(--schrift); }
   .hh-switch button.active{ background:var(--messing-aktion); color:var(--auf-aktion); border-color:var(--messing-aktion); }
-  .nutri-portion-row input{ width:60px; margin-left:4px; padding:3px 6px; border-radius:6px; border:1px solid var(--linie); background:var(--flaeche-senke); color:var(--text-haupt); }
+  .nutri-portion-row input{ width:72px; margin-left:4px; min-height:var(--hoehe-control); padding:0 var(--abstand-s); text-align:center; border-radius:6px; border:1px solid var(--linie); background:var(--flaeche-feld); color:var(--text-haupt); }
