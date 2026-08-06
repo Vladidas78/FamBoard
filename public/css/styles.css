@@ -1,16 +1,16 @@
 /* Butley — Stylesheet, ausgelagert aus index.html am 06.08.2026 (T-1/T-2) */
-  /* ---- Butley Design-Grundlagen — Designstand 05.08.2026, Entscheidungsregister D-1 bis D-8, MD-19 ---- */
+  /* ---- Butley Design-Grundlagen — Designstand 05.08.2026, Entscheidungsregister D-1 bis D-14, MD-19 ---- */
   :root{
     /* Flaechen */
     --flaeche-seite:#FAF7F2;
     --flaeche-karte:#FFFFFF;
-    /* Vertiefte Flaeche in Karten (Stepper, Chip, Badge) - Schritt 2 / E-1 */
-    --flaeche-senke:#FFFFFF;
-    /* Flaeche Eingabefeld - Schritt 2 / E-1 */
-    --flaeche-feld:#FAF7F2;
-    /* Linien: kraeftig fuer Bedienelemente, leise fuer Flaechen und Trenner (E-3) */
+    /* Vertiefte Flaeche in Karten (Stepper, Chip, Badge) - D-9, scharf seit Schritt 2 */
+    --flaeche-senke:#FAF7F2;
+    /* Flaeche Eingabefeld - D-9, scharf seit Schritt 2 */
+    --flaeche-feld:#FFFFFF;
+    /* Linien: kraeftig fuer Bedienelemente, leise fuer Flaechen und Trenner - D-11, scharf seit Schritt 2 */
     --linie:#E7E0D6;
-    --linie-leise:#E7E0D6;
+    --linie-leise:#EFE9E0;
     /* Text */
     --text-haupt:#262220;
     --text-leise:#6E6560;
@@ -23,6 +23,8 @@
     /* Status */
     --erledigt-farbe:#4E7A52;
     --loeschen-farbe:#A8442A;
+    /* Text auf gedrueckten/Hover-Loeschen-Flaechen - Schritt 2 */
+    --auf-loeschen:#FFFFFF;
     /* Abstaende */
     --abstand-xs:4px; --abstand-s:8px; --abstand-m:12px;
     --abstand-l:16px; --abstand-xl:24px; --abstand-xxl:32px;
@@ -37,12 +39,12 @@
   }
   [data-mode="dunkel"]{
     --flaeche-seite:#1B1917; --flaeche-karte:#24211E;
-    --flaeche-senke:#24211E; --flaeche-feld:#1B1917;
-    --linie:#383029; --linie-leise:#383029;
+    --flaeche-senke:#1B1917; --flaeche-feld:#24211E;
+    --linie:#383029; --linie-leise:#2E2822;
     --text-haupt:#F1ECE4; --text-leise:#A29889;
     --messing-aktion:#D9A94A; --messing-gedrueckt:#C0912F; --messing-marke:#C9A46A;
     --messing-flaeche:#3A2E16; --auf-aktion:#33240A;
-    --erledigt-farbe:#7FB185; --loeschen-farbe:#E08A6B;
+    --erledigt-farbe:#7FB185; --loeschen-farbe:#E08A6B; --auf-loeschen:#2B1208;
   }
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;}
@@ -66,7 +68,7 @@
   nav{
     position:sticky; top:0; z-index:20;
     display:flex; justify-content:center; gap:6px; padding:14px 12px;
-    background:linear-gradient(180deg, rgba(250,247,242,0.95), rgba(250,247,242,0.75));
+    background:linear-gradient(180deg, color-mix(in srgb, var(--flaeche-seite) 95%, transparent), color-mix(in srgb, var(--flaeche-seite) 75%, transparent));
     backdrop-filter:blur(8px);
     overflow-x:auto;
   }
@@ -150,7 +152,7 @@
   .meal-empty{ color:var(--text-leise); font-size:0.85rem; font-style:italic; padding:8px 2px; }
   .day-kcal{ font-family:var(--schrift); font-variant-numeric:tabular-nums; font-size:0.72rem; color:var(--text-leise); margin:-4px 0 10px; }
   .day-reset-btn{ display:block; width:100%; margin-top:10px; padding:6px; background:transparent; border:1px solid var(--loeschen-farbe); border-radius:var(--radius-s); color:var(--loeschen-farbe); font-size:0.78rem; cursor:pointer; }
-  .day-reset-btn:hover{ background:var(--loeschen-farbe); color:#1a0808; }
+  .day-reset-btn:hover{ background:var(--loeschen-farbe); color:var(--auf-loeschen); }
   .slot{ border-top:1px solid var(--linie-leise); padding-top:10px; margin-top:10px; }
   .slot:first-of-type{ border-top:none; padding-top:0; margin-top:0; }
   .slot-name{
@@ -161,7 +163,7 @@
     background:var(--flaeche-feld); border:1px dashed var(--linie); border-radius:var(--radius-s);
     padding:10px; font-size:0.88rem; color:var(--text-leise);
   }
-  .slot-special.gone{ color:var(--loeschen-farbe); border-color:rgba(248,113,113,.4); }
+  .slot-special.gone{ color:var(--loeschen-farbe); border-color:color-mix(in srgb, var(--loeschen-farbe) 40%, transparent); }
   .day-persons{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:10px; }
   .day-persons .lbl{ font-size:0.78rem; color:var(--text-leise); }
   .day-actions{ display:flex; gap:6px; margin-top:10px; }
@@ -170,7 +172,7 @@
   .type-pick input[type=radio]{ width:16px; height:16px; accent-color:var(--messing-aktion); }
   .snack-badge{
     font-size:0.62rem; padding:2px 8px; border-radius:999px; margin-left:8px; vertical-align:middle;
-    background:rgba(94,234,212,.12); border:1px solid rgba(94,234,212,.35); color:var(--messing-aktion);
+    background:color-mix(in srgb, var(--messing-aktion) 12%, transparent); border:1px solid color-mix(in srgb, var(--messing-aktion) 35%, transparent); color:var(--messing-aktion);
     letter-spacing:.4px; font-family:var(--schrift); font-weight:600;
   }
   select, input, textarea{
@@ -187,7 +189,7 @@
   .btn-soft{ background:var(--flaeche-senke); color:var(--text-haupt); border:1px solid var(--linie); }
   .btn-soft:hover{ border-color:var(--messing-aktion); }
   .btn-ghost{ background:transparent; color:var(--loeschen-farbe); border:1px solid var(--loeschen-farbe); }
-  .btn-ghost:hover{ background:var(--loeschen-farbe); color:#1a0808; }
+  .btn-ghost:hover{ background:var(--loeschen-farbe); color:var(--auf-loeschen); }
   .btn-sm{ font-size:0.78rem; padding:7px 11px; }
   .full{ width:100%; }
   .danger-zone{ margin-top:24px; }
@@ -221,7 +223,7 @@
   .nutri-row{ font-family:var(--schrift); font-variant-numeric:tabular-nums; font-size:0.76rem; color:var(--text-leise); margin-top:10px; display:flex; gap:10px; flex-wrap:wrap; }
   .desc-toggle{
     display:flex; align-items:center; gap:8px; width:100%; margin-top:12px; padding:9px 11px;
-    background:rgba(94,234,212,0.08); border:1px solid rgba(94,234,212,0.3); border-radius:var(--radius-s);
+    background:color-mix(in srgb, var(--messing-aktion) 8%, transparent); border:1px solid color-mix(in srgb, var(--messing-aktion) 30%, transparent); border-radius:var(--radius-s);
     cursor:pointer; font-weight:600; font-size:0.82rem; color:var(--messing-aktion);
   }
   .desc-toggle:hover{ background:rgba(138,101,32,0.12); }
@@ -275,7 +277,7 @@
   .field .hint{ font-weight:400; color:var(--text-leise); }
   .ing-input-row{ display:grid; grid-template-columns:1fr 78px 92px 40px; gap:6px; margin-bottom:6px; }
   .ing-input-row .x{ background:var(--flaeche-senke); border:1px solid var(--linie); border-radius:var(--radius-s); color:var(--loeschen-farbe); cursor:pointer; font-size:1rem; }
-  .ing-input-row .x:hover{ background:var(--loeschen-farbe); color:#1a0808; }
+  .ing-input-row .x:hover{ background:var(--loeschen-farbe); color:var(--auf-loeschen); }
   .grid4{ display:grid; grid-template-columns:repeat(4,1fr); gap:8px; align-items:end; }
   .grid4 .field{ display:flex; flex-direction:column; justify-content:flex-end; margin-bottom:13px; }
   .grid4 .field label{ hyphens:auto; }
@@ -323,18 +325,18 @@
     font-family:var(--schrift); font-variant-numeric:tabular-nums; color:var(--messing-aktion); font-size:0.86rem; white-space:nowrap;
   }
   .qty-btn:hover{ border-color:var(--messing-aktion); }
-  .qty-btn.edited{ color:var(--messing-aktion); border-color:rgba(245,181,68,.45); }
+  .qty-btn.edited{ color:var(--messing-aktion); border-color:color-mix(in srgb, var(--messing-aktion) 45%, transparent); }
   .qty-btn.empty{ color:var(--text-leise); }
   .rep-badge, .extra-badge{
     font-size:0.64rem; padding:2px 7px; border-radius:999px; border:1px solid var(--linie);
     background:var(--flaeche-senke); color:var(--text-leise); letter-spacing:.3px;
   }
-  .rep-badge{ color:var(--messing-aktion); border-color:rgba(94,234,212,.35); }
+  .rep-badge{ color:var(--messing-aktion); border-color:color-mix(in srgb, var(--messing-aktion) 35%, transparent); }
   .del-item{
     flex:none; width:34px; height:34px; border-radius:8px; cursor:pointer;
     background:var(--flaeche-senke); border:1px solid var(--linie); color:var(--loeschen-farbe); font-size:0.95rem;
   }
-  .del-item:hover{ background:var(--loeschen-farbe); color:#1a0808; border-color:var(--loeschen-farbe); }
+  .del-item:hover{ background:var(--loeschen-farbe); color:var(--auf-loeschen); border-color:var(--loeschen-farbe); }
   .cat-picker{ display:none; gap:6px; flex-wrap:wrap; padding:2px 4px 12px 34px; }
   .shop-item.picking .cat-picker{ display:flex; }
   .cat-opt{
@@ -368,13 +370,13 @@
     background:var(--flaeche-senke); border:1px solid var(--linie); color:var(--text-haupt); transition:.12s; user-select:none;
   }
   .chip:hover{ border-color:var(--messing-aktion); }
-  .chip.excluded{ background:rgba(245,181,68,0.16); border-color:var(--messing-aktion); color:var(--messing-aktion); text-decoration:line-through; }
+  .chip.excluded{ background:color-mix(in srgb, var(--messing-aktion) 16%, transparent); border-color:var(--messing-aktion); color:var(--messing-aktion); text-decoration:line-through; }
   .chip.tag-active{ background:var(--messing-aktion); color:var(--auf-aktion); border-color:var(--messing-aktion); }
   .chips-empty{ font-size:0.84rem; color:var(--text-leise); font-style:italic; }
   .tag-filter-row{ display:none; }
   .tag-badge{
     font-size:0.62rem; padding:2px 8px; border-radius:999px; margin-left:6px; vertical-align:middle;
-    background:rgba(245,181,68,.12); border:1px solid rgba(245,181,68,.35); color:var(--messing-aktion);
+    background:color-mix(in srgb, var(--messing-aktion) 12%, transparent); border:1px solid color-mix(in srgb, var(--messing-aktion) 35%, transparent); color:var(--messing-aktion);
     letter-spacing:.3px; font-family:var(--schrift); font-weight:600;
   }
 
@@ -397,7 +399,7 @@
     flex:none; width:28px; height:28px; border-radius:8px; border:1px solid var(--linie);
     background:var(--flaeche-senke); color:var(--loeschen-farbe); cursor:pointer; font-size:0.85rem;
   }
-  .ing-overview .ci-del:hover{ background:var(--loeschen-farbe); color:#1a0808; border-color:var(--loeschen-farbe); }
+  .ing-overview .ci-del:hover{ background:var(--loeschen-farbe); color:var(--auf-loeschen); border-color:var(--loeschen-farbe); }
 
   /* ---------- Filter-Pillen (Zutaten-Tab) ---------- */
   .filter-row{ display:flex; gap:8px; margin:4px 0 14px; flex-wrap:wrap; }
@@ -480,11 +482,11 @@
   .hh-row.excluded{ opacity:.6; }
   .hh-row .hh-name{ flex:1; font-size:0.92rem; }
   .hh-row .hh-add-list, .hh-row .hh-del{ flex:none; width:30px; height:30px; border-radius:8px; border:1px solid var(--linie); background:var(--flaeche-senke); color:var(--text-haupt); cursor:pointer; font-size:0.95rem; }
-  .hh-row .hh-add-list{ color:var(--messing-aktion); border-color:rgba(245,181,68,.4); }
+  .hh-row .hh-add-list{ color:var(--messing-aktion); border-color:color-mix(in srgb, var(--messing-aktion) 40%, transparent); }
   .hh-row .hh-add-list:hover:not(:disabled){ background:var(--messing-aktion); color:var(--auf-aktion); border-color:var(--messing-aktion); }
   .hh-row .hh-add-list:disabled{ opacity:.4; cursor:default; }
   .hh-row .hh-del{ color:var(--loeschen-farbe); }
-  .hh-row .hh-del:hover{ background:var(--loeschen-farbe); color:#1a0808; border-color:var(--loeschen-farbe); }
+  .hh-row .hh-del:hover{ background:var(--loeschen-farbe); color:var(--auf-loeschen); border-color:var(--loeschen-farbe); }
   .hh-empty{ font-size:0.84rem; color:var(--text-leise); font-style:italic; padding:6px 2px; }
 
   .nutri-day-row{ display:flex; align-items:center; justify-content:space-between; padding:10px 2px; border-bottom:1px solid var(--linie-leise); flex-wrap:wrap; gap:6px; }
@@ -517,7 +519,7 @@
     background:var(--flaeche-senke); color:var(--text-haupt); font-family:var(--schrift); font-size:0.92rem; margin-bottom:2px;
   }
   .auth-box input:focus{ outline:none; border-color:var(--messing-aktion); }
-  .auth-error{ color:#fecaca; background:rgba(248,113,113,0.12); border:1px solid rgba(248,113,113,0.45); border-radius:var(--radius-s); font-size:0.82rem; line-height:1.5; padding:10px 12px; margin:0 0 14px; display:none; }
+  .auth-error{ color:var(--loeschen-farbe); background:color-mix(in srgb, var(--loeschen-farbe) 12%, transparent); border:1px solid color-mix(in srgb, var(--loeschen-farbe) 45%, transparent); border-radius:var(--radius-s); font-size:0.82rem; line-height:1.5; padding:10px 12px; margin:0 0 14px; display:none; }
   .auth-info{ color:var(--messing-aktion); font-size:0.82rem; margin:0 0 14px; display:none; }
   .auth-divider{ display:flex; align-items:center; gap:10px; margin:18px 0; color:var(--text-leise); font-size:0.76rem; }
   .auth-divider::before, .auth-divider::after{ content:''; flex:1; height:1px; background:var(--linie-leise); }
