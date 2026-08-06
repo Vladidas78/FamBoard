@@ -89,6 +89,52 @@ function randId(prefix, len){
   return prefix + s;
 }
 
+/* ---------- Fehlerzustand an einzelnen Eingabefeldern ----------
+   Der Zustand ist im Stylesheet als .fehlerhaft bzw. [aria-invalid] definiert.
+   Die Meldung landet in einem <p class="feld-fehler"> direkt unter dem Feld,
+   ausser es gibt bereits einen eigenen Platz mit data-fehler-fuer="<id>" —
+   noetig dort, wo das Feld in einem Raster sitzt und ein Geschwisterelement
+   die Spalten durcheinanderbraechte. */
+function feldFehlerStelle(el){
+  const eigen = el.id && document.querySelector('[data-fehler-fuer="'+el.id+'"]');
+  if(eigen) return eigen;
+  const nachbar = el.nextElementSibling;
+  if(nachbar && nachbar.classList && nachbar.classList.contains('feld-fehler')) return nachbar;
+  const p = document.createElement('p');
+  p.className = 'feld-fehler';
+  p.hidden = true;
+  el.parentNode.insertBefore(p, el.nextSibling);
+  return p;
+}
+function feldFehler(el, text){
+  if(!el) return;
+  el.classList.add('fehlerhaft');
+  el.setAttribute('aria-invalid','true');
+  if(text){
+    const p = feldFehlerStelle(el);
+    if(!p.id) p.id = 'fehler-' + (el.id || Math.random().toString(36).slice(2,7));
+    p.textContent = text;
+    p.hidden = false;
+    el.setAttribute('aria-describedby', p.id);
+  }
+  try{ el.focus(); }catch(_){}
+}
+function feldFehlerWeg(el){
+  if(!el || !el.classList.contains('fehlerhaft')) return;
+  el.classList.remove('fehlerhaft');
+  el.removeAttribute('aria-invalid');
+  el.removeAttribute('aria-describedby');
+  const eigen = el.id && document.querySelector('[data-fehler-fuer="'+el.id+'"]');
+  const nachbar = el.nextElementSibling;
+  const p = eigen || (nachbar && nachbar.classList && nachbar.classList.contains('feld-fehler') ? nachbar : null);
+  if(p){ p.textContent=''; p.hidden = true; }
+}
+/* Sobald der Nutzer das Feld anfasst, ist die Meldung erledigt. Ein einziger
+   Zuhoerer statt einer Anmeldung je Feld. */
+document.addEventListener('input', e=>{
+  if(e.target && e.target.classList && e.target.classList.contains('fehlerhaft')) feldFehlerWeg(e.target);
+}, true);
+
 function authHideMessages(){
   document.getElementById('authError').style.display = 'none';
   document.getElementById('authInfo').style.display = 'none';
@@ -1886,7 +1932,7 @@ document.getElementById('calcNutri').addEventListener('click', ()=>{
 
 document.getElementById('saveRecipe').addEventListener('click', async ()=>{
   const name=document.getElementById('r-name').value.trim();
-  if(!name){ alert('Das Rezept braucht noch einen Namen.'); return; }
+  if(!name){ feldFehler(document.getElementById('r-name'), 'Ohne Namen lässt sich das Rezept später nicht wiederfinden.'); return; }
   const ingredients = ingRowsToIngredients();
   const serv = parseInt(document.getElementById('r-servings').value,10);
   const typ = aktuellerTyp();
@@ -2011,11 +2057,11 @@ document.getElementById('startImport').addEventListener('click', async ()=>{
   const body = {mode: mode};
   if(mode==='url'){
     const url = document.getElementById('imp-url').value.trim();
-    if(!url){ setImportResult('Erst einen Link eintragen.','err'); return; }
+    if(!url){ setImportResult('Erst einen Link eintragen.','err'); feldFehler(document.getElementById('imp-url')); return; }
     body.url = url;
   } else if(mode==='text'){
     const text = document.getElementById('imp-text').value.trim();
-    if(!text){ setImportResult('Erst Text einfügen.','err'); return; }
+    if(!text){ setImportResult('Erst Text einfügen.','err'); feldFehler(document.getElementById('imp-text')); return; }
     body.text = text;
   } else if(mode==='image'){
     if(!importImageDataUrl){ setImportResult('Erst ein Foto auswählen.','err'); return; }
@@ -2565,7 +2611,7 @@ function renderExtraCount(){
 async function addExtra(){
   const nameEl=document.getElementById('exName'), qtyEl=document.getElementById('exQty'), repEl=document.getElementById('exRep');
   const name=nameEl.value.trim();
-  if(!name){ nameEl.focus(); return; }
+  if(!name){ feldFehler(nameEl, 'Ohne Namen kann der Eintrag nicht auf die Liste.'); return; }
   state.extras.push({
     id: 'e'+Date.now()+Math.random().toString(36).slice(2,5),
     name: name, qty: qtyEl.value.trim(), cat: guessCategory(name),

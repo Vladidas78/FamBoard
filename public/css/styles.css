@@ -189,6 +189,9 @@
     border-color:var(--loeschen-farbe); box-shadow:0 0 0 1px var(--loeschen-farbe) inset;
   }
   .feld-fehler{ color:var(--loeschen-farbe); font-size:0.8rem; line-height:1.4; margin:5px 0 0; }
+  .feld-fehler[hidden]{ display:none; }
+  /* Im Raster spannt die Meldung ueber alle Spalten, sonst landet sie in der Nachbarspalte */
+  .extra-form .feld-fehler, .ing-input-row .feld-fehler, .grid2 .feld-fehler, .grid4 .feld-fehler{ grid-column:1 / -1; margin:0; }
   textarea{ resize:vertical; min-height:64px; line-height:1.5; padding:12px var(--abstand-l); }
   input[type=checkbox], input[type=radio]{ min-height:0; padding:0; width:auto; }
 
