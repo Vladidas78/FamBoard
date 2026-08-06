@@ -1,5 +1,20 @@
 /* Butley — Stylesheet, ausgelagert aus index.html am 06.08.2026 (T-1/T-2) */
-  /* ---- Butley Design-Grundlagen — Designstand 05.08.2026, Entscheidungsregister D-1 bis D-14, MD-19 ---- */
+
+  /* ---- Serifenschrift fuer Wortmarke, Ueberschriften und die Butler-Figur (MD-19, O-6, D-22) ----
+     Selbst gehostet, bewusst nicht ueber die Google-CDN: Die dynamische Einbindung
+     uebertraegt die IP-Adresse der Nutzer an Google und wurde vom LG Muenchen I am
+     20.01.2022 als DSGVO-Verstoss gewertet. Ausserdem verlangt Kapitel 6.6, dass die
+     Datei offline vorliegt. Ein einziger Schnitt (600) fuer alle acht Stellen.
+     Datei: public/fonts/literata-600.woff2 */
+  @font-face{
+    font-family:'Literata';
+    font-style:normal;
+    font-weight:600;
+    font-display:swap;
+    src:url('../fonts/literata-600.woff2') format('woff2');
+  }
+
+  /* ---- Butley Design-Grundlagen — Designstand 05.08.2026, Entscheidungsregister D-1 bis D-22, MD-19 ---- */
   :root{
     /* Flaechen */
     --flaeche-seite:#FAF7F2;
@@ -36,9 +51,12 @@
     --radius-s:8px; --radius-m:12px; --radius-l:16px; --radius-rund:999px;
     /* Hoehen (D-4: Bedienelemente mindestens 44px) */
     --hoehe-control:44px; --hoehe-chip:36px;
-    /* Schrift (MD-19: Systemschrift Oberflaeche; Serife fuer Wortmarke folgt O-6) */
+    /* Schrift (MD-19: Systemschrift Oberflaeche, Serife fuer Wortmarke und Figur)
+       Rueckfallkette bewusst mit Serifen: Solange Literata laedt oder falls sie
+       ausbleibt, steht dort eine Serife und keine Systemschrift - sonst waere das
+       Zwei-Schriften-Prinzip genau dann unsichtbar, wenn es am meisten auffaellt. */
     --schrift:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
-    --schrift-headline:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif; /* Platzhalter bis O-6 entschieden */
+    --schrift-headline:'Literata',Georgia,'Times New Roman',serif;
 
   }
   [data-mode="dunkel"]{
@@ -63,10 +81,11 @@
 
   header{ padding:26px 20px 6px; text-align:center; }
   header h1{
-    font-family:var(--schrift-headline); font-weight:700; font-size:1.7rem; margin:0;
+    font-family:var(--schrift-headline); font-weight:600; font-size:1.7rem; margin:0;
     letter-spacing:-0.5px;
   }
-  header h1 .dot{ color:var(--messing-aktion); font-weight:500; }
+  /* Nur ein Schnitt vorhanden - der Akzent traegt ueber die Farbe, nicht ueber Gewicht */
+  header h1 .dot{ color:var(--messing-aktion); font-weight:600; }
   header p{ margin:4px 0 0; color:var(--text-leise); font-size:0.86rem; }
 
   nav{
@@ -106,7 +125,7 @@
   }
   .weeknav .arrow:hover{ background:var(--messing-aktion); color:var(--auf-aktion); border-color:var(--messing-aktion); }
   .weeknav .label{ text-align:center; line-height:1.25; }
-  .weeknav .kw{ font-family:var(--schrift-headline); font-weight:700; font-size:1.15rem; }
+  .weeknav .kw{ font-family:var(--schrift-headline); font-weight:600; font-size:1.15rem; }
   .weeknav .kw .badge{ color:var(--messing-aktion); }
   .weeknav .range{ font-size:0.8rem; color:var(--text-leise); }
   .weeknav .today-btn{
@@ -280,7 +299,7 @@
   .desc-open .desc-body{ display:block; }
   .desc-open .desc-toggle .chev{ transform:rotate(90deg); }
 
-  .add-recipe h3{ font-family:var(--schrift-headline); font-size:1.2rem; margin:0 0 14px; }
+  .add-recipe h3{ font-family:var(--schrift-headline); font-weight:600; font-size:1.2rem; margin:0 0 14px; }
   .rec-toolbar{ display:flex; justify-content:flex-end; gap:8px; margin-bottom:14px; }
 
   .io-actions{ display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px; }
@@ -578,8 +597,8 @@
     display:flex; align-items:center; justify-content:center; padding:24px; overflow-y:auto;
   }
   .auth-box{ width:100%; max-width:380px; background:var(--flaeche-karte); border:1px solid var(--linie-leise); border-radius:var(--radius-m); padding:28px 24px; margin:auto; }
-  .auth-box h1{ font-family:var(--schrift-headline); font-weight:700; font-size:1.6rem; margin:0 0 4px; text-align:center; }
-  .auth-box h1 .dot{ color:var(--messing-aktion); font-weight:500; }
+  .auth-box h1{ font-family:var(--schrift-headline); font-weight:600; font-size:1.6rem; margin:0 0 4px; text-align:center; }
+  .auth-box h1 .dot{ color:var(--messing-aktion); font-weight:600; }
   .auth-sub{ text-align:center; color:var(--text-leise); font-size:0.86rem; margin:0 0 20px; }
   .auth-tabs{ display:flex; gap:4px; margin-bottom:18px; background:var(--flaeche-senke); border-radius:999px; padding:4px; }
   .auth-tab{ flex:1; min-height:var(--hoehe-control); padding:0; border:none; background:none; display:inline-flex; align-items:center; justify-content:center; color:var(--text-leise); font-weight:500; font-size:15px; border-radius:var(--radius-rund); cursor:pointer; font-family:var(--schrift); }

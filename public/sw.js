@@ -1,13 +1,14 @@
 /* FamBoard – Service Worker
    Shell wird gecacht, damit die App auch ohne Netz startet.
    Die Daten selbst kommen von Firebase und werden dort nie gecacht. */
-const CACHE = 'famboard-v18';
+const CACHE = 'famboard-v19';
 const SHELL = [
   './',
   './index.html',
   './css/styles.css',
   './js/app.js',
   './manifest.webmanifest',
+  './fonts/literata-600.woff2',
   './icons/icon-192.png',
   './icons/icon-512.png',
   './icons/icon-maskable-512.png',
@@ -15,8 +16,15 @@ const SHELL = [
   './icons/favicon-32.png'
 ];
 
+/* Jede Datei einzeln ablegen statt addAll: addAll bricht komplett ab, sobald
+   eine einzige Datei fehlt - dann haette die App gar keinen Offline-Betrieb mehr,
+   ohne dass es jemand merkt. So faellt nur die fehlende Datei aus. */
 self.addEventListener('install', e=>{
-  e.waitUntil(caches.open(CACHE).then(c=>c.addAll(SHELL)).then(()=>self.skipWaiting()));
+  e.waitUntil(
+    caches.open(CACHE)
+      .then(c=>Promise.all(SHELL.map(pfad=>c.add(pfad).catch(()=>null))))
+      .then(()=>self.skipWaiting())
+  );
 });
 
 self.addEventListener('activate', e=>{
