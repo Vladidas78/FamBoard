@@ -1493,12 +1493,12 @@ function renderRecipeList(){
         (istSnack(r) ? '' : '<div class="img-controls">' +
           '<label class="btn btn-soft btn-sm" for="imgup-'+r.id+'" style="cursor:pointer;">📷 '+(r.hasImage?'Bild ändern':'Bild hochladen')+'</label>' +
           '<input type="file" id="imgup-'+r.id+'" accept="image/*" data-imgfor="'+r.id+'" style="display:none;">' +
-          (r.hasImage?'<button class="btn btn-ghost btn-sm rm-img" data-id="'+r.id+'" type="button">Bild entfernen</button>':'') +
+          (r.hasImage?'<button class="btn btn-ghost btn-loeschen btn-sm rm-img" data-id="'+r.id+'" type="button">Bild entfernen</button>':'') +
         '</div>') +
         '<div class="add-to-week-row">' +
           '<button class="btn btn-soft btn-sm add-to-week" data-id="'+r.id+'" type="button">+ Zur Woche</button>' +
           '<button class="btn btn-soft btn-sm edit-recipe" data-id="'+r.id+'" type="button">✏️ Bearbeiten</button>' +
-          '<button class="btn btn-ghost btn-sm del-recipe" data-id="'+r.id+'" type="button">Entfernen</button>' +
+          '<button class="btn btn-ghost btn-loeschen btn-sm del-recipe" data-id="'+r.id+'" type="button">Entfernen</button>' +
         '</div>' +
         weekPickerHtml(r) +
       '</div>' +
@@ -2350,7 +2350,7 @@ function renderShop(){
   if(done.length){
     html += '<div class="cat-group done">' +
       '<div class="cat-title">✓ Erledigt' +
-        '<button class="btn btn-ghost btn-sm clear-done-btn" type="button" style="margin-left:auto;">🗑 Erledigte leeren</button>' +
+        '<button class="btn btn-ghost btn-loeschen btn-sm clear-done-btn" type="button" style="margin-left:auto;">🗑 Erledigte leeren</button>' +
         '<span class="cat-n">'+done.length+'</span>' +
       '</div>' +
       '<ul class="shop-list">'+done.map(itemHtml).join('')+'</ul></div>';
