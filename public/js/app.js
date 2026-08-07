@@ -473,7 +473,16 @@ let state = emptyState();
 let currentMonday = getMondayOf(new Date());
 const viewServings = {};   // Rezeptansicht: temporäre Portionszahl, wird nicht gespeichert
 
-function setStatus(m){ document.getElementById('status').textContent = m; }
+/* Der Statustext ist reine Anzeige - er darf den Start niemals aufhalten.
+   Bis 07.08.2026 stand hier ein ungeprueftes getElementById: Beim Umbau der
+   Navigation fiel #status aus dem HTML, setStatus warf, und weil es unmittelbar
+   vor dem Anhaengen des Firebase-Zuhoerers laeuft, brach die Startfunktion ab.
+   Ergebnis: Die App zeigte einen leeren Haushalt, obwohl alle Daten da waren.
+   Nichts, was nur anzeigt, darf hart auf ein Element zugreifen. */
+function setStatus(m){
+  const el = document.getElementById('status');
+  if(el) el.textContent = m;
+}
 function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 function parseTags(s){
   const seen = {};
@@ -1342,8 +1351,10 @@ function renderDayTrack(){
     b.addEventListener('click', e=>bump(e.currentTarget.dataset.day, e.currentTarget.dataset.slot, 1)));
 
 
-  /* Heute zeigt das Essen des Tages - mitziehen, sobald der Plan sich aendert. */
-  renderHeute();
+  /* Heute zeigt das Essen des Tages - mitziehen, sobald der Plan sich aendert.
+     Abgeschirmt: Heute ist eine Zusatzansicht und darf den Wochenplan nicht
+     mitreissen, wenn dort etwas schiefgeht. */
+  try{ renderHeute(); }catch(e){ console.warn('Heute konnte nicht gezeichnet werden:', e); }
 }
 
 /* ---------- Rezept-Suche fürs Auswählen im Wochenplan (statt/zusätzlich zum Dropdown) ---------- */
@@ -2525,8 +2536,9 @@ function renderShop(){
   });
 
 
-  /* Heute liest aus derselben Liste - mitziehen, sobald sie sich aendert. */
-  renderHeute();
+  /* Heute liest aus derselben Liste - mitziehen, sobald sie sich aendert.
+     Abgeschirmt wie oben: die Einkaufsliste hat Vorrang. */
+  try{ renderHeute(); }catch(e){ console.warn('Heute konnte nicht gezeichnet werden:', e); }
 }
 
 /* ---------- Abteilungen sortieren ---------- */
@@ -3167,7 +3179,7 @@ function renderSettingsTab(){
 
 
   /* Haushaltsname und Initialen stehen seit B1 in der Kopfzeile. */
-  renderKopfzeile();
+  try{ renderKopfzeile(); }catch(e){ console.warn('Kopfzeile konnte nicht gezeichnet werden:', e); }
 }
 
 document.getElementById('hhNameSave').addEventListener('click', async ()=>{

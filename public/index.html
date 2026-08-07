@@ -91,6 +91,15 @@
 </nav>
 
 <main>
+  <!-- Status, Netzhinweis und Fehlerband gehoeren keinem Bereich, sondern der
+       ganzen App. Sie standen schon vor B1 hier und muessen hier bleiben:
+       setStatus() laeuft unmittelbar vor dem Anhaengen des Firebase-Zuhoerers -
+       fehlt #status, bricht die Startfunktion ab, der Zuhoerer wird nie
+       angehaengt, und die App zeigt einen leeren Haushalt statt der Daten. -->
+  <div id="status" class="status"></div>
+  <div id="netnote" class="netnote" style="display:none;"></div>
+  <div id="fehler" class="fehler" style="display:none;"></div>
+
 
   <!-- Heute — Geruest nach Kapitel 3.2. Termine und Aufgaben bleiben leer, bis
        Kalender (B5) und Notizen (B3) existieren; Essen und Einkauf werden aus
