@@ -1340,6 +1340,10 @@ function renderDayTrack(){
     b.addEventListener('click', e=>bump(e.currentTarget.dataset.day, e.currentTarget.dataset.slot, -1)));
   Array.prototype.forEach.call(track.querySelectorAll('.pers-plus'), b=>
     b.addEventListener('click', e=>bump(e.currentTarget.dataset.day, e.currentTarget.dataset.slot, 1)));
+
+
+  /* Heute zeigt das Essen des Tages - mitziehen, sobald der Plan sich aendert. */
+  renderHeute();
 }
 
 /* ---------- Rezept-Suche fürs Auswählen im Wochenplan (statt/zusätzlich zum Dropdown) ---------- */
@@ -2519,6 +2523,10 @@ function renderShop(){
       else if(dx<-60) await removeItem();
     },{passive:true});
   });
+
+
+  /* Heute liest aus derselben Liste - mitziehen, sobald sie sich aendert. */
+  renderHeute();
 }
 
 /* ---------- Abteilungen sortieren ---------- */
@@ -2900,7 +2908,10 @@ function releaseWakeLock(){
   if(wakeLock){ wakeLock.release().catch(()=>{}); wakeLock = null; }
 }
 function wakeLockGewuenscht(){
-  const shopAktiv = document.getElementById('shop').classList.contains('active');
+  /* Die Liste ist seit B1 Unterbereich von Einkauf - beides muss offen sein,
+     sonst bliebe der Bildschirm auch in Heute oder Rezepten wach. */
+  const shopAktiv = document.getElementById('einkauf').classList.contains('active')
+                 && document.getElementById('shop').classList.contains('active');
   const rezeptOffen = !!document.querySelector('#recipes .recipe-item.open');
   return shopAktiv || rezeptOffen;
 }
@@ -2912,15 +2923,127 @@ document.addEventListener('visibilitychange', ()=>{
 });
 
 /* =========================================================================
-   19. Tabs & Start
+   19. Navigation, Kopfzeile, Heute
    ========================================================================= */
-Array.prototype.forEach.call(document.querySelectorAll('.tab'), t=>t.addEventListener('click',()=>{
-  Array.prototype.forEach.call(document.querySelectorAll('.tab'), b=>b.classList.remove('active'));
-  Array.prototype.forEach.call(document.querySelectorAll('main section'), s=>s.classList.remove('active'));
-  t.classList.add('active');
-  document.getElementById(t.dataset.tab).classList.add('active');
+
+/* IA-15 - fuenf Bereiche statt acht Reiter, zwei davon mit Unterbereichen.
+   Der Selektor ist bewusst "main > section": Die Unterbereiche liegen als
+   .unterpanel innerhalb der Bereiche und duerfen vom Bereichswechsel nicht
+   mit zurueckgesetzt werden - sonst verliert Essen beim Weggehen seine
+   Ansicht (IA-11, Ansichtszustand bleibt in der Sitzung erhalten). */
+function zeigeBereich(name){
+  Array.prototype.forEach.call(document.querySelectorAll('nav .tab'),
+    b=>b.classList.toggle('active', b.dataset.tab === name));
+  Array.prototype.forEach.call(document.querySelectorAll('main > section'),
+    s=>s.classList.toggle('active', s.id === name));
   updateWakeLock();
-}));
+}
+
+function zeigeUnter(bereichId, name){
+  const wurzel = document.getElementById(bereichId);
+  if(!wurzel) return;
+  Array.prototype.forEach.call(wurzel.querySelectorAll(':scope > .unternav .unter'),
+    b=>b.classList.toggle('active', b.dataset.unter === name));
+  Array.prototype.forEach.call(wurzel.querySelectorAll(':scope > .unterpanel'),
+    p=>p.classList.toggle('active', p.id === name));
+  updateWakeLock();
+}
+
+Array.prototype.forEach.call(document.querySelectorAll('nav .tab'),
+  t=>t.addEventListener('click', ()=>zeigeBereich(t.dataset.tab)));
+
+Array.prototype.forEach.call(document.querySelectorAll('.unternav'), leiste=>{
+  const bereichId = leiste.closest('section').id;
+  Array.prototype.forEach.call(leiste.querySelectorAll('.unter'),
+    b=>b.addEventListener('click', ()=>zeigeUnter(bereichId, b.dataset.unter)));
+});
+
+/* ---------- Kopfzeile ----------
+   Kapitel 3.2: Haushaltsname links, Konto rechts. Beide Knoepfe fuehren
+   vorerst in den Einstellungsbereich - Blaetter statt Vollbild kommen mit B6.
+   Einstellungen sind kein Bereich mehr, deshalb leuchtet dort kein Reiter. */
+function initialenAus(text){
+  const teile = String(text || '').trim().split(/[\s@._-]+/).filter(Boolean);
+  if(!teile.length) return '\u2013';
+  const a = teile[0][0] || '';
+  const b = teile.length > 1 ? (teile[1][0] || '') : '';
+  return (a + b).toUpperCase();
+}
+
+function renderKopfzeile(){
+  const nameEl = document.getElementById('kopfHaushaltName');
+  if(nameEl){
+    const eigen = aktivesHaushaltName && aktivesHaushaltName !== HAUSHALT_ID;
+    nameEl.textContent = eigen ? aktivesHaushaltName : 'Haushalt';
+  }
+  const iniEl = document.getElementById('kopfInitialen');
+  if(iniEl){
+    const nutzer = (auth.currentUser && (auth.currentUser.displayName || auth.currentUser.email)) || '';
+    iniEl.textContent = initialenAus(nutzer);
+  }
+}
+
+document.getElementById('kopfHaushalt').addEventListener('click', ()=>{
+  zeigeBereich('settings');
+  window.scrollTo({ top:0, behavior:'smooth' });
+});
+document.getElementById('kopfKonto').addEventListener('click', ()=>{
+  zeigeBereich('settings');
+  const ziel = document.getElementById('acctEmail');
+  if(ziel) ziel.closest('.card').scrollIntoView({ behavior:'smooth', block:'start' });
+});
+
+/* ---------- Heute ----------
+   Geruest nach Kapitel 3.2. Termine und Aufgaben bleiben leer, bis Kalender (B5)
+   und Notizen (B3) existieren - MD-15: ein leeres Feld ist eine Auskunft, keine
+   Mahnung, also steht dort kein Aufruf, sondern was passieren wird.
+   Heute rechnet immer mit der laufenden Woche, nie mit der im Wochenplan
+   angezeigten - sonst zeigt "Heute" die Woche, in der jemand geblaettert hat. */
+function renderHeute(){
+  const jetzt = new Date(); jetzt.setHours(0,0,0,0);
+  const wk = weekKeyOf(getMondayOf(jetzt));
+  const tag = DAYS[(jetzt.getDay() + 6) % 7];
+
+  const datumEl = document.getElementById('heuteDatum');
+  if(datumEl) datumEl.textContent = tag + ', ' + fmtDate(jetzt);
+
+  /* Essen */
+  const essenEl = document.getElementById('heuteEssen');
+  const eintraege = ((state.plan[wk] || {})[tag]) || {};
+  let essenZeilen = [];
+  activeSlots().forEach(sl=>{
+    const e = eintraege[sl.id];
+    if(!e || !e.id) return;
+    const r = state.recipes.find(x=>x.id === e.id);
+    if(!r) return;
+    essenZeilen.push('<div class="heute-zeile"><span class="heute-was">' + escapeHtml(sl.label) +
+      '</span><span class="heute-wer">' + escapeHtml(r.name) + '</span></div>');
+  });
+  if(essenEl){
+    essenEl.innerHTML = essenZeilen.length
+      ? essenZeilen.join('')
+      : '<p class="ex-hint">Fuer heute ist nichts eingeplant.</p>';
+  }
+
+  /* Einkauf */
+  const einkaufEl = document.getElementById('heuteEinkauf');
+  if(einkaufEl){
+    let offen = [];
+    try{
+      offen = buildItems(wk).items.filter(i=>!i.checked);
+    }catch(e){ offen = []; }
+    if(!offen.length){
+      einkaufEl.innerHTML = '<p class="ex-hint">Die Einkaufsliste ist abgearbeitet.</p>';
+    }else{
+      const zeigen = offen.slice(0, 5)
+        .map(i=>'<span class="chip">' + escapeHtml(i.name) + '</span>').join('');
+      const rest = offen.length > 5 ? ('<span class="chip">und ' + (offen.length - 5) + ' weitere</span>') : '';
+      einkaufEl.innerHTML = '<p class="ex-hint">' + offen.length +
+        (offen.length === 1 ? ' Posten offen.' : ' Posten offen.') + '</p>' +
+        '<div class="chips">' + zeigen + rest + '</div>';
+    }
+  }
+}
 
 /* Kommt die App aus dem Hintergrund zurück, springt sie auf die laufende Woche */
 function zurueckZurAktuellenWoche(){
@@ -3041,6 +3164,10 @@ function renderSettingsTab(){
   if(pwLabel) pwLabel.textContent = hatPasswort ? 'Passwort ändern' : 'Passwort hinzufügen (bisher nur Google-Anmeldung)';
   const pwBtn = document.getElementById('profilPwSave');
   if(pwBtn) pwBtn.textContent = hatPasswort ? 'Speichern' : 'Hinzufügen';
+
+
+  /* Haushaltsname und Initialen stehen seit B1 in der Kopfzeile. */
+  renderKopfzeile();
 }
 
 document.getElementById('hhNameSave').addEventListener('click', async ()=>{

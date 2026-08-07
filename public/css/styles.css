@@ -79,23 +79,73 @@
   }
   @media (prefers-reduced-motion: reduce){ *{animation-duration:.001ms!important;transition-duration:.001ms!important;} }
 
-  header{ padding:26px 20px 6px; text-align:center; }
-  header h1{
-    font-family:var(--schrift-headline); font-weight:600; font-size:1.7rem; margin:0;
-    letter-spacing:-0.5px;
-    display:inline-flex; align-items:center; gap:0.42em;
+  /* ---------- Kopfzeile (Kapitel 3.2) ----------
+     Haushaltsname links, Konto rechts, sonst nichts. Beide Knoepfe fuehren
+     vorerst in den Einstellungsbereich; Blaetter statt Vollbild kommen mit B6
+     ("Verwaltung aus der Oberflaeche"). */
+  header{
+    display:flex; align-items:center; justify-content:space-between; gap:12px;
+    max-width:940px; margin:0 auto; padding:10px 16px 4px;
   }
-  /* O-17 — die Wortmarke ist Zeichen plus Wort. Das Zeichen traegt
+  .kopf-haushalt, .kopf-konto{
+    min-height:var(--hoehe-control); border-radius:var(--radius-rund);
+    border:1px solid var(--linie-leise); background:var(--flaeche-karte);
+    color:var(--text-haupt); font-family:var(--schrift); font-size:15px; font-weight:500;
+    display:inline-flex; align-items:center; justify-content:center; cursor:pointer;
+    transition:border-color .15s ease;
+  }
+  .kopf-haushalt{ padding:0 16px; gap:6px; max-width:62%; }
+  .kopf-haushalt span{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .kopf-haushalt::after{ content:'▾'; color:var(--text-leise); font-size:0.8em; flex:none; }
+  /* Rund und so breit wie hoch: das Konto ist ein Ort, kein Satz. */
+  .kopf-konto{
+    width:var(--hoehe-control); flex:none; padding:0;
+    background:var(--messing-flaeche); color:var(--auf-messing-flaeche);
+    border-color:transparent; font-weight:600;
+  }
+  .kopf-haushalt:hover, .kopf-konto:hover{ border-color:var(--linie); }
+
+  /* Wortmarke nur noch auf dem Anmeldebildschirm. Das Zeichen traegt
      --messing-marke, nicht --messing-aktion: Die Aktionsfarbe heisst in dieser
-     App "hier kannst du tippen", und eine Wortmarke ist nichts zum Antippen.
-     Der alte .dot-Akzent an "Board" lag auf der Aktionsfarbe - diese Vermischung
-     ist mit der Umbenennung ausgeraeumt.
-     Groesse in em, damit das Zeichen jeder Schriftgroesse folgt. */
+     App "hier kannst du tippen", und eine Wortmarke ist nichts zum Antippen
+     (O-17, MD-25). Groesse in em, damit es jeder Schriftgroesse folgt. */
   h1 .marke{
     width:1.05em; height:1.05em; flex:none;
     color:var(--messing-marke); fill:currentColor;
   }
-  header p{ margin:4px 0 0; color:var(--text-leise); font-size:0.86rem; }
+
+  /* ---------- Unterbereiche (Essen, Einkauf) ----------
+     Bewusst anders als die Hauptnavigation: Die Bereiche sind gefuellte Pillen,
+     die Unterbereiche eine unterstrichene Zeile. Zwei gleich aussehende Leisten
+     uebereinander wuerden die Ebenen verwischen. */
+  .unternav{
+    display:flex; gap:2px; margin:0 0 14px;
+    border-bottom:1px solid var(--linie-leise);
+  }
+  .unter{
+    min-height:var(--hoehe-control); padding:0 14px; border:none; background:none;
+    font-family:var(--schrift); font-weight:500; font-size:15px; color:var(--text-leise);
+    cursor:pointer; white-space:nowrap; position:relative;
+  }
+  .unter:hover{ color:var(--text-haupt); }
+  .unter.active{ color:var(--text-haupt); }
+  .unter.active::after{
+    content:''; position:absolute; left:10px; right:10px; bottom:-1px; height:2px;
+    background:var(--messing-aktion); border-radius:2px;
+  }
+  .unterpanel{ display:none; }
+  .unterpanel.active{ display:block; }
+
+  /* ---------- Heute ----------
+     Eine Zeile je Mahlzeit: links wofuer, rechts was. Zwei Spalten statt eines
+     Fliesstexts, damit sich die Mahlzeiten beim Ueberfliegen untereinander lesen. */
+  .heute-zeile{
+    display:flex; align-items:baseline; justify-content:space-between; gap:12px;
+    padding:7px 0; border-bottom:1px solid var(--linie-leise);
+  }
+  .heute-zeile:last-child{ border-bottom:none; padding-bottom:0; }
+  .heute-was{ color:var(--text-leise); font-size:0.86rem; flex:none; }
+  .heute-wer{ text-align:right; }
 
   nav{
     position:sticky; top:0; z-index:20;

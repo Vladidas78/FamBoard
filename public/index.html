@@ -67,396 +67,457 @@
   </div>
 </div>
 
+<!-- Kopfzeile nach Kapitel 3.2: Haushaltsname links, Konto rechts, sonst nichts.
+     Die Wortmarke steht nur noch auf dem Anmeldebildschirm - in der laufenden App
+     kostet sie Platz, ohne etwas zu beantworten. -->
 <header>
-  <h1><svg class="marke" aria-hidden="true" focusable="false"><use href="#butley-marke"/></svg>Butley</h1>
-  <p>Geplant, abgestimmt, eingekauft</p>
+  <button class="kopf-haushalt" id="kopfHaushalt" type="button">
+    <span id="kopfHaushaltName">Haushalt</span>
+  </button>
+  <button class="kopf-konto" id="kopfKonto" type="button" aria-label="Konto und Einstellungen">
+    <span id="kopfInitialen">–</span>
+  </button>
 </header>
 
+<!-- IA-15 - fuenf Bereiche. Fuenf sind mobil noch tragbar, sechs nicht; damit ist
+     die Obergrenze erreicht. Reihenfolge nach Kapitel 3.2: heute, wann, was, womit,
+     dann Notizen. -->
 <nav>
-  <button class="tab active" data-tab="plan">Wochenplan</button>
-  <button class="tab" data-tab="shop">Einkaufsliste</button>
-  <button class="tab" data-tab="recipes">Rezepte</button>
-  <button class="tab" data-tab="ingredients">Zutaten</button>
-  <button class="tab" data-tab="haushalt">Haushalt &amp; Drogerie</button>
-  <button class="tab" data-tab="pantry">Haushalt</button>
-  <button class="tab" data-tab="nutrition">Nährwerte</button>
-  <button class="tab" data-tab="settings">Einstellungen</button>
+  <button class="tab active" data-tab="heute" type="button">Heute</button>
+  <button class="tab" data-tab="kalender" type="button">Kalender</button>
+  <button class="tab" data-tab="essen" type="button">Essen</button>
+  <button class="tab" data-tab="einkauf" type="button">Einkauf</button>
+  <button class="tab" data-tab="notizen" type="button">Notizen</button>
 </nav>
 
 <main>
-  <div id="status" class="status"></div>
-  <div id="netnote" class="netnote" style="display:none;"></div>
-  <div id="fehler" class="fehler" style="display:none;"></div>
 
-  <section id="plan" class="active">
-    <div class="weeknav" id="weeknav">
-      <button class="arrow" id="prevWeek" aria-label="Vorige Woche">‹</button>
-      <div class="label">
-        <div class="kw"><span class="badge" id="kwNum">KW —</span> · <span id="kwYear"></span></div>
-        <div class="range" id="kwRange"></div>
-        <button class="today-btn" id="todayBtn">Zur aktuellen Woche</button>
-      </div>
-      <button class="arrow" id="nextWeek" aria-label="Nächste Woche">›</button>
-    </div>
-    <div class="hint-swipe">Pfeile ‹ › oder Wischen auf der Leiste wechseln die Woche</div>
-
-    <div class="week-fill-row">
-      <button class="btn btn-soft full" id="fillWeek" type="button">🎲 Ganze Woche füllen</button>
+  <!-- Heute — Geruest nach Kapitel 3.2. Termine und Aufgaben bleiben leer, bis
+       Kalender (B5) und Notizen (B3) existieren; Essen und Einkauf werden aus
+       dem gefuellt, was es heute schon gibt. -->
+  <section id="heute" class="active">
+    <div class="card">
+      <div class="shop-head"><div class="wk" id="heuteDatum">Heute</div></div>
+      <p class="ex-hint" id="heuteLeer" style="display:none;">Heute steht nichts an.</p>
     </div>
 
-    <div class="collapse-section mealcfg collapsed" id="mealSection">
-      <button class="section-head" id="mealHead" type="button">
-        <span class="chev">▼</span> Mahlzeiten <span class="count" id="mealCount"></span>
-      </button>
-      <div class="section-body">
-        <p class="ex-hint">Was ihr nicht plant, schaltet ihr hier ab. Die Personenzahl gilt als Vorgabe für neue Einträge und lässt sich pro Tag ändern.</p>
-        <div id="mealRows"></div>
-      </div>
+    <div class="card" id="heuteKarteTermine">
+      <div class="shop-head"><div class="wk">Termine</div></div>
+      <p class="ex-hint">Sobald der Kalender da ist, stehen hier die Termine des Tages.</p>
     </div>
 
-    <div class="day-track" id="dayTrack"></div>
+    <div class="card" id="heuteKarteEssen">
+      <div class="shop-head"><div class="wk">Essen</div></div>
+      <div id="heuteEssen"></div>
+    </div>
 
-    <div class="danger-zone">
-      <button class="btn btn-ghost btn-loeschen full" id="resetWeekPlanBtn" type="button">🗑 Diese Woche komplett zurücksetzen</button>
+    <div class="card" id="heuteKarteEinkauf">
+      <div class="shop-head"><div class="wk">Einkauf</div></div>
+      <div id="heuteEinkauf"></div>
+    </div>
+
+    <div class="card" id="heuteKarteAufgaben">
+      <div class="shop-head"><div class="wk">Aufgaben</div></div>
+      <p class="ex-hint">Sobald es Notizen gibt, stehen hier die fälligen Aufgaben.</p>
     </div>
   </section>
 
-  <section id="recipes">
-    <div class="rec-search">
-      <input type="search" id="recSearch" placeholder="🔍 Rezept oder Zutat suchen …">
+  <section id="kalender">
+    <div class="card">
+      <div class="shop-head"><div class="wk">Kalender</div></div>
+      <p class="ex-hint">Der Kalender wird gebaut. Bis dahin bleibt hier Platz.</p>
     </div>
-    <div class="rec-toolbar">
-      <button class="btn btn-soft fav-toggle" id="favOnlyToggle" type="button">★ Favoriten</button>
-      <button class="btn btn-soft" id="openIO" type="button">⇄ Excel</button>
-      <button class="btn btn-soft" id="openImport" type="button">🤖 Rezept importieren</button>
-      <button class="btn btn-primary" id="openAdd" type="button">+ Neues Rezept</button>
+  </section>
+
+  <!-- Essen — drei Unterbereiche nach Kapitel 3.2. Die Inhalte sind unveraendert
+       aus den frueheren Reitern Wochenplan, Rezepte und Naehrwerte. -->
+  <section id="essen">
+    <div class="unternav" role="tablist" aria-label="Essen">
+      <button class="unter active" data-unter="plan" type="button">Woche</button>
+      <button class="unter" data-unter="recipes" type="button">Rezepte</button>
+      <button class="unter" data-unter="nutrition" type="button">Nährwerte</button>
     </div>
-
-    <div class="card io-panel" id="ioPanel" style="display:none;">
-      <div class="add-head">
-        <h3>Excel-Import &amp; Export</h3>
-        <button class="close-add" id="closeIO" type="button" aria-label="Schließen">✕</button>
-      </div>
-
-      <div class="io-actions">
-        <button class="btn btn-soft" id="btnTemplate" type="button">📄 Vorlage herunterladen</button>
-        <button class="btn btn-soft" id="btnExport" type="button">⬇ Rezepte exportieren</button>
-        <label class="btn btn-primary" for="fileInput" style="cursor:pointer;">⬆ Datei importieren</label>
-        <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" style="display:none;">
-      </div>
-
-      <div class="io-mode">
-        <label><input type="radio" name="impMode" value="merge" checked> Ergänzen <span class="hint">(gleiche Namen werden aktualisiert)</span></label>
-        <label><input type="radio" name="impMode" value="replace"> Alles ersetzen</label>
-      </div>
-
-      <div id="ioResult" class="io-result"></div>
-
-      <div class="io-format">
-        <strong>Spalten der Datei</strong>
-        <div class="fmt-grid">
-          <span>Name</span><span>Zutaten</span><span>Beschreibung</span><span>Typ</span><span>Portionen</span><span>kcal</span><span>Eiweiß</span><span>Kohlenhydrate</span><span>Fett</span>
+    <div id="plan" class="unterpanel active">
+      <div class="weeknav" id="weeknav">
+        <button class="arrow" id="prevWeek" aria-label="Vorige Woche">‹</button>
+        <div class="label">
+          <div class="kw"><span class="badge" id="kwNum">KW —</span> · <span id="kwYear"></span></div>
+          <div class="range" id="kwRange"></div>
+          <button class="today-btn" id="todayBtn">Zur aktuellen Woche</button>
         </div>
-        <p>Die Spalte <em>Zutaten</em> enthält alle Zutaten in einer Zelle, getrennt durch Semikolon:<br>
-        <code>400 g Hähnchenbrust; 200 g Reis; 300 g Brokkoli; 2 EL Sojasauce</code></p>
-        <p class="hint">Menge und Einheit werden automatisch erkannt (g, kg, ml, l, Stk, EL, TL, Bund, Dose, Zehe …). Steht keine Einheit da, wird „Stk“ angenommen.</p>
-        <p class="hint"><em>Portionen</em> sagt, für wie viele Personen die Mengen gelten. Fehlt die Spalte, rechnet die App mit 4.</p>
-        <p class="hint"><em>Typ</em> ist entweder <em>Rezept</em> oder <em>Snack</em>. Snacks brauchen nur Name und Zutaten und erscheinen im Snack-Feld des Wochenplans. Fehlt die Spalte, gilt alles als Rezept.</p>
+        <button class="arrow" id="nextWeek" aria-label="Nächste Woche">›</button>
+      </div>
+      <div class="hint-swipe">Pfeile ‹ › oder Wischen auf der Leiste wechseln die Woche</div>
+
+      <div class="week-fill-row">
+        <button class="btn btn-soft full" id="fillWeek" type="button">🎲 Ganze Woche füllen</button>
+      </div>
+
+      <div class="collapse-section mealcfg collapsed" id="mealSection">
+        <button class="section-head" id="mealHead" type="button">
+          <span class="chev">▼</span> Mahlzeiten <span class="count" id="mealCount"></span>
+        </button>
+        <div class="section-body">
+          <p class="ex-hint">Was ihr nicht plant, schaltet ihr hier ab. Die Personenzahl gilt als Vorgabe für neue Einträge und lässt sich pro Tag ändern.</p>
+          <div id="mealRows"></div>
+        </div>
+      </div>
+
+      <div class="day-track" id="dayTrack"></div>
+
+      <div class="danger-zone">
+        <button class="btn btn-ghost btn-loeschen full" id="resetWeekPlanBtn" type="button">🗑 Diese Woche komplett zurücksetzen</button>
       </div>
     </div>
-
-    <div class="card io-panel" id="importPanel" style="display:none;">
-      <div class="add-head">
-        <h3>Rezept importieren</h3>
-        <button class="close-add" id="closeImport" type="button" aria-label="Schließen">✕</button>
+    <div id="recipes" class="unterpanel">
+      <div class="rec-search">
+        <input type="search" id="recSearch" placeholder="🔍 Rezept oder Zutat suchen …">
+      </div>
+      <div class="rec-toolbar">
+        <button class="btn btn-soft fav-toggle" id="favOnlyToggle" type="button">★ Favoriten</button>
+        <button class="btn btn-soft" id="openIO" type="button">⇄ Excel</button>
+        <button class="btn btn-soft" id="openImport" type="button">🤖 Rezept importieren</button>
+        <button class="btn btn-primary" id="openAdd" type="button">+ Neues Rezept</button>
       </div>
 
-      <div class="io-mode" id="impModeRow">
-        <label><input type="radio" name="impSrc" value="url" checked> Link</label>
-        <label><input type="radio" name="impSrc" value="text"> Text einfügen</label>
-        <label><input type="radio" name="impSrc" value="image"> Foto</label>
+      <div class="card io-panel" id="ioPanel" style="display:none;">
+        <div class="add-head">
+          <h3>Excel-Import &amp; Export</h3>
+          <button class="close-add" id="closeIO" type="button" aria-label="Schließen">✕</button>
+        </div>
+
+        <div class="io-actions">
+          <button class="btn btn-soft" id="btnTemplate" type="button">📄 Vorlage herunterladen</button>
+          <button class="btn btn-soft" id="btnExport" type="button">⬇ Rezepte exportieren</button>
+          <label class="btn btn-primary" for="fileInput" style="cursor:pointer;">⬆ Datei importieren</label>
+          <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" style="display:none;">
+        </div>
+
+        <div class="io-mode">
+          <label><input type="radio" name="impMode" value="merge" checked> Ergänzen <span class="hint">(gleiche Namen werden aktualisiert)</span></label>
+          <label><input type="radio" name="impMode" value="replace"> Alles ersetzen</label>
+        </div>
+
+        <div id="ioResult" class="io-result"></div>
+
+        <div class="io-format">
+          <strong>Spalten der Datei</strong>
+          <div class="fmt-grid">
+            <span>Name</span><span>Zutaten</span><span>Beschreibung</span><span>Typ</span><span>Portionen</span><span>kcal</span><span>Eiweiß</span><span>Kohlenhydrate</span><span>Fett</span>
+          </div>
+          <p>Die Spalte <em>Zutaten</em> enthält alle Zutaten in einer Zelle, getrennt durch Semikolon:<br>
+          <code>400 g Hähnchenbrust; 200 g Reis; 300 g Brokkoli; 2 EL Sojasauce</code></p>
+          <p class="hint">Menge und Einheit werden automatisch erkannt (g, kg, ml, l, Stk, EL, TL, Bund, Dose, Zehe …). Steht keine Einheit da, wird „Stk“ angenommen.</p>
+          <p class="hint"><em>Portionen</em> sagt, für wie viele Personen die Mengen gelten. Fehlt die Spalte, rechnet die App mit 4.</p>
+          <p class="hint"><em>Typ</em> ist entweder <em>Rezept</em> oder <em>Snack</em>. Snacks brauchen nur Name und Zutaten und erscheinen im Snack-Feld des Wochenplans. Fehlt die Spalte, gilt alles als Rezept.</p>
+        </div>
       </div>
 
-      <div class="field imp-src imp-src-url">
-        <label>Link zur Rezeptseite oder zum Video</label>
-        <input id="imp-url" type="url" placeholder="https://…">
-        <p class="hint" style="margin-top:6px;">Rezeptseiten, TikTok und YouTube (auch Shorts). Bei Videos wird gelesen, was
-        in der Beschreibung steht — Gesprochenes im Video nicht. Instagram lässt sich nicht auslesen: dort die Caption
-        kopieren und „Text einfügen" nehmen.</p>
+      <div class="card io-panel" id="importPanel" style="display:none;">
+        <div class="add-head">
+          <h3>Rezept importieren</h3>
+          <button class="close-add" id="closeImport" type="button" aria-label="Schließen">✕</button>
+        </div>
+
+        <div class="io-mode" id="impModeRow">
+          <label><input type="radio" name="impSrc" value="url" checked> Link</label>
+          <label><input type="radio" name="impSrc" value="text"> Text einfügen</label>
+          <label><input type="radio" name="impSrc" value="image"> Foto</label>
+        </div>
+
+        <div class="field imp-src imp-src-url">
+          <label>Link zur Rezeptseite oder zum Video</label>
+          <input id="imp-url" type="url" placeholder="https://…">
+          <p class="hint" style="margin-top:6px;">Rezeptseiten, TikTok und YouTube (auch Shorts). Bei Videos wird gelesen, was
+          in der Beschreibung steht — Gesprochenes im Video nicht. Instagram lässt sich nicht auslesen: dort die Caption
+          kopieren und „Text einfügen" nehmen.</p>
+        </div>
+
+        <div class="field imp-src imp-src-text" style="display:none;">
+          <label>Rezepttext</label>
+          <textarea id="imp-text" placeholder="Zutaten und Zubereitung reinkopieren …" rows="6"></textarea>
+        </div>
+
+        <div class="field imp-src imp-src-image" style="display:none;">
+          <label>Foto vom Rezept <span class="hint">— z. B. aus einem Kochbuch</span></label>
+          <label class="btn btn-soft btn-sm" for="imp-image-input" style="cursor:pointer;display:inline-block;">📷 Foto wählen</label>
+          <input type="file" id="imp-image-input" accept="image/*" style="display:none;">
+          <div class="add-img-preview" id="impImgPreview"></div>
+        </div>
+
+        <button class="btn btn-primary full" id="startImport" type="button" style="margin-top:6px;">Rezept einlesen</button>
+        <div id="importResult" class="io-result"></div>
+        <p class="hint" style="margin-top:8px;">Das Ergebnis landet zur Kontrolle im Formular „Neues Rezept" — geprüft wird vor dem Speichern.</p>
       </div>
 
-      <div class="field imp-src imp-src-text" style="display:none;">
-        <label>Rezepttext</label>
-        <textarea id="imp-text" placeholder="Zutaten und Zubereitung reinkopieren …" rows="6"></textarea>
-      </div>
+      <div class="card add-recipe" id="addPanel" style="display:none;">
+        <div class="add-head">
+          <h3 id="addPanelTitle">Neues Rezept</h3>
+          <button class="close-add" id="closeAdd" type="button" aria-label="Schließen">✕</button>
+        </div>
+        <div class="type-pick">
+          <label><input type="radio" name="rType" value="rezept" checked> Rezept</label>
+          <label><input type="radio" name="rType" value="snack"> Snack <span class="hint">— nur Name und Zutaten</span></label>
+        </div>
+        <div class="grid2">
+          <div class="field">
+            <label>Name</label>
+            <input id="r-name" placeholder="z. B. Ofengemüse mit Feta">
+          </div>
+          <div class="field">
+            <label>Mengen für <span class="hint">— Personen</span></label>
+            <input id="r-servings" type="number" min="1" step="1" value="4">
+          </div>
+        </div>
 
-      <div class="field imp-src imp-src-image" style="display:none;">
-        <label>Foto vom Rezept <span class="hint">— z. B. aus einem Kochbuch</span></label>
-        <label class="btn btn-soft btn-sm" for="imp-image-input" style="cursor:pointer;display:inline-block;">📷 Foto wählen</label>
-        <input type="file" id="imp-image-input" accept="image/*" style="display:none;">
-        <div class="add-img-preview" id="impImgPreview"></div>
-      </div>
-
-      <button class="btn btn-primary full" id="startImport" type="button" style="margin-top:6px;">Rezept einlesen</button>
-      <div id="importResult" class="io-result"></div>
-      <p class="hint" style="margin-top:8px;">Das Ergebnis landet zur Kontrolle im Formular „Neues Rezept" — geprüft wird vor dem Speichern.</p>
-    </div>
-
-    <div class="card add-recipe" id="addPanel" style="display:none;">
-      <div class="add-head">
-        <h3 id="addPanelTitle">Neues Rezept</h3>
-        <button class="close-add" id="closeAdd" type="button" aria-label="Schließen">✕</button>
-      </div>
-      <div class="type-pick">
-        <label><input type="radio" name="rType" value="rezept" checked> Rezept</label>
-        <label><input type="radio" name="rType" value="snack"> Snack <span class="hint">— nur Name und Zutaten</span></label>
-      </div>
-      <div class="grid2">
         <div class="field">
-          <label>Name</label>
-          <input id="r-name" placeholder="z. B. Ofengemüse mit Feta">
+          <label>Zutaten <span class="hint">— einzeln: Zutat · Menge · Einheit</span></label>
+          <div id="ingRows"></div>
+          <button class="btn btn-soft btn-sm" id="addIngRow" type="button" style="margin-top:6px;">+ Zutat</button>
         </div>
+
         <div class="field">
-          <label>Mengen für <span class="hint">— Personen</span></label>
-          <input id="r-servings" type="number" min="1" step="1" value="4">
+          <label>Tags <span class="hint">— optional, mit Komma trennen</span></label>
+          <input id="r-tags" placeholder="High Protein, Low Carb, Vegetarisch …">
+        </div>
+
+        <div class="field only-rezept">
+          <label>Beschreibung / Zubereitung <span class="hint">— optional</span></label>
+          <textarea id="r-description" placeholder="Kurz notieren, wie's gemacht wird …"></textarea>
+        </div>
+
+        <div class="field only-rezept">
+          <label>Bild <span class="hint">— optional</span></label>
+          <label class="btn btn-soft btn-sm" for="r-image-input" style="cursor:pointer;display:inline-block;">📷 Bild wählen</label>
+          <input type="file" id="r-image-input" accept="image/*" style="display:none;">
+          <div class="add-img-preview" id="addImgPreview"></div>
+        </div>
+
+        <div class="nutri-calc-row only-rezept">
+          <button class="btn btn-soft btn-sm" id="calcNutri" type="button">🧮 Nährwerte aus Zutaten berechnen</button>
+        </div>
+        <div class="grid4 only-rezept">
+          <div class="field"><label>kcal</label><input id="r-kcal" type="number" placeholder="520"></div>
+          <div class="field"><label>Eiweiß (g)</label><input id="r-protein-g" type="number"></div>
+          <div class="field"><label>KH (g)</label><input id="r-carbs-g" type="number"></div>
+          <div class="field"><label>Fett (g)</label><input id="r-fat-g" type="number"></div>
+        </div>
+
+        <button class="btn btn-primary full" id="saveRecipe" type="button" style="margin-top:6px;">Rezept speichern</button>
+      </div>
+
+      <div class="collapse-section">
+        <button class="section-head" id="recSectionHead" type="button">
+          <span class="chev">▼</span> Rezepte <span class="count" id="recCount"></span>
+        </button>
+        <div class="section-body" id="recSectionBody">
+          <div class="chips tag-filter-row" id="tagFilterRow" style="margin-bottom:12px;"></div>
+          <div class="recipe-list" id="recipeList"></div>
+        </div>
+      </div>
+    </div>
+    <div id="nutrition" class="unterpanel">
+      <div class="card">
+        <div class="shop-head">
+          <div class="wk" id="nutriWeekLabel">Nährwerte</div>
+        </div>
+        <p class="ex-hint">Auswertung auf Basis der im Wochenplan eingetragenen Rezepte. „Gesamt“ ist die
+          Summe für den ganzen Haushalt an dem Tag. Trag bei „Portionen an diesem Tag“ ein, wie viele Portionen
+          du selbst isst — manche Tage sind das zwei, manche nur eine — die Werte „bei deinen Portionen“ rechnen
+          damit. Snacks zählen nicht mit, da für sie keine Nährwerte erfasst werden.</p>
+        <div id="nutriDays"></div>
+      </div>
+      <div class="card">
+        <div class="shop-head"><div class="wk">Woche gesamt</div></div>
+        <div id="nutriWeekSum"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Einkauf — zwei Unterbereiche. "Artikel" fasst vorerst die drei frueheren
+       Reiter Zutaten, Haushalt & Drogerie und Immer zuhause untereinander; zu
+       einer Liste zusammengelegt werden sie in B2 (IA-16). -->
+  <section id="einkauf">
+    <div class="unternav" role="tablist" aria-label="Einkauf">
+      <button class="unter active" data-unter="shop" type="button">Liste</button>
+      <button class="unter" data-unter="artikel" type="button">Artikel</button>
+    </div>
+    <div id="shop" class="unterpanel active">
+      <div class="collapse-section collapsed" id="excludeSectionShop" style="margin-bottom:16px;">
+        <button class="section-head" id="excludeHeadShop" type="button">
+          <span class="chev">▼</span> Immer zuhause <span class="count" id="exCountShop"></span>
+        </button>
+        <div class="section-body">
+          <p class="ex-hint">Schnellzugriff: Zutaten antippen, die ihr immer da habt — sie verschwinden dann aus der Einkaufsliste.</p>
+          <div id="excludeChipsShop" class="chips"></div>
         </div>
       </div>
 
-      <div class="field">
-        <label>Zutaten <span class="hint">— einzeln: Zutat · Menge · Einheit</span></label>
-        <div id="ingRows"></div>
-        <button class="btn btn-soft btn-sm" id="addIngRow" type="button" style="margin-top:6px;">+ Zutat</button>
-      </div>
-
-      <div class="field">
-        <label>Tags <span class="hint">— optional, mit Komma trennen</span></label>
-        <input id="r-tags" placeholder="High Protein, Low Carb, Vegetarisch …">
-      </div>
-
-      <div class="field only-rezept">
-        <label>Beschreibung / Zubereitung <span class="hint">— optional</span></label>
-        <textarea id="r-description" placeholder="Kurz notieren, wie's gemacht wird …"></textarea>
-      </div>
-
-      <div class="field only-rezept">
-        <label>Bild <span class="hint">— optional</span></label>
-        <label class="btn btn-soft btn-sm" for="r-image-input" style="cursor:pointer;display:inline-block;">📷 Bild wählen</label>
-        <input type="file" id="r-image-input" accept="image/*" style="display:none;">
-        <div class="add-img-preview" id="addImgPreview"></div>
-      </div>
-
-      <div class="nutri-calc-row only-rezept">
-        <button class="btn btn-soft btn-sm" id="calcNutri" type="button">🧮 Nährwerte aus Zutaten berechnen</button>
-      </div>
-      <div class="grid4 only-rezept">
-        <div class="field"><label>kcal</label><input id="r-kcal" type="number" placeholder="520"></div>
-        <div class="field"><label>Eiweiß (g)</label><input id="r-protein-g" type="number"></div>
-        <div class="field"><label>KH (g)</label><input id="r-carbs-g" type="number"></div>
-        <div class="field"><label>Fett (g)</label><input id="r-fat-g" type="number"></div>
-      </div>
-
-      <button class="btn btn-primary full" id="saveRecipe" type="button" style="margin-top:6px;">Rezept speichern</button>
-    </div>
-
-    <div class="collapse-section">
-      <button class="section-head" id="recSectionHead" type="button">
-        <span class="chev">▼</span> Rezepte <span class="count" id="recCount"></span>
-      </button>
-      <div class="section-body" id="recSectionBody">
-        <div class="chips tag-filter-row" id="tagFilterRow" style="margin-bottom:12px;"></div>
-        <div class="recipe-list" id="recipeList"></div>
-      </div>
-    </div>
-  </section>
-
-  <section id="ingredients">
-    <div class="card">
-      <div class="shop-head"><div class="wk">Neue Zutat anlegen</div></div>
-      <p class="ex-hint">Für Dinge, die in keinem Rezept vorkommen, aber trotzdem hier auftauchen sollen — z. B. Getränke.</p>
-      <div class="extra-form" style="grid-template-columns:1fr auto;">
-        <input id="ciName" placeholder="z. B. Mineralwasser">
-        <button class="btn btn-primary" id="ciAdd" type="button">Anlegen</button>
-      </div>
-    </div>
-    <div class="card">
-      <div class="shop-head">
-        <div class="wk">Alle Zutaten <span class="count" id="ingCount"></span></div>
-      </div>
-      <p class="ex-hint">Jede Zutat aus euren Rezepten mit den Gerichten, in denen sie vorkommt. Schreibweisen wie Zwiebel und Zwiebeln zählen als eine Zutat.</p>
-      <div class="filter-row" id="ingSortRow">
-        <button class="filter-pill active" data-mode="kategorie" type="button">Nach Kategorie</button>
-        <button class="filter-pill" data-mode="alpha" type="button">Alphabetisch</button>
-      </div>
-      <div id="ingredientsList"></div>
-    </div>
-  </section>
-
-  <section id="haushalt">
-    <div class="card">
-      <div class="shop-head"><div class="wk">Neuer Artikel</div></div>
-      <div class="extra-form" style="grid-template-columns:1fr auto;">
-        <input id="hhName" placeholder="z. B. Klopapier, Waschmittel …">
-        <button class="btn btn-primary" id="hhAdd" type="button">Anlegen</button>
-      </div>
-    </div>
-    <div class="card">
-      <div class="shop-head"><div class="wk">Haushalt &amp; Drogerie <span class="count" id="haushaltCount"></span></div></div>
-      <p class="ex-hint">Einmal angelegt, bleibt der Artikel hier. Mit (+) landet er ganz normal in der
-        aktuellen Einkaufsliste — nicht automatisch jede Woche. Was ihr immer da habt, markiert ihr unter
-        „Immer zuhause“.</p>
-      <ul class="hh-list" id="haushaltList"></ul>
-    </div>
-  </section>
-
-  <section id="shop">
-    <div class="collapse-section collapsed" id="excludeSectionShop" style="margin-bottom:16px;">
-      <button class="section-head" id="excludeHeadShop" type="button">
-        <span class="chev">▼</span> Immer zuhause <span class="count" id="exCountShop"></span>
-      </button>
-      <div class="section-body">
-        <p class="ex-hint">Schnellzugriff: Zutaten antippen, die ihr immer da habt — sie verschwinden dann aus der Einkaufsliste.</p>
-        <div id="excludeChipsShop" class="chips"></div>
-      </div>
-    </div>
-
-    <div class="collapse-section collapsed" id="extraSection" style="margin-bottom:16px;">
-      <button class="section-head" id="extraHead" type="button">
-        <span class="chev">▼</span> Eigene Einträge <span class="count" id="extraCount"></span>
-      </button>
-      <div class="section-body">
-        <p class="ex-hint">Alles, was in keinem Rezept steht — Klopapier, Katzenfutter, Spülmaschinentabs. „Jede Woche wieder“ bringt den Eintrag automatisch in jede neue Liste.</p>
-        <div class="extra-form">
-          <input id="exName" placeholder="Was fehlt noch?">
-          <input id="exQty" placeholder="Menge">
-          <button class="btn btn-primary" id="exAdd" type="button">Hinzufügen</button>
-          <p class="feld-fehler" data-fehler-fuer="exName" hidden></p>
-          <div class="row2">
-            <label class="rep"><input type="checkbox" id="exRep"> Jede Woche wieder</label>
-            <span class="ex-hint" style="margin:0;" id="exRepCount"></span>
+      <div class="collapse-section collapsed" id="extraSection" style="margin-bottom:16px;">
+        <button class="section-head" id="extraHead" type="button">
+          <span class="chev">▼</span> Eigene Einträge <span class="count" id="extraCount"></span>
+        </button>
+        <div class="section-body">
+          <p class="ex-hint">Alles, was in keinem Rezept steht — Klopapier, Katzenfutter, Spülmaschinentabs. „Jede Woche wieder“ bringt den Eintrag automatisch in jede neue Liste.</p>
+          <div class="extra-form">
+            <input id="exName" placeholder="Was fehlt noch?">
+            <input id="exQty" placeholder="Menge">
+            <button class="btn btn-primary" id="exAdd" type="button">Hinzufügen</button>
+            <p class="feld-fehler" data-fehler-fuer="exName" hidden></p>
+            <div class="row2">
+              <label class="rep"><input type="checkbox" id="exRep"> Jede Woche wieder</label>
+              <span class="ex-hint" style="margin:0;" id="exRepCount"></span>
+            </div>
           </div>
         </div>
       </div>
-    </div>
 
-    <div class="card">
-      <div class="shop-head">
-        <div class="wk" id="shopWeekLabel">Einkaufsliste</div>
-        <div style="display:flex;gap:8px;">
-          <button class="btn btn-soft btn-sm" id="shareShop" type="button">📤 Teilen</button>
-          <button class="btn btn-ghost btn-sm" id="resetChecks" type="button">Liste zurücksetzen</button>
+      <div class="card">
+        <div class="shop-head">
+          <div class="wk" id="shopWeekLabel">Einkaufsliste</div>
+          <div style="display:flex;gap:8px;">
+            <button class="btn btn-soft btn-sm" id="shareShop" type="button">📤 Teilen</button>
+            <button class="btn btn-ghost btn-sm" id="resetChecks" type="button">Liste zurücksetzen</button>
+          </div>
+        </div>
+        <div class="swipe-hint" id="swipeHint">
+          Wischen: → abhaken · ← löschen<br>
+          Name antippen ändert die Abteilung · Menge antippen passt sie an
+        </div>
+        <div id="shopMarketSummary" class="market-summary" style="display:none;"></div>
+        <div id="shopGroups"></div>
+        <div id="shopEmpty" class="empty" style="display:none;">Für diese Woche ist noch nichts geplant.</div>
+      </div>
+    </div>
+    <div id="artikel" class="unterpanel">
+      <div class="card">
+        <div class="shop-head"><div class="wk">Neue Zutat anlegen</div></div>
+        <p class="ex-hint">Für Dinge, die in keinem Rezept vorkommen, aber trotzdem hier auftauchen sollen — z. B. Getränke.</p>
+        <div class="extra-form" style="grid-template-columns:1fr auto;">
+          <input id="ciName" placeholder="z. B. Mineralwasser">
+          <button class="btn btn-primary" id="ciAdd" type="button">Anlegen</button>
         </div>
       </div>
-      <div class="swipe-hint" id="swipeHint">
-        Wischen: → abhaken · ← löschen<br>
-        Name antippen ändert die Abteilung · Menge antippen passt sie an
+      <div class="card">
+        <div class="shop-head">
+          <div class="wk">Alle Zutaten <span class="count" id="ingCount"></span></div>
+        </div>
+        <p class="ex-hint">Jede Zutat aus euren Rezepten mit den Gerichten, in denen sie vorkommt. Schreibweisen wie Zwiebel und Zwiebeln zählen als eine Zutat.</p>
+        <div class="filter-row" id="ingSortRow">
+          <button class="filter-pill active" data-mode="kategorie" type="button">Nach Kategorie</button>
+          <button class="filter-pill" data-mode="alpha" type="button">Alphabetisch</button>
+        </div>
+        <div id="ingredientsList"></div>
       </div>
-      <div id="shopMarketSummary" class="market-summary" style="display:none;"></div>
-      <div id="shopGroups"></div>
-      <div id="shopEmpty" class="empty" style="display:none;">Für diese Woche ist noch nichts geplant.</div>
+
+      <div class="card">
+        <div class="shop-head"><div class="wk">Neuer Artikel</div></div>
+        <div class="extra-form" style="grid-template-columns:1fr auto;">
+          <input id="hhName" placeholder="z. B. Klopapier, Waschmittel …">
+          <button class="btn btn-primary" id="hhAdd" type="button">Anlegen</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="shop-head"><div class="wk">Haushalt &amp; Drogerie <span class="count" id="haushaltCount"></span></div></div>
+        <p class="ex-hint">Einmal angelegt, bleibt der Artikel hier. Mit (+) landet er ganz normal in der
+          aktuellen Einkaufsliste — nicht automatisch jede Woche. Was ihr immer da habt, markiert ihr unter
+          „Immer zuhause“.</p>
+        <ul class="hh-list" id="haushaltList"></ul>
+      </div>
+
+      <div class="card">
+        <div class="shop-head">
+          <div class="wk">Immer zuhause <span class="count" id="exCount"></span></div>
+        </div>
+        <p class="ex-hint">Alle Zutaten aus euren Rezepten auf einen Blick. Tippt an, was ihr ohnehin immer da habt (Salz, Pfeffer, Öl …) — Ausgewähltes taucht dann in keiner Einkaufsliste mehr auf. Nochmal antippen hebt es wieder auf.</p>
+        <div id="excludeChips" class="chips"></div>
+      </div>
+      <div class="card">
+        <div class="shop-head"><div class="wk">Abteilungen sortieren</div></div>
+        <p class="ex-hint">Reihenfolge, in der die Kategorien in der Einkaufsliste erscheinen — passt sie an euren Supermarkt an.</p>
+        <ul class="cat-order-list" id="catOrderList"></ul>
+      </div>
+      <div class="storage-note" id="storageNote"></div>
     </div>
   </section>
 
-  <section id="nutrition">
+  <section id="notizen">
     <div class="card">
-      <div class="shop-head">
-        <div class="wk" id="nutriWeekLabel">Nährwerte</div>
-      </div>
-      <p class="ex-hint">Auswertung auf Basis der im Wochenplan eingetragenen Rezepte. „Gesamt“ ist die
-        Summe für den ganzen Haushalt an dem Tag. Trag bei „Portionen an diesem Tag“ ein, wie viele Portionen
-        du selbst isst — manche Tage sind das zwei, manche nur eine — die Werte „bei deinen Portionen“ rechnen
-        damit. Snacks zählen nicht mit, da für sie keine Nährwerte erfasst werden.</p>
-      <div id="nutriDays"></div>
-    </div>
-    <div class="card">
-      <div class="shop-head"><div class="wk">Woche gesamt</div></div>
-      <div id="nutriWeekSum"></div>
+      <div class="shop-head"><div class="wk">Notizen</div></div>
+      <p class="ex-hint">Notizen und To-Dos werden gebaut. Bis dahin bleibt hier Platz.</p>
     </div>
   </section>
 
-  <section id="pantry">
-    <div class="card">
-      <div class="shop-head">
-        <div class="wk">Immer zuhause <span class="count" id="exCount"></span></div>
-      </div>
-      <p class="ex-hint">Alle Zutaten aus euren Rezepten auf einen Blick. Tippt an, was ihr ohnehin immer da habt (Salz, Pfeffer, Öl …) — Ausgewähltes taucht dann in keiner Einkaufsliste mehr auf. Nochmal antippen hebt es wieder auf.</p>
-      <div id="excludeChips" class="chips"></div>
-    </div>
-    <div class="card">
-      <div class="shop-head"><div class="wk">Abteilungen sortieren</div></div>
-      <p class="ex-hint">Reihenfolge, in der die Kategorien in der Einkaufsliste erscheinen — passt sie an euren Supermarkt an.</p>
-      <ul class="cat-order-list" id="catOrderList"></ul>
-    </div>
-    <div class="storage-note" id="storageNote"></div>
-  </section>
-
+  <!-- Einstellungen sind kein Bereich mehr, sondern haengen nach Kapitel 3.2 an
+       der Kopfzeile. Der Abschnitt bleibt, nur der Weg dorthin ist ein anderer. -->
   <section id="settings">
-    <div class="card" id="hhSwitchCard" style="display:none;">
-      <div class="shop-head"><div class="wk">Aktiver Haushalt</div></div>
-      <p class="ex-hint">Ihr gehört zu mehreren Haushalten. Wählt, welchen ihr auf diesem Gerät seht.</p>
-      <div class="hh-switch" id="hhSwitchList"></div>
-    </div>
-
-    <div class="card">
-      <div class="shop-head"><div class="wk">Haushaltsname</div></div>
-      <p class="ex-hint" id="hhNameHint">So heißt euer Haushalt in der Übersicht und für alle Mitglieder.</p>
-      <div class="ing-input-row" style="grid-template-columns:1fr 100px;">
-        <input type="text" id="hhNameInput" placeholder="z. B. Familie Müller" autocomplete="off">
-        <button class="btn btn-primary" id="hhNameSave" type="button">Speichern</button>
+      <div class="card" id="hhSwitchCard" style="display:none;">
+        <div class="shop-head"><div class="wk">Aktiver Haushalt</div></div>
+        <p class="ex-hint">Ihr gehört zu mehreren Haushalten. Wählt, welchen ihr auf diesem Gerät seht.</p>
+        <div class="hh-switch" id="hhSwitchList"></div>
       </div>
-      <div class="ex-hint" id="hhNameOut" style="margin-top:10px;"></div>
-    </div>
 
-    <div class="card">
-      <div class="shop-head"><div class="wk">Mein Profil</div></div>
-      <div class="field">
-        <label>Name <span class="hint">wird den anderen Mitgliedern angezeigt</span></label>
+      <div class="card">
+        <div class="shop-head"><div class="wk">Haushaltsname</div></div>
+        <p class="ex-hint" id="hhNameHint">So heißt euer Haushalt in der Übersicht und für alle Mitglieder.</p>
         <div class="ing-input-row" style="grid-template-columns:1fr 100px;">
-          <input type="text" id="profilNameInput" placeholder="z. B. Vladi" autocomplete="name">
-          <button class="btn btn-soft" id="profilNameSave" type="button">Speichern</button>
+          <input type="text" id="hhNameInput" placeholder="z. B. Familie Müller" autocomplete="off">
+          <button class="btn btn-primary" id="hhNameSave" type="button">Speichern</button>
+        </div>
+        <div class="ex-hint" id="hhNameOut" style="margin-top:10px;"></div>
+      </div>
+
+      <div class="card">
+        <div class="shop-head"><div class="wk">Mein Profil</div></div>
+        <div class="field">
+          <label>Name <span class="hint">wird den anderen Mitgliedern angezeigt</span></label>
+          <div class="ing-input-row" style="grid-template-columns:1fr 100px;">
+            <input type="text" id="profilNameInput" placeholder="z. B. Vladi" autocomplete="name">
+            <button class="btn btn-soft" id="profilNameSave" type="button">Speichern</button>
+          </div>
+        </div>
+        <div class="ex-hint" id="profilNameOut" style="margin-bottom:8px;"></div>
+
+        <div class="field">
+          <label>E-Mail</label>
+          <div class="ing-input-row" style="grid-template-columns:1fr 100px;">
+            <input type="email" id="profilEmailInput" placeholder="neue@adresse.de" autocomplete="email">
+            <button class="btn btn-soft" id="profilEmailSave" type="button">Ändern</button>
+          </div>
+        </div>
+        <div class="ex-hint" id="profilEmailOut" style="margin-bottom:8px;"></div>
+
+        <div class="field">
+          <label id="profilPwLabel">Passwort ändern</label>
+          <div class="ing-input-row" style="grid-template-columns:1fr 100px;">
+            <input type="password" id="profilPwInput" placeholder="neues Passwort, mind. 6 Zeichen" autocomplete="new-password">
+            <button class="btn btn-soft" id="profilPwSave" type="button">Speichern</button>
+          </div>
+        </div>
+        <div class="ex-hint" id="profilPwOut"></div>
+
+        <div class="acct-row" style="margin-top:6px; border-top:1px solid var(--linie-leise); padding-top:12px;">
+          <span id="acctEmail">—</span><button class="btn btn-ghost btn-sm" id="acctSignOut" type="button">Abmelden</button>
         </div>
       </div>
-      <div class="ex-hint" id="profilNameOut" style="margin-bottom:8px;"></div>
 
-      <div class="field">
-        <label>E-Mail</label>
+      <div class="card">
+        <div class="shop-head"><div class="wk">Mitglieder</div></div>
+        <p class="ex-hint">Wer Zugriff auf diesen Haushalt hat. Wer den Einladungslink öffnet und sich anmeldet, sieht Wochenplan und Einkaufsliste und kann beides ändern — also nur an Leute geben, die dazugehören.</p>
+        <button class="btn btn-soft" id="copyInvite" type="button">🔗 Einladungslink erzeugen</button>
+        <div class="ex-hint" id="inviteOut" style="margin-top:10px;"></div>
+        <ul class="member-list" id="memberList"></ul>
+      </div>
+
+      <div class="card">
+        <div class="shop-head"><div class="wk">Weiterem Haushalt beitreten</div></div>
+        <p class="ex-hint">Für einen zusätzlichen Haushalt, den ihr schon von früher kennt (Haushalts-ID, z. B. <code>hh-…</code>), oder um einen Einladungscode einzulösen, den ihr nicht über den Link, sondern z. B. per Nachricht bekommen habt.</p>
         <div class="ing-input-row" style="grid-template-columns:1fr 100px;">
-          <input type="email" id="profilEmailInput" placeholder="neue@adresse.de" autocomplete="email">
-          <button class="btn btn-soft" id="profilEmailSave" type="button">Ändern</button>
+          <input type="text" id="joinHhInput" placeholder="hh-… oder Einladungscode" autocomplete="off" style="font-family:var(--schrift); font-variant-numeric:tabular-nums; font-size:0.82rem;">
+          <button class="btn btn-primary" id="joinHhBtn" type="button">Beitreten</button>
         </div>
+        <div class="ex-hint" id="joinHhOut" style="margin-top:10px;"></div>
       </div>
-      <div class="ex-hint" id="profilEmailOut" style="margin-bottom:8px;"></div>
-
-      <div class="field">
-        <label id="profilPwLabel">Passwort ändern</label>
-        <div class="ing-input-row" style="grid-template-columns:1fr 100px;">
-          <input type="password" id="profilPwInput" placeholder="neues Passwort, mind. 6 Zeichen" autocomplete="new-password">
-          <button class="btn btn-soft" id="profilPwSave" type="button">Speichern</button>
-        </div>
-      </div>
-      <div class="ex-hint" id="profilPwOut"></div>
-
-      <div class="acct-row" style="margin-top:6px; border-top:1px solid var(--linie-leise); padding-top:12px;">
-        <span id="acctEmail">—</span><button class="btn btn-ghost btn-sm" id="acctSignOut" type="button">Abmelden</button>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="shop-head"><div class="wk">Mitglieder</div></div>
-      <p class="ex-hint">Wer Zugriff auf diesen Haushalt hat. Wer den Einladungslink öffnet und sich anmeldet, sieht Wochenplan und Einkaufsliste und kann beides ändern — also nur an Leute geben, die dazugehören.</p>
-      <button class="btn btn-soft" id="copyInvite" type="button">🔗 Einladungslink erzeugen</button>
-      <div class="ex-hint" id="inviteOut" style="margin-top:10px;"></div>
-      <ul class="member-list" id="memberList"></ul>
-    </div>
-
-    <div class="card">
-      <div class="shop-head"><div class="wk">Weiterem Haushalt beitreten</div></div>
-      <p class="ex-hint">Für einen zusätzlichen Haushalt, den ihr schon von früher kennt (Haushalts-ID, z. B. <code>hh-…</code>), oder um einen Einladungscode einzulösen, den ihr nicht über den Link, sondern z. B. per Nachricht bekommen habt.</p>
-      <div class="ing-input-row" style="grid-template-columns:1fr 100px;">
-        <input type="text" id="joinHhInput" placeholder="hh-… oder Einladungscode" autocomplete="off" style="font-family:var(--schrift); font-variant-numeric:tabular-nums; font-size:0.82rem;">
-        <button class="btn btn-primary" id="joinHhBtn" type="button">Beitreten</button>
-      </div>
-      <div class="ex-hint" id="joinHhOut" style="margin-top:10px;"></div>
-    </div>
   </section>
 </main>
 
