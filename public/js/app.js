@@ -2067,6 +2067,18 @@ document.getElementById('startImport').addEventListener('click', async ()=>{
     if(!importImageDataUrl){ setImportResult('Erst ein Foto auswählen.','err'); return; }
     body.imageDataUrl = importImageDataUrl;
   }
+
+  /* IA-12 — Abgleich gegen vorhandene Schreibweisen.
+     Der Import ist die groesste Dublettenquelle, weil er Namen erfindet, die es
+     im Haushalt noch nicht gibt (Kuerbis/Kuerbisse, Mayo/Mayonnaise). Deshalb
+     bekommt er die bereits benutzten Namen mit und soll sie uebernehmen statt
+     neue zu bilden. normKey entdoppelt schon, der Anzeigename ist der erste
+     gefundene. Deckel bei 400 Namen: mehr kostet Tokens ohne Nutzen, und wer
+     400 verschiedene Zutaten hat, hat die haeufigen laengst dabei. */
+  body.bekannteZutaten = Object.values(allIngredientNames())
+    .sort((a,b)=>a.localeCompare(b,'de'))
+    .slice(0,400);
+
   if(!auth.currentUser){ setImportResult('Bitte kurz warten, bis die Anmeldung fertig ist.','err'); return; }
 
   const btn = document.getElementById('startImport');

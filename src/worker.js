@@ -1,4 +1,4 @@
-// FamBoard — Cloudflare Worker
+// Butley — Cloudflare Worker
 //
 // Der Worker macht zwei Dinge:
 //   1. /api/... beantwortet er selbst (aktuell nur der Rezept-Import)

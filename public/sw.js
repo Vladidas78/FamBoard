@@ -1,7 +1,7 @@
-/* FamBoard – Service Worker
+/* Butley – Service Worker
    Shell wird gecacht, damit die App auch ohne Netz startet.
    Die Daten selbst kommen von Firebase und werden dort nie gecacht. */
-const CACHE = 'famboard-v19';
+const CACHE = 'butley-v1';
 const SHELL = [
   './',
   './index.html',
@@ -13,7 +13,8 @@ const SHELL = [
   './icons/icon-512.png',
   './icons/icon-maskable-512.png',
   './icons/apple-touch-icon.png',
-  './icons/favicon-32.png'
+  './icons/icon-32.png',
+  './icons/favicon.ico'
 ];
 
 /* Jede Datei einzeln ablegen statt addAll: addAll bricht komplett ab, sobald

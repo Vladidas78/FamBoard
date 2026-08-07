@@ -1,5 +1,7 @@
 {
-  // FamBoard — Cloudflare Workers Konfiguration
+  // Butley — Cloudflare Workers Konfiguration.
+  // Der Worker heisst weiterhin "famboard": daran haengt die URL, und die
+  // bleibt nach Kapitel 6.9 vorerst bestehen.
   // Diese Datei bestimmt, wie Cloudflare das Projekt baut und ausliefert.
   // Nach jeder Änderung hier: committen und pushen, dann deployt Cloudflare neu.
 

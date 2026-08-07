@@ -1,14 +1,14 @@
 {
-  "name": "FamBoard",
-  "short_name": "FamBoard",
+  "name": "Butley",
+  "short_name": "Butley",
   "description": "Der Familienplaner: Wochenplan, Rezepte und Einkaufsliste",
   "lang": "de",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#1F2126",
-  "theme_color": "#15171c",
+  "background_color": "#FAF7F2",
+  "theme_color": "#FAF7F2",
   "icons": [
     {
       "src": "icons/icon-192.png",
