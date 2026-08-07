@@ -811,6 +811,9 @@ const imageCache = {};
 let planAlt = false;      // alter Wochenplan erkannt -> einmalig neu schreiben
 let slotsFehlen = false;  // Mahlzeiten-Einstellung fehlt -> einmalig anlegen                 // Bilder liegen getrennt und werden erst bei Bedarf geholt
 let haushaltMigriert = false;  // alte, wöchentlich wiederkehrende Haushalt-Einträge -> neuer Katalog
+let artikelMigriert = false;   // B2/IA-4: Haushalt-Katalog geht im gemeinsamen Artikelstamm auf
+let migrationsCats = [];       // [[normKey, catId], …] aus der Artikel-Migration
+let migrationsMarkets = [];    // [[normKey, laden], …] aus der Artikel-Migration
 
 function fromRemote(d){
   d = d || {};
@@ -872,6 +875,31 @@ function fromRemote(d){
     s.extras = s.extras.filter(x=>!(x.cat==='haushalt' && x.recurring && !x.from));
     haushaltMigriert = true;
   }
+
+  /* B2 / IA-4 — „Zutaten" und „Haushalt & Drogerie" waren zwei Listen mit
+     denselben Feldern. Ab hier ist es eine. Einmalig je Haushalt:
+     jeder Haushalt-Eintrag wird ein ganz normaler Artikel, seine Abteilung und
+     sein Laden wandern auf den normalisierten Schlüssel — dorthin, wo alle
+     anderen sie schon haben. Einträge der Einkaufsliste, die auf eine
+     Haushalt-ID zeigten, werden auf denselben Schlüssel umgehängt.
+
+     Der alte Zweig `data/haushalt` wird NICHT gelöscht. Er bleibt als
+     Sicherung liegen; gelesen wird er nach der Migration nicht mehr. */
+  if(!s.settings.artikelMigriert || haushaltMigriert){
+    const idZuKey = {};
+    (s.haushalt||[]).forEach(h=>{
+      if(!h || !h.name) return;
+      const k = normKey(h.name);
+      if(!k) return;
+      idZuKey[h.id] = k;
+      if(!s.customIngredients.some(c=>normKey(c.name)===k)) s.customIngredients.push({name:h.name});
+      if(!s.catOverrides[k]){ s.catOverrides[k] = h.cat || 'haushalt'; migrationsCats.push([k, s.catOverrides[k]]); }
+      if(h.market && !s.marketOverrides[k]){ s.marketOverrides[k] = h.market; migrationsMarkets.push([k, h.market]); }
+    });
+    s.extras.forEach(x=>{ if(x.from && idZuKey[x.from]) x.from = idZuKey[x.from]; });
+    s.settings.artikelMigriert = true;
+    artikelMigriert = true;
+  }
   return s;
 }
 function recipesForRemote(){
@@ -903,6 +931,7 @@ const savePersonen = ()          => put('data/settings/personen', state.settings
 const savePlanSlot = (wk,day,slot,e) => put('data/weeks/'+wk+'/plan/'+day+'/'+slot, e || null);
 const saveSlots    = ()          => put('data/settings/slots', state.settings.slots);
 const saveCatOrder = ()          => put('data/settings/catOrder', (state.settings.catOrder && state.settings.catOrder.length) ? state.settings.catOrder : null);
+const saveArtikelMigriert = ()   => put('data/settings/artikelMigriert', true);
 const saveChecked  = (wk,key,on) => put('data/weeks/'+wk+'/checked/'+encKey(key), on ? true : null);
 const saveRemoved  = (wk,key,on) => put('data/weeks/'+wk+'/removed/'+encKey(key), on ? true : null);
 const saveQty      = (wk,key,v)  => put('data/weeks/'+wk+'/qty/'+encKey(key), v || null);
@@ -971,10 +1000,30 @@ async function loadState(){
     if(!d && ersterSnapshot){ ersterSnapshot = false; seed(); return; }
     ersterSnapshot = false;
     planAlt = false; slotsFehlen = false; haushaltMigriert = false;
+    artikelMigriert = false; migrationsCats = []; migrationsMarkets = [];
     state = fromRemote(d);
     if(planAlt){ saveAllPlans(); }
     if(slotsFehlen){ saveSlots(); }
     if(haushaltMigriert){ saveHaushalt(); saveExtras(); }
+    if(artikelMigriert){
+      /* Erst sichern, dann schreiben: Jeder Schreibzugriff meldet sich sofort
+         wieder als Momentaufnahme zurueck und laesst diesen Block ein zweites
+         Mal laufen. Ohne die Kopien waeren die Listen dann schon geleert und
+         Abteilung und Laden gingen still verloren. */
+      const cats = migrationsCats.slice(), maerkte = migrationsMarkets.slice();
+      const artikel = (state.customIngredients||[]).slice();
+      const eintraege = (state.extras||[]).slice();
+      migrationsCats = []; migrationsMarkets = [];
+      /* Der Merker geht zuerst raus. Sonst sieht der Rueckruf, den schon der
+         erste Schreibzugriff ausloest, eine noch unmigrierte Datenbank und
+         migriert erneut — endlos. */
+      saveArtikelMigriert();
+      /* gezielte Zweigschreibung, kein globales Speichern (T-6) */
+      if(artikel.length)   put('data/customIngredients', artikel);
+      if(eintraege.length) put('data/extras', eintraege);
+      cats.forEach(pp=>saveCatOv(pp[0], pp[1]));
+      maerkte.forEach(pp=>saveMarketOv(pp[0], pp[1]));
+    }
     if(pruneExtras()) saveExtras();
     try{ localStorage.setItem(CACHE_KEY, JSON.stringify(d || {})); }catch(e){}
     verbergeFehler();
@@ -1002,8 +1051,8 @@ function pruneExtras(){
 
 function renderAll(){
   renderWeekNav(); renderMealConfig(); renderDayTrack();
-  renderRecipeList(); renderShop(); renderExcludeChips(); renderIngredientsTab(); renderCatOrder();
-  renderHaushaltTab(); renderNutritionReport(); refreshIngNameDatalist();
+  renderRecipeList(); renderShop(); renderCatOrder();
+  renderNutritionReport(); refreshIngNameDatalist();
 }
 
 /* =========================================================================
@@ -1019,12 +1068,12 @@ function renderWeekNav(){
 function changeWeek(delta){
   currentMonday = new Date(currentMonday);
   currentMonday.setDate(currentMonday.getDate()+delta*7);
-  renderWeekNav(); renderDayTrack(); renderShop(); renderNutritionReport(); renderIngredientsTab();
+  renderWeekNav(); renderDayTrack(); renderShop(); renderNutritionReport();
 }
 document.getElementById('prevWeek').addEventListener('click',()=>changeWeek(-1));
 document.getElementById('nextWeek').addEventListener('click',()=>changeWeek(1));
 document.getElementById('todayBtn').addEventListener('click',()=>{
-  currentMonday=getMondayOf(new Date()); renderWeekNav(); renderDayTrack(); renderShop(); renderNutritionReport(); renderIngredientsTab();
+  currentMonday=getMondayOf(new Date()); renderWeekNav(); renderDayTrack(); renderShop(); renderNutritionReport();
 });
 (function(){
   const el = document.getElementById('weeknav');
@@ -1301,11 +1350,11 @@ function renderDayTrack(){
     state.plan[wkNow] = state.plan[wkNow] || {};
     state.plan[wkNow][day] = {};
     put('data/weeks/'+wkNow+'/plan/'+day, null);
-    renderDayTrack(); renderShop(); renderNutritionReport(); renderIngredientsTab();
+    renderDayTrack(); renderShop(); renderNutritionReport();
     showToast(day+' zurückgesetzt', ()=>{
       state.plan[wkNow][day] = backup;
       put('data/weeks/'+wkNow+'/plan/'+day, backup);
-      renderDayTrack(); renderShop(); renderNutritionReport(); renderIngredientsTab();
+      renderDayTrack(); renderShop(); renderNutritionReport();
     });
   }));
 
@@ -2361,9 +2410,10 @@ function leereErledigte(wk, doneItems){
 function renderShop(){
   const wk = weekKeyOf(currentMonday);
   document.getElementById('shopWeekLabel').textContent = 'Einkaufsliste · KW '+isoWeek(currentMonday).week;
-  renderExcludeChips();
-  renderExtraCount();
-  renderHaushaltTab();
+  /* Der Artikelstamm zeigt an jeder Zeile, ob sie schon auf der Liste steht —
+     er muss also mitziehen, sobald sich die Liste ändert. Abgeschirmt, damit
+     eine Zusatzansicht nie die Einkaufsliste mitreißt (Kapitel 2.6, Regel 2). */
+  try{ renderArtikel(); }catch(e){ console.warn('Artikelstamm konnte nicht gezeichnet werden:', e); }
 
   const box = document.getElementById('shopGroups');
   const emptyMsg = document.getElementById('shopEmpty');
@@ -2401,9 +2451,14 @@ function renderShop(){
       '<div class="shop-inner">' +
         '<input type="checkbox" '+(it.checked?'checked':'')+' aria-label="'+escapeHtml(it.name)+' abhaken">' +
         '<button class="name-btn" type="button">'+escapeHtml(it.name)+
-          (it.kind==='extra' ? (it.recurring ? '<span class="rep-badge">jede Woche</span>' : (it.from ? '<span class="extra-badge">Haushalt</span>' : '<span class="extra-badge">eigener Eintrag</span>')) : '')+
+          (it.kind==='extra' && it.recurring ? '<span class="rep-badge">jede Woche</span>' : '')+
           (it.market ? '<span class="market-badge">🏬 '+escapeHtml(it.market)+'</span>' : '')+
         '</button>' +
+        /* B2 — „jede Woche wieder" wird dort umgelegt, wo man es merkt:
+           an der Zeile. Das frühere Formular „Eigene Einträge" ist entfallen. */
+        (it.kind==='extra'
+          ? '<button class="rep-btn'+(it.recurring?' an':'')+'" type="button" aria-pressed="'+(it.recurring?'true':'false')+'" title="Jede Woche wieder auf die Liste" aria-label="'+escapeHtml(it.name)+' jede Woche wieder">↻</button>'
+          : '') +
         '<button class="qty-btn '+(it.edited?'edited':'')+' '+(it.qty?'':'empty')+'" type="button">'+escapeHtml(it.qty || 'Menge')+'</button>' +
         '<button class="del-item" type="button" title="Löschen" aria-label="'+escapeHtml(it.name)+' löschen">🗑</button>' +
       '</div>' +
@@ -2481,6 +2536,26 @@ function renderShop(){
 
     li.querySelector('input[type=checkbox]').addEventListener('change', toggleCheck);
     li.querySelector('.del-item').addEventListener('click', removeItem);
+
+    /* „jede Woche wieder" umlegen. Beim Einschalten faellt ein evtl. gesetztes
+       doneWk weg, beim Ausschalten der Haken dieser Woche — sonst steht der
+       Eintrag als erledigt da, ohne dass jemand ihn abgehakt hat. */
+    const repBtn = li.querySelector('.rep-btn');
+    if(repBtn) repBtn.addEventListener('click', async ()=>{
+      const x = state.extras.filter(en=>('x|'+en.id)===key)[0];
+      if(!x) return;
+      x.recurring = !x.recurring;
+      if(x.recurring){
+        x.doneWk = null;
+      } else if(state.checked[wk] && state.checked[wk][key]){
+        delete state.checked[wk][key];
+        saveChecked(wk, key, false);
+      }
+      saveExtras(); renderShop();
+      showToast(x.recurring
+        ? '„'+x.name+'" kommt jetzt jede Woche wieder'
+        : '„'+x.name+'" steht nur noch auf dieser Liste');
+    });
 
     // Name antippen -> Abteilung wählen
     li.querySelector('.name-btn').addEventListener('click', ()=>{
@@ -2633,116 +2708,19 @@ document.getElementById('resetChecks').addEventListener('click', async ()=>{
   });
 });
 
-/* ---------- Eigene Einträge ---------- */
-function renderExtraCount(){
-  const n=(state.extras||[]).length;
-  const rep=(state.extras||[]).filter(x=>x.recurring).length;
-  document.getElementById('extraCount').textContent = n ? '('+n+')' : '';
-  document.getElementById('exRepCount').textContent = rep ? rep+' × jede Woche' : '';
-}
-async function addExtra(){
-  const nameEl=document.getElementById('exName'), qtyEl=document.getElementById('exQty'), repEl=document.getElementById('exRep');
-  const name=nameEl.value.trim();
-  if(!name){ feldFehler(nameEl, 'Ohne Namen kann der Eintrag nicht auf die Liste.'); return; }
-  state.extras.push({
-    id: 'e'+Date.now()+Math.random().toString(36).slice(2,5),
-    name: name, qty: qtyEl.value.trim(), cat: guessCategory(name),
-    recurring: repEl.checked, doneWk: null
-  });
-  nameEl.value=''; qtyEl.value='';
-  saveExtras(); renderShop(); nameEl.focus();
-}
-document.getElementById('exAdd').addEventListener('click', addExtra);
-document.getElementById('exName').addEventListener('keydown', e=>{ if(e.key==='Enter') addExtra(); });
-document.getElementById('exQty').addEventListener('keydown', e=>{ if(e.key==='Enter') addExtra(); });
-document.getElementById('extraHead').addEventListener('click', ()=>{
-  document.getElementById('extraHead').closest('.collapse-section').classList.toggle('collapsed');
-});
-
 /* =========================================================================
-   Haushalt & Drogerie — eigener Katalog, unabhängig von Rezepten.
-   (+) legt einen ganz normalen, einmaligen Eintrag in der aktuellen
-   Einkaufsliste an (kein "jede Woche wieder"). "Immer zuhause" sperrt das (+).
-   ========================================================================= */
-function haushaltIstAufListe(item){
-  const wk = weekKeyOf(currentMonday);
-  return (state.extras||[]).some(x=>x.from===item.id && (x.recurring || !x.doneWk || x.doneWk===wk));
-}
-function renderHaushaltTab(){
-  const box = document.getElementById('haushaltList');
-  const cnt = document.getElementById('haushaltCount');
-  if(!box) return;
-  const items = (state.haushalt||[]).slice().sort((a,b)=>a.name.localeCompare(b.name,'de'));
-  if(cnt) cnt.textContent = items.length ? '('+items.length+')' : '';
-  if(!items.length){
-    box.innerHTML = '<li class="hh-empty">Noch nichts angelegt.</li>';
-    return;
-  }
-  box.innerHTML = items.map(it=>{
-    const aufListe = haushaltIstAufListe(it);
-    const plusAttrs = aufListe ? 'disabled title="Schon auf der Liste"' : 'title="Zur Einkaufsliste"';
-    return '<li class="hh-row" data-id="'+it.id+'">' +
-      '<div style="flex:1;min-width:0;">' +
-        '<span class="hh-name">'+escapeHtml(it.name)+'</span>' +
-        '<div><button class="market-tag-btn" type="button" data-id="'+it.id+'">'+(it.market?'🏬 '+escapeHtml(it.market):'🏬 Laden zuordnen')+'</button></div>' +
-      '</div>' +
-      '<button class="hh-add-list" type="button" '+plusAttrs+'>'+(aufListe ? '✓' : '+')+'</button>' +
-      '<button class="hh-del" type="button" title="Katalog-Eintrag löschen" aria-label="'+escapeHtml(it.name)+' löschen">🗑</button>' +
-    '</li>';
-  }).join('');
+   16. Artikelstamm — eine Liste statt dreier Reiter
 
-  Array.prototype.forEach.call(box.querySelectorAll('.market-tag-btn'), b=>b.addEventListener('click', e=>{
-    const id = e.currentTarget.dataset.id;
-    const item = (state.haushalt||[]).filter(x=>x.id===id)[0];
-    if(!item) return;
-    const eingabe = prompt('In welchem Laden kauft ihr „'+item.name+'“ meistens? (leer lassen, um es wieder zu entfernen)', item.market||'');
-    if(eingabe === null) return;
-    const neu = eingabe.trim();
-    if(neu) item.market = neu; else delete item.market;
-    saveHaushalt(); renderHaushaltTab();
-  }));
-  Array.prototype.forEach.call(box.querySelectorAll('.hh-add-list'), b=>b.addEventListener('click', e=>{
-    const id = e.currentTarget.closest('.hh-row').dataset.id;
-    const item = (state.haushalt||[]).filter(x=>x.id===id)[0];
-    if(!item) return;
-    state.extras.push({
-      id: 'e'+Date.now()+Math.random().toString(36).slice(2,5),
-      name: item.name, qty:'', cat: item.cat || 'haushalt', market: item.market || '',
-      recurring:false, doneWk:null, from: item.id
-    });
-    saveExtras(); renderHaushaltTab(); renderShop();
-    showToast(item.name+' zur Einkaufsliste hinzugefügt');
-  }));
-  Array.prototype.forEach.call(box.querySelectorAll('.hh-del'), b=>b.addEventListener('click', e=>{
-    const id = e.currentTarget.closest('.hh-row').dataset.id;
-    const idx = (state.haushalt||[]).findIndex(x=>x.id===id);
-    if(idx<0) return;
-    const backup = state.haushalt[idx];
-    state.haushalt.splice(idx,1);
-    saveHaushalt(); renderHaushaltTab();
-    showToast(backup.name+' aus dem Katalog gelöscht', ()=>{
-      state.haushalt.splice(idx,0,backup); saveHaushalt(); renderHaushaltTab();
-    });
-  }));
-}
-async function addHaushaltItem(){
-  const nameEl = document.getElementById('hhName');
-  const name = nameEl.value.trim();
-  if(!name){ nameEl.focus(); return; }
-  if((state.haushalt||[]).some(x=>x.name.toLowerCase()===name.toLowerCase())){
-    setStatus('„'+name+'“ ist schon im Katalog.'); setTimeout(()=>setStatus(''),2500);
-    nameEl.value=''; nameEl.focus(); return;
-  }
-  state.haushalt.push({ id:'h'+Date.now()+Math.random().toString(36).slice(2,5), name:name, cat:'haushalt' });
-  nameEl.value = '';
-  saveHaushalt(); renderHaushaltTab(); nameEl.focus();
-}
-document.getElementById('hhAdd').addEventListener('click', addHaushaltItem);
-document.getElementById('hhName').addEventListener('keydown', e=>{ if(e.key==='Enter') addHaushaltItem(); });
-
-/* =========================================================================
-   16. „Immer zuhause"
+   IA-4  Zutaten, Haushalt & Drogerie und Immer zuhause sind ein Bereich
+   IA-5  Standardansicht sind die manuell angelegten Artikel
+   IA-6  Umschalter Lebensmittel / Drogerie & Haushalt, aus der Abteilung
+   IA-8  Mehrfachauswahl statt Einkaufs-Vorlagen
+   IA-14 „Immer zuhause" nur bei Rezeptzutaten — bei manuellen wirkt es nicht
+   IA-16 Ein unbekannter Begriff wird dauerhafter Artikel, kein Einmaleintrag
    ========================================================================= */
+
+/* Alle im Haushalt bekannten Zutatennamen, entdoppelt über normKey.
+   Wird auch vom Rezept-Import gebraucht (IA-12) und vom Namensvorschlag. */
 function allIngredientNames(){
   const names={};
   state.recipes.forEach(r=>(r.ingredients||[]).forEach(i=>{
@@ -2753,157 +2731,371 @@ function allIngredientNames(){
   });
   return names;
 }
-function renderExcludeChips(){
-  const names = allIngredientNames();
-  const keys = Object.keys(names).sort((a,b)=>names[a].localeCompare(names[b],'de'));
-  const countText = state.excluded.length ? '· '+state.excluded.length+' ausgeschlossen' : '';
-  const chipsHtml = keys.length
-    ? keys.map(k=>'<span class="chip '+(state.excluded.indexOf(k)>=0?'excluded':'')+'" data-name="'+escapeHtml(k)+'">'+escapeHtml(names[k])+'</span>').join('')
-    : '<span class="chips-empty">Sobald Rezepte da sind, erscheinen hier ihre Zutaten.</span>';
 
-  [['exCount','excludeChips'],['exCountShop','excludeChipsShop']].forEach(pair=>{
-    const cnt=document.getElementById(pair[0]), box=document.getElementById(pair[1]);
-    if(!box) return;
-    if(cnt) cnt.textContent = countText;
-    box.innerHTML = chipsHtml;
-    Array.prototype.forEach.call(box.querySelectorAll('.chip'), chip=>chip.addEventListener('click', async ()=>{
-      const n=chip.dataset.name;
-      const i=state.excluded.indexOf(n);
-      if(i>=0) state.excluded.splice(i,1); else state.excluded.push(n);
-      saveExcluded(); renderShop(); renderIngredientsTab();
-    }));
+/* Der Artikelstamm: manuell angelegte Artikel und Rezeptzutaten, über normKey
+   zu je einer Zeile zusammengeführt. `manuell` heißt „selbst angelegt",
+   `recipes` sagt, in welchen Gerichten der Artikel vorkommt. Beides kann
+   gleichzeitig zutreffen — eine selbst angelegte Zwiebel taucht auch in
+   Rezepten auf. */
+function baueArtikelstamm(){
+  const map = {};
+  state.recipes.forEach(r=>(r.ingredients||[]).forEach(i=>{
+    const k = normKey(i.name); if(!k) return;
+    if(!map[k]) map[k] = {key:k, name:i.name, manuell:false, recipes:[]};
+    if(map[k].recipes.indexOf(r.name) < 0) map[k].recipes.push(r.name);
+  }));
+  (state.customIngredients||[]).forEach(c=>{
+    if(!c || !c.name) return;
+    const k = normKey(c.name); if(!k) return;
+    if(!map[k]) map[k] = {key:k, name:c.name, manuell:true, recipes:[]};
+    else map[k].manuell = true;
   });
+  Object.keys(map).forEach(k=>{
+    const it = map[k];
+    it.cat = categoryOf(it.name);
+    it.market = marketOf(it.name);
+    it.ausgeschlossen = state.excluded.indexOf(k) >= 0;
+  });
+  return map;
 }
-document.getElementById('excludeHeadShop').addEventListener('click', ()=>{
-  document.getElementById('excludeHeadShop').closest('.collapse-section').classList.toggle('collapsed');
-});
 
-/* =========================================================================
-   17. Zutaten-Tab
-   ========================================================================= */
-let ingredientSortMode = 'kategorie';   // 'kategorie' | 'alpha'
+/* IA-6 — die Warengruppe steckt in der Abteilung, kein eigenes Feld am Artikel. */
+function istNonFood(catId){ return catId === 'haushalt'; }
 
-function ingredientIstAufListe(key, weeklyKeys){
+function artikelIstAufListe(key, weeklyKeys){
   const wk = weekKeyOf(currentMonday);
   const inExtras = (state.extras||[]).some(x=>x.from===key && (x.recurring || !x.doneWk || x.doneWk===wk));
   return inExtras || !!(weeklyKeys && weeklyKeys[key]);
 }
-function renderIngredientsTab(){
-  const box=document.getElementById('ingredientsList');
-  const cnt=document.getElementById('ingCount');
+
+/* Legt einen Artikel dauerhaft im Katalog an, falls es ihn noch nicht gibt.
+   Gibt den normalisierten Schlüssel zurück — oder '' bei leerem Namen. */
+function legeArtikelAn(name){
+  const sauber = String(name||'').trim();
+  const k = normKey(sauber);
+  if(!k) return '';
+  const bekannt = state.recipes.some(r=>(r.ingredients||[]).some(i=>normKey(i.name)===k))
+    || (state.customIngredients||[]).some(c=>normKey(c.name)===k);
+  if(!bekannt){
+    state.customIngredients.push({name:sauber});
+    saveCustomIngredients();
+  }
+  return k;
+}
+
+/* Setzt Artikel auf die Einkaufsliste. `namen` sind Anzeigenamen; die Zuordnung
+   zum Katalog läuft über normKey, damit ein Artikel nie doppelt draufkommt. */
+function setzeAufListe(namen){
+  const wk = weekKeyOf(currentMonday);
+  const neu = [];
+  (namen||[]).forEach(n=>{
+    const name = String(n||'').trim();
+    const k = normKey(name);
+    if(!k) return;
+    const schonDrauf = (state.extras||[]).some(x=>x.from===k && (x.recurring || !x.doneWk || x.doneWk===wk));
+    if(schonDrauf) return;
+    neu.push({
+      id: 'e'+Date.now()+Math.random().toString(36).slice(2,5),
+      name: name, qty:'', cat: categoryOf(name), market: marketOf(name),
+      recurring:false, doneWk:null, from: k
+    });
+  });
+  if(!neu.length) return 0;
+  neu.forEach(x=>state.extras.push(x));
+  saveExtras(); renderShop();
+  return neu.length;
+}
+
+/* ---------- Ansichtszustand (IA-11: bleibt innerhalb der Sitzung) ---------- */
+let artSuche = '';
+let artGruppe = 'food';        // 'food' | 'nonfood'
+let artHerkunft = 'manuell';   // 'manuell' | 'alle'
+let artAuswahl = [];           // normKeys
+
+function renderArtikel(){
+  const box = document.getElementById('artikelListe');
+  if(!box) return;                       // Zusatzansicht darf nie hart zugreifen
+  const cnt   = document.getElementById('artCount');
+  const leer  = document.getElementById('artikelLeer');
+  const neuEl = document.getElementById('artNeu');
+
+  const map = baueArtikelstamm();
   const wk = weekKeyOf(currentMonday);
   const weeklyKeys = {};
   buildItems(wk).items.forEach(x=>{ if(x.kind==='recipe') weeklyKeys[x.key]=true; });
-  const map={};
-  state.recipes.forEach(r=>(r.ingredients||[]).forEach(i=>{
-    const k=normKey(i.name); if(!k) return;
-    if(!map[k]) map[k]={name:i.name, key:k, recipes:[]};
-    if(map[k].recipes.indexOf(r.name)<0) map[k].recipes.push(r.name);
-  }));
-  (state.customIngredients||[]).forEach(c=>{
-    const k=normKey(c.name); if(!k) return;
-    if(!map[k]) map[k]={name:c.name, key:k, recipes:[]};
-  });
-  const keys=Object.keys(map);
-  cnt.textContent = keys.length ? '('+keys.length+')' : '';
-  if(!keys.length){ box.innerHTML='<div class="chips-empty">Sobald Rezepte da sind, erscheinen hier ihre Zutaten.</div>'; return; }
 
-  const rowHtml = k=>{
-    const it=map[k];
-    const c=CAT_LABEL[categoryOf(it.name)] || CAT_LABEL.sonstiges;
-    const eigenstaendig = !it.recipes.length;
-    const ausgeschlossen = state.excluded.indexOf(k) >= 0;
-    const aufListe = ingredientIstAufListe(k, weeklyKeys);
-    const markt = marketOf(it.name);
-    const plusAttrs = ausgeschlossen
+  const suche = artSuche.trim().toLowerCase();
+  const keys = Object.keys(map).filter(k=>{
+    const it = map[k];
+    if(istNonFood(it.cat) !== (artGruppe === 'nonfood')) return false;
+    if(artHerkunft === 'manuell' && !it.manuell) return false;
+    if(suche && it.name.toLowerCase().indexOf(suche) < 0) return false;
+    return true;
+  });
+  if(cnt) cnt.textContent = keys.length ? '('+keys.length+')' : '';
+
+  /* IA-16 — steht der getippte Begriff in keinem Katalog, kann er hier direkt
+     angelegt werden. Der Katalog entsteht als Nebenprodukt, ohne Pflegeaufwand. */
+  if(neuEl){
+    const bekannt = !!suche && Object.keys(map).some(k=>map[k].name.toLowerCase() === suche);
+    /* Ab zwei Zeichen. Ein einzelner Buchstabe ist ein Tippfehler auf dem Weg
+       zum Wort, kein Artikel — und er landet sonst dauerhaft im Katalog. */
+    if(suche.length >= 2 && !bekannt){
+      neuEl.hidden = false;
+      neuEl.innerHTML = '<button class="art-neu-btn" type="button">+ „'+escapeHtml(artSuche.trim())+'" als Artikel anlegen</button>';
+      const b = neuEl.querySelector('.art-neu-btn');
+      if(b) b.addEventListener('click', ()=>{
+        const name = artSuche.trim();
+        legeArtikelAn(name);
+        artSuche = '';
+        const feld = document.getElementById('artSearch');
+        if(feld){ feld.value = ''; feld.focus(); }
+        renderArtikel();
+        showToast('„'+name+'" ist jetzt im Katalog');
+      });
+    } else {
+      neuEl.hidden = true; neuEl.innerHTML = '';
+    }
+  }
+
+  if(!keys.length){
+    box.innerHTML = '';
+    if(leer){
+      leer.hidden = false;
+      leer.textContent = suche
+        ? 'Nichts gefunden.'
+        : (artHerkunft === 'manuell'
+            ? 'Noch nichts selbst angelegt. Neue Artikel entstehen von allein, sobald ihr sie in der Einkaufsliste eintippt.'
+            : 'Sobald Rezepte da sind, erscheinen hier ihre Zutaten.');
+    }
+    zeichneArtAuswahl();
+    return;
+  }
+  if(leer){ leer.hidden = true; leer.textContent = ''; }
+
+  const zeile = k=>{
+    const it = map[k];
+    const c = CAT_LABEL[it.cat] || CAT_LABEL.sonstiges;
+    const aufListe = artikelIstAufListe(k, weeklyKeys);
+    const gewaehlt = artAuswahl.indexOf(k) >= 0;
+    const plusAttrs = it.ausgeschlossen
       ? 'disabled title="Als \'immer zuhause\' markiert"'
-      : (aufListe ? 'disabled title="Schon auf der Liste"' : 'title="Einmalig zur Einkaufsliste"');
-    return '<li data-key="'+escapeHtml(k)+'">' +
-      '<div class="in-name"><span>'+escapeHtml(it.name)+(eigenstaendig?' <span class="extra-badge">manuell</span>':'')+'</span>' +
-        '<span style="display:flex;gap:6px;">' +
-          '<button class="hh-add-list ing-add-list" type="button" data-key="'+escapeHtml(k)+'" '+plusAttrs+'>'+((aufListe && !ausgeschlossen)?'✓':'+')+'</button>' +
-          (eigenstaendig?'<button class="ci-del" type="button" data-key="'+escapeHtml(k)+'" title="Löschen" aria-label="'+escapeHtml(it.name)+' löschen">🗑</button>':'') +
+      : (aufListe ? 'disabled title="Schon auf der Liste"' : 'title="Auf die Einkaufsliste"');
+    /* IA-14 — der Schalter erscheint nur bei Rezeptzutaten. Bei manuellen
+       Artikeln täte er nichts: sie landen nie von allein auf der Liste. */
+    const zuhause = it.recipes.length
+      ? ' · <button class="art-zuhause'+(it.ausgeschlossen?' an':'')+'" type="button" data-key="'+escapeHtml(k)+'" aria-pressed="'+(it.ausgeschlossen?'true':'false')+'">'+(it.ausgeschlossen?'✓ immer zuhause':'immer zuhause')+'</button>'
+      : '';
+    return '<li class="art-row'+(gewaehlt?' gewaehlt':'')+'" data-key="'+escapeHtml(k)+'">' +
+      '<button class="art-pick" type="button" aria-pressed="'+(gewaehlt?'true':'false')+'" aria-label="'+escapeHtml(it.name)+' auswählen">' +
+        '<span class="art-box">✓</span>' +
+        '<span class="art-body">' +
+          '<span class="art-name">'+escapeHtml(it.name)+(it.manuell?' <span class="extra-badge">manuell</span>':'')+'</span>' +
+          '<span class="art-meta">'+c.icon+' '+c.label+'</span>' +
         '</span>' +
-      '</div>' +
-      '<div class="in-meta">'+c.icon+' '+c.label+(state.excluded.indexOf(k)>=0?' · immer zuhause':'') +
-        ' · <button class="market-tag-btn" type="button" data-key="'+escapeHtml(k)+'" data-name="'+escapeHtml(it.name)+'">'+(markt?'🏬 '+escapeHtml(markt):'🏬 Laden zuordnen')+'</button>' +
+      '</button>' +
+      '<span class="art-tools">' +
+        '<button class="hh-add-list art-add" type="button" data-key="'+escapeHtml(k)+'" '+plusAttrs+'>'+((aufListe && !it.ausgeschlossen)?'✓':'+')+'</button>' +
+        (it.manuell ? '<button class="ci-del art-del" type="button" data-key="'+escapeHtml(k)+'" title="Aus dem Katalog löschen" aria-label="'+escapeHtml(it.name)+' löschen">🗑</button>' : '') +
+      '</span>' +
+      '<div class="art-fuss">' +
+        '<button class="market-tag-btn" type="button" data-key="'+escapeHtml(k)+'" data-name="'+escapeHtml(it.name)+'">'+(it.market?'🏬 '+escapeHtml(it.market):'🏬 Laden zuordnen')+'</button>' +
+        zuhause +
       '</div>' +
       (it.recipes.length ? '<div class="in-recipes">'+it.recipes.map(n=>'<span class="in-tag">'+escapeHtml(n)+'</span>').join('')+'</div>' : '') +
     '</li>';
   };
 
-  let html;
-  if(ingredientSortMode === 'kategorie'){
-    html = '';
+  /* Lebensmittel werden nach Abteilung gruppiert. Die Drogerie-Seite hat nur
+     eine Abteilung — dort wäre eine Überschrift bloße Wiederholung des
+     Umschalters, also bleibt sie eine flache Liste. */
+  let html = '';
+  if(artGruppe === 'nonfood'){
+    const sortiert = keys.slice().sort((a,b)=>map[a].name.localeCompare(map[b].name,'de'));
+    html = '<ul class="art-liste">'+sortiert.map(zeile).join('')+'</ul>';
+  } else {
     orderedCats().forEach(c=>{
-      const gruppe = keys.filter(k=>categoryOf(map[k].name)===c.id).sort((a,b)=>map[a].name.localeCompare(map[b].name,'de'));
+      const gruppe = keys.filter(k=>map[k].cat===c.id).sort((a,b)=>map[a].name.localeCompare(map[b].name,'de'));
       if(!gruppe.length) return;
       html += '<div class="cat-group"><div class="cat-title">'+c.icon+' '+c.label+'<span class="cat-n">'+gruppe.length+'</span></div>' +
-        '<ul class="ing-overview">'+gruppe.map(rowHtml).join('')+'</ul></div>';
+        '<ul class="art-liste">'+gruppe.map(zeile).join('')+'</ul></div>';
     });
-  } else {
-    const sortedKeys = keys.slice().sort((a,b)=>map[a].name.localeCompare(map[b].name,'de'));
-    html = '<ul class="ing-overview">'+sortedKeys.map(rowHtml).join('')+'</ul>';
   }
   box.innerHTML = html;
 
+  /* Auswählen — IA-8 */
+  Array.prototype.forEach.call(box.querySelectorAll('.art-pick'), b=>b.addEventListener('click', e=>{
+    const k = e.currentTarget.closest('.art-row').dataset.key;
+    const i = artAuswahl.indexOf(k);
+    if(i >= 0) artAuswahl.splice(i,1); else artAuswahl.push(k);
+    renderArtikel();
+  }));
+
+  /* Einzeln auf die Liste */
+  Array.prototype.forEach.call(box.querySelectorAll('.art-add'), b=>b.addEventListener('click', e=>{
+    const k = e.currentTarget.dataset.key;
+    const it = map[k];
+    if(!it) return;
+    if(setzeAufListe([it.name])) showToast(it.name+' steht auf der Einkaufsliste');
+  }));
+
+  /* Aus dem Katalog löschen — nur bei selbst angelegten Artikeln */
+  Array.prototype.forEach.call(box.querySelectorAll('.art-del'), b=>b.addEventListener('click', e=>{
+    const k = e.currentTarget.dataset.key;
+    const idx = (state.customIngredients||[]).findIndex(c=>normKey(c.name)===k);
+    if(idx < 0) return;
+    const backup = state.customIngredients[idx];
+    state.customIngredients.splice(idx,1);
+    const aus = artAuswahl.indexOf(k); if(aus >= 0) artAuswahl.splice(aus,1);
+    saveCustomIngredients(); renderArtikel(); refreshIngNameDatalist();
+    showToast(backup.name+' aus dem Katalog gelöscht', ()=>{
+      state.customIngredients.splice(idx,0,backup);
+      saveCustomIngredients(); renderArtikel(); refreshIngNameDatalist();
+    });
+  }));
+
+  /* Laden zuordnen */
   Array.prototype.forEach.call(box.querySelectorAll('.market-tag-btn'), b=>b.addEventListener('click', e=>{
     const key = e.currentTarget.dataset.key;
     const name = e.currentTarget.dataset.name;
-    const bisher = marketOf(name);
-    const eingabe = prompt('In welchem Laden kauft ihr „'+name+'“ meistens? (leer lassen, um es wieder zu entfernen)', bisher);
-    if(eingabe === null) return;   // abgebrochen
+    const eingabe = prompt('In welchem Laden kauft ihr „'+name+'" meistens? (leer lassen, um es wieder zu entfernen)', marketOf(name));
+    if(eingabe === null) return;
     const neu = eingabe.trim();
     if(neu) state.marketOverrides[key] = neu; else delete state.marketOverrides[key];
     saveMarketOv(key, neu);
-    renderIngredientsTab(); renderShop();
+    renderShop();               // zeichnet den Artikelstamm gleich mit
   }));
-  Array.prototype.forEach.call(box.querySelectorAll('.ing-add-list'), b=>b.addEventListener('click', e=>{
-    const key = e.currentTarget.dataset.key;
-    const it = map[key];
-    if(!it) return;
-    state.extras.push({
-      id: 'e'+Date.now()+Math.random().toString(36).slice(2,5),
-      name: it.name, qty:'', cat: categoryOf(it.name),
-      recurring:false, doneWk:null, from: key
-    });
-    saveExtras(); renderIngredientsTab(); renderShop();
-    showToast(it.name+' zur Einkaufsliste hinzugefügt');
+
+  /* „Immer zuhause" — IA-14 */
+  Array.prototype.forEach.call(box.querySelectorAll('.art-zuhause'), b=>b.addEventListener('click', e=>{
+    const k = e.currentTarget.dataset.key;
+    const i = state.excluded.indexOf(k);
+    if(i >= 0) state.excluded.splice(i,1); else state.excluded.push(k);
+    saveExcluded(); renderShop();
   }));
-  Array.prototype.forEach.call(box.querySelectorAll('.ci-del'), b=>b.addEventListener('click', e=>{
-    const key = e.currentTarget.dataset.key;
-    const idx = (state.customIngredients||[]).findIndex(c=>normKey(c.name)===key);
-    if(idx<0) return;
-    const backup = state.customIngredients[idx];
-    state.customIngredients.splice(idx,1);
-    saveCustomIngredients(); renderIngredientsTab(); renderExcludeChips();
-    showToast(backup.name+' gelöscht', ()=>{
-      state.customIngredients.splice(idx,0,backup); saveCustomIngredients(); renderIngredientsTab(); renderExcludeChips();
-    });
-  }));
+
+  zeichneArtAuswahl();
 }
-Array.prototype.forEach.call(document.querySelectorAll('#ingSortRow .filter-pill'), b=>b.addEventListener('click', e=>{
-  ingredientSortMode = e.currentTarget.dataset.mode;
-  Array.prototype.forEach.call(document.querySelectorAll('#ingSortRow .filter-pill'), x=>x.classList.toggle('active', x===e.currentTarget));
-  renderIngredientsTab();
-}));
-async function addCustomIngredient(){
-  const nameEl = document.getElementById('ciName');
-  const name = nameEl.value.trim();
-  if(!name){ nameEl.focus(); return; }
-  const k = normKey(name);
-  const existiertSchon = state.recipes.some(r=>(r.ingredients||[]).some(i=>normKey(i.name)===k))
-    || (state.customIngredients||[]).some(c=>normKey(c.name)===k);
-  if(existiertSchon){
-    setStatus('„'+name+'“ gibt es schon.'); setTimeout(()=>setStatus(''),2500);
-    nameEl.value=''; nameEl.focus(); return;
+
+/* Klebende Leiste am unteren Rand, solange etwas ausgewählt ist */
+function zeichneArtAuswahl(){
+  const leiste = document.getElementById('artAuswahl');
+  const knopf  = document.getElementById('artAufListe');
+  if(!leiste || !knopf) return;
+  if(!artAuswahl.length){ leiste.hidden = true; return; }
+  leiste.hidden = false;
+  knopf.textContent = artAuswahl.length === 1
+    ? '1 Artikel auf die Liste'
+    : artAuswahl.length+' Artikel auf die Liste';
+}
+
+(function(){
+  const feld = document.getElementById('artSearch');
+  if(feld) feld.addEventListener('input', e=>{ artSuche = e.target.value; renderArtikel(); });
+
+  Array.prototype.forEach.call(document.querySelectorAll('#artGruppeRow .filter-pill'), b=>b.addEventListener('click', e=>{
+    artGruppe = e.currentTarget.dataset.gruppe;
+    Array.prototype.forEach.call(document.querySelectorAll('#artGruppeRow .filter-pill'), x=>x.classList.toggle('active', x===e.currentTarget));
+    renderArtikel();
+  }));
+  Array.prototype.forEach.call(document.querySelectorAll('#artHerkunftRow .filter-pill'), b=>b.addEventListener('click', e=>{
+    artHerkunft = e.currentTarget.dataset.herkunft;
+    Array.prototype.forEach.call(document.querySelectorAll('#artHerkunftRow .filter-pill'), x=>x.classList.toggle('active', x===e.currentTarget));
+    renderArtikel();
+  }));
+
+  const weg = document.getElementById('artAuswahlWeg');
+  if(weg) weg.addEventListener('click', ()=>{ artAuswahl = []; renderArtikel(); });
+
+  const auf = document.getElementById('artAufListe');
+  if(auf) auf.addEventListener('click', ()=>{
+    const map = baueArtikelstamm();
+    const namen = artAuswahl.map(k=>map[k] && map[k].name).filter(Boolean);
+    const n = setzeAufListe(namen);
+    artAuswahl = [];
+    renderArtikel();
+    showToast(n === 1 ? '1 Artikel auf der Liste' : n+' Artikel auf der Liste');
+  });
+})();
+
+/* =========================================================================
+   17. Suchfeld in der Einkaufsliste — IA-7 / IA-16
+
+   Tippen schlägt bekannte Artikel vor, Enter setzt drauf. Steht der Begriff in
+   keinem Katalog, wird er ohne Nachfrage als dauerhafter Artikel angelegt und
+   landet zugleich auf der Liste. Der Katalog wächst damit beim Einkaufen mit,
+   ohne dass jemand ihn pflegt.
+   ========================================================================= */
+function renderShopVorschlaege(){
+  const feld = document.getElementById('shopSearch');
+  const box  = document.getElementById('shopVorschlaege');
+  if(!feld || !box) return;
+  const roh = feld.value.trim();
+  const suche = roh.toLowerCase();
+  if(!suche){ box.hidden = true; box.innerHTML = ''; return; }
+
+  const wk = weekKeyOf(currentMonday);
+  const map = baueArtikelstamm();
+  const weeklyKeys = {};
+  buildItems(wk).items.forEach(x=>{ if(x.kind==='recipe') weeklyKeys[x.key]=true; });
+
+  const treffer = Object.keys(map)
+    .filter(k=>map[k].name.toLowerCase().indexOf(suche) >= 0 && !artikelIstAufListe(k, weeklyKeys))
+    .sort((a,b)=>map[a].name.localeCompare(map[b].name,'de'))
+    .slice(0,6);
+  const bekannt = Object.keys(map).some(k=>map[k].name.toLowerCase() === suche);
+
+  let html = treffer.map(k=>{
+    const c = CAT_LABEL[map[k].cat] || CAT_LABEL.sonstiges;
+    return '<button class="vorschlag" type="button" data-name="'+escapeHtml(map[k].name)+'">' +
+      '<span class="v-plus">+</span>' +
+      '<span class="v-name">'+escapeHtml(map[k].name)+'</span>' +
+      '<span class="v-cat">'+c.icon+' '+c.label+'</span>' +
+    '</button>';
+  }).join('');
+  if(!bekannt && roh.length >= 2){
+    html += '<button class="vorschlag neu" type="button" data-name="'+escapeHtml(roh)+'">' +
+      '<span class="v-plus">+</span>' +
+      '<span class="v-name">„'+escapeHtml(roh)+'" auf die Liste' +
+        '<span class="v-sub">wird als Artikel im Katalog angelegt</span>' +
+      '</span>' +
+    '</button>';
   }
-  state.customIngredients.push({name:name});
-  nameEl.value = '';
-  saveCustomIngredients(); renderIngredientsTab(); renderExcludeChips(); nameEl.focus();
+  if(!html){ box.hidden = true; box.innerHTML = ''; return; }
+
+  box.hidden = false;
+  box.innerHTML = html;
+  Array.prototype.forEach.call(box.querySelectorAll('.vorschlag'), b=>b.addEventListener('click', e=>{
+    uebernehmeSuchbegriff(e.currentTarget.dataset.name);
+  }));
 }
-document.getElementById('ciAdd').addEventListener('click', addCustomIngredient);
-document.getElementById('ciName').addEventListener('keydown', e=>{ if(e.key==='Enter') addCustomIngredient(); });
+
+function uebernehmeSuchbegriff(name){
+  const sauber = String(name||'').trim();
+  if(!sauber) return;
+  legeArtikelAn(sauber);
+  const n = setzeAufListe([sauber]);
+  const feld = document.getElementById('shopSearch');
+  if(feld){ feld.value = ''; feld.focus(); }
+  renderShopVorschlaege();
+  showToast(n ? sauber+' steht auf der Liste' : sauber+' steht schon auf der Liste');
+}
+
+(function(){
+  const feld = document.getElementById('shopSearch');
+  if(!feld) return;
+  feld.addEventListener('input', renderShopVorschlaege);
+  feld.addEventListener('keydown', e=>{
+    if(e.key !== 'Enter') return;
+    e.preventDefault();
+    const wert = feld.value.trim();
+    if(wert.length < 2) return;
+    /* Enter nimmt den ersten Vorschlag, sonst den getippten Begriff selbst. */
+    const box = document.getElementById('shopVorschlaege');
+    const erster = box && !box.hidden ? box.querySelector('.vorschlag') : null;
+    uebernehmeSuchbegriff(erster ? erster.dataset.name : wert);
+  });
+})();
 
 /* =========================================================================
    18. Bildschirm an halten — beim Einkaufen und bei offenem Rezept

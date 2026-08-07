@@ -352,33 +352,15 @@
       <button class="unter" data-unter="artikel" type="button">Artikel</button>
     </div>
     <div id="shop" class="unterpanel active">
-      <div class="collapse-section collapsed" id="excludeSectionShop" style="margin-bottom:16px;">
-        <button class="section-head" id="excludeHeadShop" type="button">
-          <span class="chev">▼</span> Immer zuhause <span class="count" id="exCountShop"></span>
-        </button>
-        <div class="section-body">
-          <p class="ex-hint">Schnellzugriff: Zutaten antippen, die ihr immer da habt — sie verschwinden dann aus der Einkaufsliste.</p>
-          <div id="excludeChipsShop" class="chips"></div>
+      <!-- IA-7 / IA-16 — Suchfeld ganz oben. Tippen schlaegt bekannte Artikel vor,
+           Enter setzt drauf. Steht der Begriff in keinem Katalog, wird er ohne
+           Nachfrage als dauerhafter Artikel angelegt. -->
+      <div class="card" style="margin-bottom:16px;">
+        <div class="such-zeile">
+          <input type="search" id="shopSearch" placeholder="🔍 Artikel suchen oder anlegen" autocomplete="off">
         </div>
-      </div>
-
-      <div class="collapse-section collapsed" id="extraSection" style="margin-bottom:16px;">
-        <button class="section-head" id="extraHead" type="button">
-          <span class="chev">▼</span> Eigene Einträge <span class="count" id="extraCount"></span>
-        </button>
-        <div class="section-body">
-          <p class="ex-hint">Alles, was in keinem Rezept steht — Klopapier, Katzenfutter, Spülmaschinentabs. „Jede Woche wieder“ bringt den Eintrag automatisch in jede neue Liste.</p>
-          <div class="extra-form">
-            <input id="exName" placeholder="Was fehlt noch?">
-            <input id="exQty" placeholder="Menge">
-            <button class="btn btn-primary" id="exAdd" type="button">Hinzufügen</button>
-            <p class="feld-fehler" data-fehler-fuer="exName" hidden></p>
-            <div class="row2">
-              <label class="rep"><input type="checkbox" id="exRep"> Jede Woche wieder</label>
-              <span class="ex-hint" style="margin:0;" id="exRepCount"></span>
-            </div>
-          </div>
-        </div>
+        <div id="shopVorschlaege" class="vorschlaege" hidden></div>
+        <p class="ex-hint" style="margin-bottom:0;">Was es noch nicht gibt, wird beim Draufsetzen als Artikel angelegt — beim nächsten Mal steht es als Vorschlag da.</p>
       </div>
 
       <div class="card">
@@ -398,55 +380,45 @@
         <div id="shopEmpty" class="empty" style="display:none;">Für diese Woche ist noch nichts geplant.</div>
       </div>
     </div>
+    <!-- IA-4 bis IA-8, IA-14 — ein Artikelstamm aus drei Quellen: manuell angelegte
+         Artikel, frueher "Haushalt & Drogerie", und die Zutaten aus den Rezepten.
+         Alles ueber normKey zu je einer Zeile zusammengefuehrt. -->
     <div id="artikel" class="unterpanel">
-      <div class="card">
-        <div class="shop-head"><div class="wk">Neue Zutat anlegen</div></div>
-        <p class="ex-hint">Für Dinge, die in keinem Rezept vorkommen, aber trotzdem hier auftauchen sollen — z. B. Getränke.</p>
-        <div class="extra-form" style="grid-template-columns:1fr auto;">
-          <input id="ciName" placeholder="z. B. Mineralwasser">
-          <button class="btn btn-primary" id="ciAdd" type="button">Anlegen</button>
+      <div class="card" style="margin-bottom:16px;">
+        <div class="such-zeile">
+          <input type="search" id="artSearch" placeholder="🔍 Artikel suchen oder anlegen" autocomplete="off">
         </div>
-      </div>
-      <div class="card">
-        <div class="shop-head">
-          <div class="wk">Alle Zutaten <span class="count" id="ingCount"></span></div>
+        <div class="filter-row" id="artGruppeRow" style="margin-top:12px;">
+          <button class="filter-pill active" data-gruppe="food" type="button">Lebensmittel</button>
+          <button class="filter-pill" data-gruppe="nonfood" type="button">Drogerie &amp; Haushalt</button>
         </div>
-        <p class="ex-hint">Jede Zutat aus euren Rezepten mit den Gerichten, in denen sie vorkommt. Schreibweisen wie Zwiebel und Zwiebeln zählen als eine Zutat.</p>
-        <div class="filter-row" id="ingSortRow">
-          <button class="filter-pill active" data-mode="kategorie" type="button">Nach Kategorie</button>
-          <button class="filter-pill" data-mode="alpha" type="button">Alphabetisch</button>
+        <div class="filter-row" id="artHerkunftRow" style="margin-top:8px;">
+          <button class="filter-pill active" data-herkunft="manuell" type="button">Meine Artikel</button>
+          <button class="filter-pill" data-herkunft="alle" type="button">Alle, auch Rezeptzutaten</button>
         </div>
-        <div id="ingredientsList"></div>
-      </div>
-
-      <div class="card">
-        <div class="shop-head"><div class="wk">Neuer Artikel</div></div>
-        <div class="extra-form" style="grid-template-columns:1fr auto;">
-          <input id="hhName" placeholder="z. B. Klopapier, Waschmittel …">
-          <button class="btn btn-primary" id="hhAdd" type="button">Anlegen</button>
-        </div>
-      </div>
-      <div class="card">
-        <div class="shop-head"><div class="wk">Haushalt &amp; Drogerie <span class="count" id="haushaltCount"></span></div></div>
-        <p class="ex-hint">Einmal angelegt, bleibt der Artikel hier. Mit (+) landet er ganz normal in der
-          aktuellen Einkaufsliste — nicht automatisch jede Woche. Was ihr immer da habt, markiert ihr unter
-          „Immer zuhause“.</p>
-        <ul class="hh-list" id="haushaltList"></ul>
+        <div id="artNeu" class="art-neu" hidden></div>
       </div>
 
       <div class="card">
         <div class="shop-head">
-          <div class="wk">Immer zuhause <span class="count" id="exCount"></span></div>
+          <div class="wk">Artikel <span class="count" id="artCount"></span></div>
         </div>
-        <p class="ex-hint">Alle Zutaten aus euren Rezepten auf einen Blick. Tippt an, was ihr ohnehin immer da habt (Salz, Pfeffer, Öl …) — Ausgewähltes taucht dann in keiner Einkaufsliste mehr auf. Nochmal antippen hebt es wieder auf.</p>
-        <div id="excludeChips" class="chips"></div>
+        <p class="ex-hint">Antippen wählt aus, mehrere gehen zusammen auf die Liste. Das (+) setzt einen einzelnen sofort drauf.</p>
+        <div id="artikelListe"></div>
+        <div id="artikelLeer" class="chips-empty" hidden></div>
       </div>
+
       <div class="card">
         <div class="shop-head"><div class="wk">Abteilungen sortieren</div></div>
-        <p class="ex-hint">Reihenfolge, in der die Kategorien in der Einkaufsliste erscheinen — passt sie an euren Supermarkt an.</p>
+        <p class="ex-hint">Reihenfolge, in der die Abteilungen in der Einkaufsliste erscheinen — passt sie an euren Supermarkt an.</p>
         <ul class="cat-order-list" id="catOrderList"></ul>
       </div>
       <div class="storage-note" id="storageNote"></div>
+
+      <div class="art-auswahl" id="artAuswahl" hidden>
+        <button class="btn btn-ghost" id="artAuswahlWeg" type="button">Aufheben</button>
+        <button class="btn btn-primary" id="artAufListe" type="button">Auf die Liste</button>
+      </div>
     </div>
   </section>
 

@@ -273,7 +273,7 @@
   .feld-fehler{ color:var(--loeschen-farbe); font-size:0.8rem; line-height:1.4; margin:5px 0 0; }
   .feld-fehler[hidden]{ display:none; }
   /* Im Raster spannt die Meldung ueber alle Spalten, sonst landet sie in der Nachbarspalte */
-  .extra-form .feld-fehler, .ing-input-row .feld-fehler, .grid2 .feld-fehler, .grid4 .feld-fehler{ grid-column:1 / -1; margin:0; }
+  .ing-input-row .feld-fehler, .grid2 .feld-fehler, .grid4 .feld-fehler{ grid-column:1 / -1; margin:0; }
   textarea{ resize:vertical; min-height:64px; line-height:1.5; padding:12px var(--abstand-l); }
   input[type=checkbox], input[type=radio]{ min-height:0; padding:0; width:auto; }
 
@@ -474,10 +474,6 @@
   .cat-opt:hover{ border-color:var(--messing-aktion); }
   .cat-opt.on{ background:var(--messing-aktion); color:var(--auf-aktion); border-color:var(--messing-aktion); }
 
-  .extra-form{ display:grid; grid-template-columns:1fr 110px auto; gap:8px; margin-top:10px; }
-  .extra-form .row2{ grid-column:1 / -1; display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; }
-  .extra-form label.rep{ display:flex; align-items:center; gap:7px; font-size:0.82rem; color:var(--text-leise); cursor:pointer; }
-  .extra-form input[type=checkbox]{ width:17px; height:17px; accent-color:var(--messing-aktion); }
 
   /* toast */
   .toast{
@@ -499,7 +495,6 @@
     background:var(--flaeche-senke); border:1px solid var(--linie); color:var(--text-haupt); transition:.12s; user-select:none;
   }
   .chip:hover{ border-color:var(--messing-aktion); }
-  .chip.excluded{ background:color-mix(in srgb, var(--messing-aktion) 16%, transparent); border-color:var(--messing-aktion); color:var(--messing-aktion); text-decoration:line-through; }
   .chip.tag-active{ background:var(--messing-aktion); color:var(--auf-aktion); border-color:var(--messing-aktion); }
   .chips-empty{ font-size:0.84rem; color:var(--text-leise); font-style:italic; }
   .tag-filter-row{ display:none; }
@@ -509,28 +504,99 @@
     letter-spacing:.3px; font-family:var(--schrift); font-weight:600;
   }
 
-  /* ingredients overview */
-  .ing-overview{ list-style:none; padding:0; margin:0; }
-  .ing-overview li{ padding:11px 2px; border-bottom:1px solid var(--linie-leise); }
-  .ing-overview .in-name{ font-weight:600; font-size:0.96rem; display:flex; align-items:center; justify-content:space-between; gap:8px; }
-  .ing-overview .in-meta{ font-size:0.74rem; color:var(--text-leise); margin-top:3px; }
+  /* ---------- Artikelstamm (B2 — IA-4 bis IA-8, IA-14) ----------
+     Eine Zeile je Artikel. Die Auswahlflaeche ist der ganze linke Teil, damit
+     Mehrfachauswahl mit halber Aufmerksamkeit im Supermarkt funktioniert. */
+  .art-liste{ list-style:none; padding:0; margin:0; }
+  .art-row{
+    display:grid; grid-template-columns:1fr auto; align-items:center;
+    column-gap:var(--abstand-s); padding:4px 2px 9px;
+    border-bottom:1px solid var(--linie-leise);
+  }
+  .art-row.gewaehlt{ background:var(--messing-flaeche); border-radius:var(--radius-s); }
+  .art-pick{
+    display:flex; align-items:center; gap:10px; min-width:0; min-height:var(--hoehe-control);
+    background:none; border:none; padding:0; margin:0; font:inherit; color:inherit;
+    text-align:left; cursor:pointer;
+  }
+  .art-box{
+    flex:none; width:22px; height:22px; border-radius:6px; border:2px solid var(--linie);
+    display:grid; place-items:center; font-size:0.7rem; line-height:1; color:transparent;
+    transition:background .12s ease, border-color .12s ease;
+  }
+  .art-row.gewaehlt .art-box{ background:var(--messing-aktion); border-color:var(--messing-aktion); color:var(--auf-aktion); }
+  .art-body{ min-width:0; display:block; }
+  .art-name{ display:block; font-weight:600; font-size:0.96rem; color:var(--text-haupt); }
+  .art-meta{ display:block; font-size:0.74rem; color:var(--text-leise); margin-top:2px; }
+  .art-tools{ display:flex; gap:6px; align-items:center; }
+  .art-fuss{ grid-column:1 / -1; margin:2px 0 0 32px; display:flex; flex-wrap:wrap; gap:4px 10px; align-items:center; }
+  .art-zuhause{
+    background:none; border:none; padding:0; margin:0; font:inherit; font-size:0.74rem;
+    color:var(--text-leise); cursor:pointer; text-decoration:underline dotted;
+  }
+  .art-zuhause:hover{ color:var(--messing-aktion); }
+  .art-zuhause.an{ color:var(--erledigt-farbe); text-decoration:none; font-weight:600; }
+  .art-row .in-recipes{ grid-column:1 / -1; margin:6px 0 0 32px; display:flex; flex-wrap:wrap; gap:6px; }
+  .art-row .in-tag{
+    font-size:0.72rem; padding:3px 9px; border-radius:999px;
+    background:var(--flaeche-senke); border:1px solid var(--linie); color:var(--text-leise);
+  }
+  .art-row .ci-del{
+    flex:none; width:28px; height:28px; border-radius:8px; border:1px solid var(--linie);
+    background:var(--flaeche-senke); color:var(--loeschen-farbe); cursor:pointer; font-size:0.85rem;
+  }
+  .art-row .ci-del:hover{ background:var(--loeschen-farbe); color:var(--auf-loeschen); border-color:var(--loeschen-farbe); }
+
   .market-tag-btn{ background:none; border:none; padding:0; margin:0; font:inherit; font-size:0.74rem; color:var(--text-leise); cursor:pointer; text-decoration:underline dotted; }
   .market-tag-btn:hover{ color:var(--messing-aktion); }
   .market-summary{ font-size:0.86rem; color:var(--text-leise); margin:0 0 12px; padding:8px 10px; background:var(--flaeche-senke); border-radius:var(--radius-s); }
   .market-summary strong{ color:var(--text-haupt); }
   .market-badge{ font-size:0.68rem; padding:2px 7px; border-radius:999px; background:var(--flaeche-senke); border:1px solid var(--linie); color:var(--text-leise); margin-left:6px; }
-  .ing-overview .in-recipes{ margin-top:6px; display:flex; flex-wrap:wrap; gap:6px; }
-  .ing-overview .in-tag{
-    font-size:0.72rem; padding:3px 9px; border-radius:999px;
-    background:var(--flaeche-senke); border:1px solid var(--linie); color:var(--text-leise);
-  }
-  .ing-overview .ci-del{
-    flex:none; width:28px; height:28px; border-radius:8px; border:1px solid var(--linie);
-    background:var(--flaeche-senke); color:var(--loeschen-farbe); cursor:pointer; font-size:0.85rem;
-  }
-  .ing-overview .ci-del:hover{ background:var(--loeschen-farbe); color:var(--auf-loeschen); border-color:var(--loeschen-farbe); }
 
-  /* ---------- Filter-Pillen (Zutaten-Tab) ---------- */
+  /* Klebende Leiste: erscheint nur, solange etwas ausgewaehlt ist (IA-8) */
+  .art-auswahl{
+    position:sticky; bottom:calc(var(--abstand-m) + env(safe-area-inset-bottom, 0px)); z-index:5;
+    display:flex; gap:var(--abstand-s); padding:var(--abstand-s);
+    background:var(--flaeche-karte); border:1px solid var(--linie); border-radius:var(--radius-m);
+    box-shadow:0 6px 20px rgba(0,0,0,.16); margin-top:var(--abstand-m);
+  }
+  .art-auswahl[hidden]{ display:none; }
+  .art-auswahl .btn{ flex:1; }
+  .art-auswahl .btn-ghost{ flex:0 0 auto; }
+
+  /* ---------- Suchfeld und Vorschlaege (IA-7 / IA-16) ---------- */
+  .such-zeile input[type=search]{ width:100%; }
+  .vorschlaege{ margin-top:10px; border:1px solid var(--linie); border-radius:var(--radius-s); overflow:hidden; }
+  .vorschlaege[hidden]{ display:none; }
+  .vorschlag{
+    display:flex; align-items:center; gap:10px; width:100%; min-height:var(--hoehe-control);
+    padding:6px var(--abstand-m); background:var(--flaeche-karte); border:none;
+    border-bottom:1px solid var(--linie-leise); font:inherit; text-align:left; cursor:pointer; color:var(--text-haupt);
+  }
+  .vorschlag:last-child{ border-bottom:none; }
+  .vorschlag:hover{ background:var(--flaeche-senke); }
+  .vorschlag .v-plus{ flex:none; color:var(--messing-aktion); font-weight:700; }
+  .vorschlag .v-name{ flex:1; min-width:0; font-size:0.94rem; }
+  .vorschlag .v-sub{ display:block; font-size:0.74rem; color:var(--text-leise); }
+  .vorschlag .v-cat{ flex:none; font-size:0.74rem; color:var(--text-leise); }
+  .art-neu{ margin-top:10px; }
+  .art-neu[hidden]{ display:none; }
+  .art-neu-btn{
+    width:100%; min-height:var(--hoehe-control); padding:0 var(--abstand-m);
+    border:1px dashed var(--messing-aktion); border-radius:var(--radius-s);
+    background:var(--messing-flaeche); color:var(--auf-messing-flaeche);
+    font:inherit; font-size:0.9rem; font-weight:600; cursor:pointer;
+  }
+
+  /* „Jede Woche wieder" an der Listenzeile — loest das fruehere Formular ab */
+  .rep-btn{
+    flex:none; width:28px; height:28px; border-radius:8px; border:1px solid var(--linie);
+    background:var(--flaeche-senke); color:var(--text-leise); cursor:pointer; font-size:0.9rem; line-height:1;
+  }
+  .rep-btn:hover{ color:var(--messing-aktion); border-color:var(--messing-aktion); }
+  .rep-btn.an{ background:var(--messing-flaeche); color:var(--auf-messing-flaeche); border-color:var(--messing-aktion); }
+
+  /* ---------- Filter-Pillen ---------- */
   .filter-row{ display:flex; gap:8px; margin:4px 0 14px; flex-wrap:wrap; }
   .filter-pill{ font-size:14px; font-weight:500; min-height:var(--hoehe-chip); padding:0 var(--abstand-m); border-radius:var(--radius-rund); border:1px solid var(--linie); display:inline-flex; align-items:center; justify-content:center; background:var(--flaeche-senke); color:var(--text-leise); cursor:pointer; }
   .filter-pill:hover{ color:var(--text-haupt); border-color:var(--messing-aktion); }
@@ -564,11 +630,11 @@
      wird per Pseudoelement auf 44px Hoehe gezogen. In der Breite nur bis in
      den Zwischenraum hinein, sonst wuerden nebeneinanderliegende Knoepfe
      einander die Beruehrung stehlen. */
-  .del-item, .ing-overview .ci-del, .hh-row .hh-del, .hh-row .hh-add-list,
+  .del-item, .art-row .ci-del, .art-row .hh-add-list, .rep-btn,
   .ing-input-row .x, .cat-order-row .col-arrows button, .fav-star, .stepper button, .qty-btn{
     position:relative;
   }
-  .del-item::after, .ing-overview .ci-del::after, .hh-row .hh-del::after, .hh-row .hh-add-list::after,
+  .del-item::after, .art-row .ci-del::after, .art-row .hh-add-list::after, .rep-btn::after,
   .ing-input-row .x::after, .cat-order-row .col-arrows button::after, .fav-star::after, .stepper button::after, .qty-btn::after{
     content:''; position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
     width:calc(100% + var(--abstand-s)); min-width:100%; height:var(--hoehe-control);
@@ -623,19 +689,18 @@
   .ssr-item:hover{ border-color:var(--messing-aktion); }
   .ssr-item .ssr-tags{ display:flex; gap:4px; flex-wrap:wrap; }
 
-  /* ---------- Haushalt & Drogerie ---------- */
-  .hh-list{ list-style:none; margin:12px 0 0; padding:0; }
-  .hh-row{ display:flex; align-items:center; gap:8px; padding:9px 2px; border-bottom:1px solid var(--linie-leise); }
-  .hh-row:last-child{ border-bottom:none; }
-  .hh-row.excluded{ opacity:.6; }
-  .hh-row .hh-name{ flex:1; font-size:0.92rem; }
-  .hh-row .hh-add-list, .hh-row .hh-del{ flex:none; width:30px; height:30px; border-radius:8px; border:1px solid var(--linie); background:var(--flaeche-senke); color:var(--text-haupt); cursor:pointer; font-size:0.95rem; }
-  .hh-row .hh-add-list{ color:var(--messing-aktion); border-color:color-mix(in srgb, var(--messing-aktion) 40%, transparent); }
-  .hh-row .hh-add-list:hover:not(:disabled){ background:var(--messing-aktion); color:var(--auf-aktion); border-color:var(--messing-aktion); }
-  .hh-row .hh-add-list:disabled{ opacity:.4; cursor:default; }
-  .hh-row .hh-del{ color:var(--loeschen-farbe); }
-  .hh-row .hh-del:hover{ background:var(--loeschen-farbe); color:var(--auf-loeschen); border-color:var(--loeschen-farbe); }
   .hh-empty{ font-size:0.84rem; color:var(--text-leise); font-style:italic; padding:6px 2px; }
+
+  /* (+) an der Artikelzeile — setzt einen einzelnen Artikel sofort auf die Liste.
+     Trat frueher unter "Haushalt & Drogerie" auf, gilt jetzt fuer den ganzen
+     Artikelstamm; die Klasse ist die alte geblieben. */
+  .art-row .hh-add-list{
+    flex:none; width:30px; height:30px; border-radius:8px; cursor:pointer; font-size:0.95rem;
+    background:var(--flaeche-senke); color:var(--messing-aktion);
+    border:1px solid color-mix(in srgb, var(--messing-aktion) 40%, transparent);
+  }
+  .art-row .hh-add-list:hover:not(:disabled){ background:var(--messing-aktion); color:var(--auf-aktion); border-color:var(--messing-aktion); }
+  .art-row .hh-add-list:disabled{ opacity:.4; cursor:default; }
 
   .nutri-day-row{ display:flex; align-items:center; justify-content:space-between; padding:10px 2px; border-bottom:1px solid var(--linie-leise); flex-wrap:wrap; gap:6px; }
   .nutri-day-row:last-child{ border-bottom:none; }
