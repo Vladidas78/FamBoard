@@ -465,8 +465,9 @@ function emptyState(){
     catOverrides: {},  // { normKey: catId }
     marketOverrides: {}, // { normKey: "Rewe" } — welcher Laden für diese Zutat
     extras: [],        // { id, name, qty, cat, recurring, doneWk, from }
-    haushalt: [],              // { id, name, cat, market } — Katalog Haushalt & Drogerie, unabhängig von Rezepten
-    customIngredients: []      // { name } — manuell angelegte "Zutaten" ohne Rezeptbezug
+    haushalt: [],              // { id, name, cat, market } — Alt-Katalog, seit T-9 nur noch Sicherung
+    customIngredients: [],     // { name } — Artikelstamm: selbst angelegte Artikel
+    notizen: {}                // { listeId: { name, angelegt, eintraege: { id: {text, angelegt, erledigt?, faellig?} } } }
   };
 }
 let state = emptyState();
@@ -838,6 +839,7 @@ function fromRemote(d){
   s.extras   = (d.extras   || []).filter(Boolean);
   s.haushalt = (d.haushalt || []).filter(Boolean);
   s.customIngredients = (d.customIngredients || []).filter(Boolean);
+  s.notizen  = d.notizen || {};
   Object.keys(d.catOverrides || {}).forEach(k=>{ s.catOverrides[decKey(k)] = d.catOverrides[k]; });
   Object.keys(d.marketOverrides || {}).forEach(k=>{ s.marketOverrides[decKey(k)] = d.marketOverrides[k]; });
   Object.keys(d.weeks || {}).forEach(wk=>{
@@ -1053,6 +1055,8 @@ function renderAll(){
   renderWeekNav(); renderMealConfig(); renderDayTrack();
   renderRecipeList(); renderShop(); renderCatOrder();
   renderNutritionReport(); refreshIngNameDatalist();
+  /* Zusatzansichten abgeschirmt: keine von ihnen darf die Kernbereiche mitreissen (Kapitel 2.6, Regel 2) */
+  try{ renderNotizen(); }catch(e){ console.warn('Notizen konnten nicht gezeichnet werden:', e); }
 }
 
 /* =========================================================================
@@ -3098,7 +3102,394 @@ function uebernehmeSuchbegriff(name){
 })();
 
 /* =========================================================================
-   18. Bildschirm an halten — beim Einkaufen und bei offenem Rezept
+   18. Notizen (B3) — frei aufbaubare Listen, jeder Eintrag abhakbar
+
+   K-7  Zuständigkeit und Fälligkeit sind ein Angebot, keine Pflicht
+   K-8  Eigener Hauptbereich, kein Unterpunkt
+   B4   Zuständigkeit fehlt hier bewusst — sie braucht Personenobjekte.
+        Ein Freitextfeld jetzt hieße, es später auf Personen abzubilden;
+        genau die Migration, die wir uns bei T-9 gerade geleistet haben.
+
+   Datenform:
+     data/notizen/<listeId> = { name, angelegt, eintraege: { <id>: {…} } }
+     Eintrag = { text, angelegt, erledigt?: true, faellig?: 'JJJJ-MM-TT' }
+
+   `eintraege` ist ein Objekt, kein Feld: So schreibt ein Haken genau
+   `…/eintraege/<id>/erledigt` und nicht die ganze Liste (T-6). `erledigt`
+   und `faellig` werden nur geschrieben, wenn sie zutreffen — `null` räumt
+   den Schlüssel weg, statt `false` abzulegen.
+   ========================================================================= */
+
+const saveNotizListe   = (lid, wert)      => put('data/notizen/'+lid, wert);
+const saveNotizName    = (lid, name)      => put('data/notizen/'+lid+'/name', name);
+const saveNotizEintrag = (lid, eid, wert) => put('data/notizen/'+lid+'/eintraege/'+eid, wert);
+const saveNotizFeld    = (lid, eid, feld, wert) => put('data/notizen/'+lid+'/eintraege/'+eid+'/'+feld, wert);
+
+function neueId(prefix){ return prefix + Date.now() + Math.random().toString(36).slice(2,5); }
+
+/* Ansichtszustand nach IA-11: bleibt innerhalb der Sitzung erhalten. */
+let offeneNotizListe = null;
+
+function notizListen(){
+  const n = state.notizen || {};
+  return Object.keys(n)
+    .map(id=>Object.assign({id:id}, n[id]))
+    .sort((a,b)=>(a.angelegt||0) - (b.angelegt||0));
+}
+function notizEintraege(liste){
+  const e = (liste && liste.eintraege) || {};
+  return Object.keys(e)
+    .map(id=>Object.assign({id:id}, e[id]))
+    .sort((a,b)=>(a.angelegt||0) - (b.angelegt||0));
+}
+function notizZaehlung(liste){
+  const alle = notizEintraege(liste);
+  const offen = alle.filter(e=>!e.erledigt).length;
+  return {gesamt: alle.length, offen: offen, erledigt: alle.length - offen};
+}
+
+/* ---------- Fälligkeit ---------- */
+function heuteIso(){
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+/* Kurzform für die Zeile. „Heute" und „Morgen" statt eines Datums, weil man
+   beim Überfliegen keine Kalenderrechnung machen will. */
+function faelligText(iso){
+  if(!iso) return '';
+  const heute = heuteIso();
+  if(iso === heute) return 'heute';
+  const d = new Date(iso + 'T00:00:00');
+  if(isNaN(d)) return iso;
+  const morgen = new Date(); morgen.setDate(morgen.getDate()+1);
+  const morgenIso = morgen.getFullYear() + '-' + String(morgen.getMonth()+1).padStart(2,'0') + '-' + String(morgen.getDate()).padStart(2,'0');
+  if(iso === morgenIso) return 'morgen';
+  if(iso < heute) return 'überfällig · ' + fmtDate(d);
+  return fmtDate(d);
+}
+
+/* ---------- Übersicht ---------- */
+function renderNotizUebersicht(){
+  const box = document.getElementById('notizListen');
+  if(!box) return;
+  const leer = document.getElementById('notizLeer');
+  const lage = document.getElementById('notizLage');
+  const listen = notizListen();
+
+  const offenGesamt = listen.reduce((n,l)=>n + notizZaehlung(l).offen, 0);
+  if(lage){
+    lage.textContent = listen.length
+      ? listen.length + (listen.length === 1 ? ' Liste · ' : ' Listen · ') + offenGesamt + ' offen'
+      : 'Noch nichts angelegt';
+  }
+
+  if(!listen.length){
+    box.innerHTML = '';
+    if(leer){
+      leer.hidden = false;
+      leer.textContent = 'Noch keine Liste. Was der Haushalt aufschreiben will, entscheidet er selbst.';
+    }
+    return;
+  }
+  if(leer){ leer.hidden = true; leer.textContent = ''; }
+
+  box.innerHTML = listen.map(l=>{
+    const z = notizZaehlung(l);
+    const anteil = z.gesamt ? Math.round((z.erledigt / z.gesamt) * 100) : 0;
+    return '<div class="karte notiz-karte">' +
+      '<button class="notiz-karte-btn" type="button" data-id="'+escapeHtml(l.id)+'">' +
+        '<span class="nk-zeile">' +
+          '<span class="nk-text">' +
+            '<span class="nk-name">'+escapeHtml(l.name || 'Ohne Namen')+'</span>' +
+            '<span class="nk-zahl zahl">'+z.offen+' von '+z.gesamt+' offen</span>' +
+          '</span>' +
+          '<span class="nk-pfeil">›</span>' +
+        '</span>' +
+        '<span class="nk-balken"><span class="nk-balken-fuell" style="width:'+anteil+'%"></span></span>' +
+      '</button>' +
+    '</div>';
+  }).join('');
+
+  Array.prototype.forEach.call(box.querySelectorAll('.notiz-karte-btn'), b=>b.addEventListener('click', e=>{
+    offeneNotizListe = e.currentTarget.dataset.id;
+    renderNotizen();
+  }));
+}
+
+/* ---------- Geöffnete Liste ---------- */
+function renderNotizDetail(){
+  const box = document.getElementById('notizEintraege');
+  if(!box) return;
+  const listen = notizListen();
+  const liste = listen.filter(l=>l.id === offeneNotizListe)[0];
+  if(!liste){ offeneNotizListe = null; return; }
+
+  const titel = document.getElementById('notizDetailTitel');
+  const lage  = document.getElementById('notizDetailLage');
+  const z = notizZaehlung(liste);
+  if(titel) titel.textContent = liste.name || 'Ohne Namen';
+  if(lage)  lage.textContent  = z.offen + ' von ' + z.gesamt + ' offen';
+
+  const alle = notizEintraege(liste);
+  const offen = alle.filter(e=>!e.erledigt);
+  const erledigt = alle.filter(e=>e.erledigt);
+
+  /* Die Fälligkeit sitzt als Textknopf in der Fußzeile der Zeile — dieselbe
+     Bauform wie „Laden zuordnen" im Artikelstamm. Ein Symbolknopf daneben wäre
+     ein drittes Ziel in einer Reihe, die schon Haken und Papierkorb hat. */
+  const zeile = (e, istErledigt) => {
+    const zustand = !e.faellig ? '' : (e.faellig < heuteIso() ? ' ueberfaellig' : (e.faellig === heuteIso() ? ' heute' : ''));
+    return '<li class="notiz-zeile'+(istErledigt?' erledigt':'')+'" data-id="'+escapeHtml(e.id)+'">' +
+      '<div class="nz-oben">' +
+        '<button class="haken'+(istErledigt?' an':'')+'" type="button" role="checkbox" aria-checked="'+(istErledigt?'true':'false')+'" aria-label="'+escapeHtml(e.text)+(istErledigt?' zurücksetzen':' erledigen')+'">✓</button>' +
+        '<div class="nz-text">' +
+          '<span class="nz-titel">'+escapeHtml(e.text)+'</span>' +
+          (istErledigt ? '' :
+            '<span class="nz-fuss">' +
+              '<button class="nz-datum'+zustand+'" type="button">'+(e.faellig ? escapeHtml(faelligText(e.faellig)) : 'Fällig zuordnen')+'</button>' +
+            '</span>') +
+        '</div>' +
+        '<button class="nz-weg" type="button" aria-label="'+escapeHtml(e.text)+' löschen">🗑</button>' +
+      '</div>' +
+      (istErledigt ? '' :
+        '<div class="nz-datum-feld">' +
+          '<input type="date" class="nz-datum-input" value="'+escapeHtml(e.faellig||'')+'" aria-label="Fällig am">' +
+          '<button class="nz-datum-weg" type="button">Ohne Datum</button>' +
+        '</div>') +
+    '</li>';
+  };
+
+  let html = '';
+  if(!alle.length){
+    html = '<p class="notiz-leer">Diese Liste ist leer. Der erste Eintrag steht dir frei.</p>';
+  } else {
+    if(offen.length){
+      html += '<div class="notiz-block"><div class="notiz-kopf">Offen <span class="zahl">'+offen.length+'</span></div>' +
+        '<div class="karte"><ul class="notiz-liste">'+offen.map(e=>zeile(e,false)).join('')+'</ul></div></div>';
+    }
+    if(erledigt.length){
+      html += '<div class="notiz-block"><div class="notiz-kopf">Erledigt <span class="zahl">'+erledigt.length+'</span>' +
+        '<button class="notiz-erledigte-weg" type="button">Erledigte leeren</button></div>' +
+        '<div class="karte"><ul class="notiz-liste">'+erledigt.map(e=>zeile(e,true)).join('')+'</ul></div></div>';
+    }
+  }
+  box.innerHTML = html;
+
+  const lid = liste.id;
+
+  Array.prototype.forEach.call(box.querySelectorAll('.haken'), b=>b.addEventListener('click', e=>{
+    const eid = e.currentTarget.closest('.notiz-zeile').dataset.id;
+    const eintrag = (liste.eintraege||{})[eid];
+    if(!eintrag) return;
+    const neu = !eintrag.erledigt;
+    eintrag.erledigt = neu ? true : undefined;
+    if(!neu) delete eintrag.erledigt;
+    saveNotizFeld(lid, eid, 'erledigt', neu ? true : null);
+    renderNotizen();
+  }));
+
+  Array.prototype.forEach.call(box.querySelectorAll('.nz-weg'), b=>b.addEventListener('click', e=>{
+    const eid = e.currentTarget.closest('.notiz-zeile').dataset.id;
+    const sicherung = (liste.eintraege||{})[eid];
+    if(!sicherung) return;
+    delete liste.eintraege[eid];
+    saveNotizEintrag(lid, eid, null);
+    renderNotizen();
+    showToast(sicherung.text + ' gelöscht', ()=>{
+      state.notizen[lid].eintraege = state.notizen[lid].eintraege || {};
+      state.notizen[lid].eintraege[eid] = sicherung;
+      saveNotizEintrag(lid, eid, sicherung);
+      renderNotizen();
+    });
+  }));
+
+  /* Fälligkeit: das Feld klappt an der Zeile auf, wie der Abteilungswähler
+     in der Einkaufsliste. Ein Datumsfeld ist auf dem Telefon der einzige
+     Weg, der sich nicht wie Tippen anfühlt. */
+  Array.prototype.forEach.call(box.querySelectorAll('.nz-datum'), b=>b.addEventListener('click', e=>{
+    const li = e.currentTarget.closest('.notiz-zeile');
+    Array.prototype.forEach.call(box.querySelectorAll('.notiz-zeile.datum-offen'), o=>{ if(o!==li) o.classList.remove('datum-offen'); });
+    li.classList.toggle('datum-offen');
+    if(li.classList.contains('datum-offen')){
+      const feld = li.querySelector('.nz-datum-input');
+      if(feld) feld.focus();
+    }
+  }));
+  Array.prototype.forEach.call(box.querySelectorAll('.nz-datum-input'), inp=>inp.addEventListener('change', e=>{
+    const eid = e.currentTarget.closest('.notiz-zeile').dataset.id;
+    const eintrag = (liste.eintraege||{})[eid];
+    if(!eintrag) return;
+    const wert = e.currentTarget.value || '';
+    if(wert) eintrag.faellig = wert; else delete eintrag.faellig;
+    saveNotizFeld(lid, eid, 'faellig', wert || null);
+    renderNotizen();
+  }));
+  Array.prototype.forEach.call(box.querySelectorAll('.nz-datum-weg'), b=>b.addEventListener('click', e=>{
+    const eid = e.currentTarget.closest('.notiz-zeile').dataset.id;
+    const eintrag = (liste.eintraege||{})[eid];
+    if(!eintrag) return;
+    delete eintrag.faellig;
+    saveNotizFeld(lid, eid, 'faellig', null);
+    renderNotizen();
+  }));
+
+  const weg = box.querySelector('.notiz-erledigte-weg');
+  if(weg) weg.addEventListener('click', ()=>{
+    const sicherung = {};
+    erledigt.forEach(e=>{ sicherung[e.id] = (liste.eintraege||{})[e.id]; delete liste.eintraege[e.id]; });
+    Object.keys(sicherung).forEach(eid=>saveNotizEintrag(lid, eid, null));
+    renderNotizen();
+    showToast(erledigt.length + ' Erledigte gelöscht', ()=>{
+      state.notizen[lid].eintraege = state.notizen[lid].eintraege || {};
+      Object.keys(sicherung).forEach(eid=>{
+        state.notizen[lid].eintraege[eid] = sicherung[eid];
+        saveNotizEintrag(lid, eid, sicherung[eid]);
+      });
+      renderNotizen();
+    });
+  });
+}
+
+function renderNotizen(){
+  const uebersicht = document.getElementById('notizUebersicht');
+  const detail = document.getElementById('notizDetail');
+  if(!uebersicht || !detail) return;
+  const gibtEs = offeneNotizListe && (state.notizen || {})[offeneNotizListe];
+  if(!gibtEs) offeneNotizListe = null;
+  uebersicht.hidden = !!offeneNotizListe;
+  detail.hidden = !offeneNotizListe;
+  if(offeneNotizListe) renderNotizDetail(); else renderNotizUebersicht();
+  /* Heute liest aus denselben Daten — abgeschirmt wie überall sonst. */
+  try{ renderHeuteAufgaben(); }catch(e){ console.warn('Aufgaben auf Heute:', e); }
+}
+
+/* ---------- Anlegen, umbenennen, löschen ---------- */
+function legeNotizListeAn(){
+  const name = prompt('Wie soll die Liste heißen?', '');
+  if(name === null) return;
+  const sauber = name.trim();
+  if(!sauber) return;
+  const id = neueId('n');
+  const liste = {name: sauber, angelegt: Date.now(), eintraege: {}};
+  state.notizen = state.notizen || {};
+  state.notizen[id] = liste;
+  saveNotizListe(id, {name: sauber, angelegt: liste.angelegt});
+  offeneNotizListe = id;
+  renderNotizen();
+}
+
+function legeNotizEintragAn(){
+  const feld = document.getElementById('notizEintragText');
+  if(!feld || !offeneNotizListe) return;
+  const text = feld.value.trim();
+  if(!text){ feldFehler(feld, 'Ohne Text kann der Eintrag nicht angelegt werden.'); return; }
+  const liste = (state.notizen || {})[offeneNotizListe];
+  if(!liste) return;
+  const eid = neueId('p');
+  const eintrag = {text: text, angelegt: Date.now()};
+  liste.eintraege = liste.eintraege || {};
+  liste.eintraege[eid] = eintrag;
+  saveNotizEintrag(offeneNotizListe, eid, eintrag);
+  feld.value = '';
+  renderNotizen();
+  feld.focus();
+}
+
+(function(){
+  const neu = document.getElementById('notizListeNeu');
+  if(neu) neu.addEventListener('click', legeNotizListeAn);
+
+  const zurueck = document.getElementById('notizZurueck');
+  if(zurueck) zurueck.addEventListener('click', ()=>{ offeneNotizListe = null; renderNotizen(); });
+
+  const feld = document.getElementById('notizEintragText');
+  if(feld) feld.addEventListener('keydown', e=>{ if(e.key === 'Enter'){ e.preventDefault(); legeNotizEintragAn(); } });
+
+  const um = document.getElementById('notizListeUmbenennen');
+  if(um) um.addEventListener('click', ()=>{
+    const liste = (state.notizen || {})[offeneNotizListe];
+    if(!liste) return;
+    const name = prompt('Neuer Name der Liste:', liste.name || '');
+    if(name === null) return;
+    const sauber = name.trim();
+    if(!sauber) return;
+    liste.name = sauber;
+    saveNotizName(offeneNotizListe, sauber);
+    renderNotizen();
+  });
+
+  const weg = document.getElementById('notizListeLoeschen');
+  if(weg) weg.addEventListener('click', ()=>{
+    const lid = offeneNotizListe;
+    const liste = (state.notizen || {})[lid];
+    if(!liste) return;
+    const z = notizZaehlung(liste);
+    if(z.gesamt && !confirm('Liste „'+(liste.name||'')+'" mit '+z.gesamt+' Einträgen löschen?')) return;
+    const sicherung = JSON.parse(JSON.stringify(liste));
+    delete state.notizen[lid];
+    saveNotizListe(lid, null);
+    offeneNotizListe = null;
+    renderNotizen();
+    showToast('Liste „'+(sicherung.name||'')+'" gelöscht', ()=>{
+      state.notizen[lid] = sicherung;
+      saveNotizListe(lid, sicherung);
+      renderNotizen();
+    });
+  });
+})();
+
+/* ---------- Aufgaben auf Heute ----------
+   Nur was heute fällig oder überfällig ist. Ohne Fälligkeit erscheint ein
+   Eintrag hier gar nicht — damit ist das Datum ein Angebot mit spürbarem
+   Nutzen statt eines Feldes, das man ausfüllt, weil es da ist. Ist nichts
+   fällig, bleibt die Karte leer; das ist nach Kapitel 3.2 eine Auskunft. */
+function renderHeuteAufgaben(){
+  const el = document.getElementById('heuteAufgaben');
+  if(!el) return;
+  const heute = heuteIso();
+  const faellig = [];
+  notizListen().forEach(l=>{
+    notizEintraege(l).forEach(e=>{
+      if(e.erledigt || !e.faellig) return;
+      if(e.faellig <= heute) faellig.push({liste:l, eintrag:e});
+    });
+  });
+  if(!faellig.length){
+    el.innerHTML = (state.notizen && Object.keys(state.notizen).length)
+      ? '<p class="ex-hint">Heute ist nichts fällig.</p>'
+      : '<p class="ex-hint">Sobald es Notizen mit Fälligkeit gibt, stehen hier die fälligen Aufgaben.</p>';
+    return;
+  }
+  faellig.sort((a,b)=>(a.eintrag.faellig||'').localeCompare(b.eintrag.faellig||''));
+  el.innerHTML = '<ul class="notiz-liste heute-aufgaben">' + faellig.map(f=>
+    '<li class="notiz-zeile" data-liste="'+escapeHtml(f.liste.id)+'" data-id="'+escapeHtml(f.eintrag.id)+'">' +
+      '<div class="nz-oben">' +
+        '<button class="haken" type="button" role="checkbox" aria-checked="false" aria-label="'+escapeHtml(f.eintrag.text)+' erledigen">✓</button>' +
+        '<div class="nz-text">' +
+          '<span class="nz-titel">'+escapeHtml(f.eintrag.text)+'</span>' +
+          '<span class="nz-fuss"><span class="nz-marke'+(f.eintrag.faellig < heute ? ' ueberfaellig' : ' heute')+'">'+escapeHtml(f.liste.name||'')+' · '+escapeHtml(faelligText(f.eintrag.faellig))+'</span></span>' +
+        '</div>' +
+      '</div>' +
+    '</li>').join('') + '</ul>';
+
+  Array.prototype.forEach.call(el.querySelectorAll('.haken'), b=>b.addEventListener('click', e=>{
+    const li = e.currentTarget.closest('.notiz-zeile');
+    const lid = li.dataset.liste, eid = li.dataset.id;
+    const eintrag = (((state.notizen||{})[lid]||{}).eintraege||{})[eid];
+    if(!eintrag) return;
+    eintrag.erledigt = true;
+    saveNotizFeld(lid, eid, 'erledigt', true);
+    renderNotizen();
+    showToast(eintrag.text + ' erledigt', ()=>{
+      delete eintrag.erledigt;
+      saveNotizFeld(lid, eid, 'erledigt', null);
+      renderNotizen();
+    });
+  }));
+}
+
+/* =========================================================================
+   19. Bildschirm an halten — beim Einkaufen und bei offenem Rezept
    ========================================================================= */
 let wakeLock = null;
 async function requestWakeLock(){
@@ -3127,7 +3518,7 @@ document.addEventListener('visibilitychange', ()=>{
 });
 
 /* =========================================================================
-   19. Navigation, Kopfzeile, Heute
+   20. Navigation, Kopfzeile, Heute
    ========================================================================= */
 
 /* IA-15 - fuenf Bereiche statt acht Reiter, zwei davon mit Unterbereichen.
@@ -3228,6 +3619,9 @@ function renderHeute(){
       ? essenZeilen.join('')
       : '<p class="ex-hint">Fuer heute ist nichts eingeplant.</p>';
   }
+
+  /* Aufgaben — kommt aus den Notizen, eigener Abschnitt weiter unten */
+  try{ renderHeuteAufgaben(); }catch(e){ console.warn('Aufgaben auf Heute:', e); }
 
   /* Einkauf */
   const einkaufEl = document.getElementById('heuteEinkauf');
@@ -3332,7 +3726,7 @@ document.getElementById('joinHhBtn').addEventListener('click', async ()=>{
 });
 
 /* =========================================================================
-   20. Einstellungen: Haushaltsname, eigenes Profil (Name/E-Mail/Passwort)
+   21. Einstellungen: Haushaltsname, eigenes Profil (Name/E-Mail/Passwort)
    ========================================================================= */
 const AUTH_ERR_DE_2 = {
   'auth/requires-recent-login': 'Das geht aus Sicherheitsgründen nur kurz nach dem Anmelden. Einmal ab- und wieder anmelden, dann nochmal versuchen.',

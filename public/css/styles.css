@@ -49,6 +49,8 @@
     --abstand-l:16px; --abstand-xl:24px; --abstand-xxl:32px;
     /* Radien */
     --radius-s:8px; --radius-m:12px; --radius-l:16px; --radius-rund:999px;
+    /* Schatten aus dem Prototyp — eine Karte hebt sich um genau 1 px, nicht mehr */
+    --schatten-karte:0 1px 2px rgb(38 34 32 / 0.04);
     /* Hoehen (D-4: Bedienelemente mindestens 44px) */
     --hoehe-control:44px; --hoehe-chip:36px;
     /* Schrift (MD-19: Systemschrift Oberflaeche, Serife fuer Wortmarke und Figur)
@@ -67,6 +69,7 @@
     --messing-aktion:#D9A94A; --messing-gedrueckt:#B98A28; --messing-marke:#C9A46A;
     --messing-flaeche:#3A2E16; --auf-aktion:#33240A; --auf-messing-flaeche:#E8D4A8;
     --erledigt-farbe:#7FB185; --loeschen-farbe:#E08A6B; --auf-loeschen:#2B1208;
+    --schatten-karte:0 1px 2px rgb(0 0 0 / 0.32);
   }
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;}
@@ -712,6 +715,133 @@
   .nutri-week-avg{ font-size:0.88rem; color:var(--text-leise); }
   .nutri-calc-row{ display:flex; justify-content:flex-end; margin:-6px 0 6px; }
   .nutri-portion-row{ margin-top:6px; font-size:0.82rem; color:var(--text-leise); }
+
+  /* ---------- Notizen (B3) ----------
+     Neu gebaut und deshalb direkt im Zielentwurf aus `Dokumente/Figma`:
+     Lage-Zeile über einer Serifen-Überschrift, Karten mit 16-px-Radius und
+     1-px-Schatten, runder Haken in der Erledigt-Farbe. Die bestehenden
+     Bereiche ziehen in B6 nach — hier gibt es nichts umzubauen. */
+  .seiten-kopf{ display:flex; align-items:flex-end; gap:var(--abstand-m); padding:0 4px var(--abstand-l); }
+  .seiten-kopf .sk-text{ min-width:0; flex:1; }
+  .sk-lage{ margin:0; font-size:12px; font-weight:500; letter-spacing:0.09em; text-transform:uppercase; color:var(--text-leise); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .sk-titel{ margin:6px 0 0; font-family:var(--schrift-headline); font-weight:600; font-size:30px; line-height:1; color:var(--text-haupt); }
+  .detail-kopf{ align-items:center; gap:var(--abstand-s); }
+  .detail-kopf .sk-titel{ font-size:26px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .sk-zurueck{
+    flex:none; width:var(--hoehe-control); height:var(--hoehe-control); margin-left:-10px;
+    border:none; background:none; color:var(--text-leise); font-size:26px; line-height:1; cursor:pointer;
+  }
+  .sk-zurueck:hover{ color:var(--text-haupt); }
+  .sk-werkzeuge{ display:flex; gap:2px; flex:none; }
+  .sk-werkzeug{
+    width:36px; height:36px; border:none; border-radius:var(--radius-s); background:none;
+    color:var(--text-leise); cursor:pointer; font-size:0.95rem;
+  }
+  .sk-werkzeug:hover{ color:var(--text-haupt); background:var(--flaeche-senke); }
+  .sk-werkzeug.loeschen:hover{ color:var(--loeschen-farbe); }
+
+  /* Karte im Zielentwurf — flacher Rand, 1-px-Schatten, 16 px Radius */
+  .karte{
+    background:var(--flaeche-karte); border:1px solid var(--linie-leise);
+    border-radius:var(--radius-l); box-shadow:var(--schatten-karte);
+  }
+
+  .notiz-listen{ display:flex; flex-direction:column; gap:var(--abstand-m); }
+  .notiz-karte{ overflow:hidden; }
+  .notiz-karte-btn{
+    display:block; width:100%; padding:14px var(--abstand-l); border:none; background:none;
+    font:inherit; color:inherit; text-align:left; cursor:pointer;
+  }
+  .notiz-karte-btn:hover{ background:var(--flaeche-senke); }
+  .nk-zeile{ display:flex; align-items:center; gap:var(--abstand-m); }
+  .nk-text{ min-width:0; flex:1; }
+  .nk-name{ display:block; font-family:var(--schrift-headline); font-weight:600; font-size:17px; line-height:1.35; color:var(--text-haupt); }
+  .nk-zahl{ display:block; margin-top:2px; font-size:13px; color:var(--text-leise); }
+  .nk-pfeil{ flex:none; color:var(--text-leise); font-size:20px; line-height:1; }
+  .nk-balken{ display:block; height:4px; margin-top:12px; border-radius:999px; background:var(--flaeche-senke); overflow:hidden; }
+  .nk-balken-fuell{ display:block; height:100%; border-radius:999px; background:var(--erledigt-farbe); transition:width .2s ease; }
+
+  .notiz-neu-karte{ margin-top:var(--abstand-m); overflow:hidden; }
+  .weiter{
+    display:flex; align-items:center; justify-content:space-between; width:100%;
+    height:48px; padding:0 var(--abstand-l); border:none; background:none;
+    font:inherit; font-size:14px; font-weight:500; color:var(--messing-aktion); cursor:pointer;
+  }
+  .weiter:hover{ background:var(--flaeche-senke); }
+  .weiter:active{ background:var(--messing-flaeche); }
+  .weiter-pfeil{ color:var(--text-leise); font-size:20px; line-height:1; }
+
+  .notiz-leer{ font-size:0.9rem; color:var(--text-leise); font-style:italic; padding:var(--abstand-l) 4px; margin:0; }
+
+  .notiz-eingabe{ padding:var(--abstand-m); margin-bottom:var(--abstand-xl); }
+  .notiz-eingabe-zeile{
+    display:flex; align-items:center; gap:var(--abstand-s);
+    height:var(--hoehe-control); padding:0 var(--abstand-m);
+    border:1px solid var(--linie); border-radius:var(--radius-m); background:var(--flaeche-senke);
+  }
+  .ne-plus{ flex:none; color:var(--messing-aktion); font-weight:700; }
+  .notiz-eingabe-zeile input{
+    flex:1; min-width:0; border:none; background:none; padding:0;
+    font:inherit; font-size:15px; color:var(--text-haupt); outline:none;
+  }
+
+  .notiz-block{ margin-bottom:var(--abstand-xl); }
+  .notiz-kopf{
+    display:flex; align-items:center; gap:var(--abstand-s); padding:0 4px 10px;
+    font-family:var(--schrift-headline); font-weight:600; font-size:16px; line-height:1; color:var(--text-haupt);
+  }
+  .notiz-kopf .zahl{ font-family:var(--schrift); font-weight:400; font-size:13px; color:var(--text-leise); }
+  .notiz-erledigte-weg{
+    margin-left:auto; border:none; background:none; padding:0;
+    font:inherit; font-size:13px; font-weight:500; color:var(--text-leise); cursor:pointer;
+  }
+  .notiz-erledigte-weg:hover{ color:var(--loeschen-farbe); }
+
+  .notiz-liste{ list-style:none; margin:0; padding:0; }
+  .notiz-zeile{ border-bottom:1px solid var(--linie-leise); }
+  .notiz-zeile:last-child{ border-bottom:none; }
+  .nz-oben{ display:flex; align-items:flex-start; gap:var(--abstand-m); padding:0 var(--abstand-l); }
+  .haken{
+    flex:none; width:24px; height:24px; margin:10px 0; border-radius:999px;
+    border:2px solid var(--linie); background:none; color:transparent;
+    display:grid; place-items:center; font-size:12px; line-height:1; cursor:pointer;
+    transition:background .12s ease, border-color .12s ease, color .12s ease;
+  }
+  .haken:hover{ border-color:var(--messing-aktion); }
+  .haken.an{ background:var(--erledigt-farbe); border-color:var(--erledigt-farbe); color:var(--flaeche-karte); }
+  .nz-text{ min-width:0; flex:1; padding:8px 0; }
+  .nz-titel{ display:block; font-size:15px; line-height:1.35; color:var(--text-haupt); }
+  .notiz-zeile.erledigt .nz-titel{ color:var(--text-leise); text-decoration:line-through; }
+  .nz-fuss{ display:block; margin-top:2px; }
+  .nz-datum, .nz-marke{
+    background:none; border:none; padding:0; margin:0; font:inherit; font-size:13px;
+    color:var(--text-leise); cursor:pointer; text-decoration:underline dotted;
+  }
+  .nz-marke{ cursor:default; text-decoration:none; }
+  .nz-datum:hover{ color:var(--messing-aktion); }
+  .nz-datum.heute, .nz-marke.heute{ color:var(--messing-aktion); font-weight:600; }
+  .nz-datum.ueberfaellig, .nz-marke.ueberfaellig{ color:var(--loeschen-farbe); font-weight:600; }
+  .nz-weg{
+    flex:none; width:32px; height:32px; margin:6px 0; border:none; border-radius:var(--radius-s);
+    background:none; color:var(--text-leise); cursor:pointer; font-size:0.9rem;
+  }
+  .nz-weg:hover{ color:var(--loeschen-farbe); background:var(--flaeche-senke); }
+  .nz-datum-feld{ display:none; gap:var(--abstand-s); align-items:center; flex-wrap:wrap; padding:0 var(--abstand-l) 12px 52px; }
+  .notiz-zeile.datum-offen .nz-datum-feld{ display:flex; }
+  .nz-datum-input{
+    height:var(--hoehe-control); padding:0 var(--abstand-m);
+    border:1px solid var(--linie); border-radius:var(--radius-s);
+    background:var(--flaeche-feld); color:var(--text-haupt); font:inherit; font-size:15px;
+  }
+  .nz-datum-weg{
+    min-height:var(--hoehe-control); padding:0 var(--abstand-s); border:none; background:none;
+    font:inherit; font-size:13px; font-weight:500; color:var(--text-leise); cursor:pointer;
+  }
+  .nz-datum-weg:hover{ color:var(--loeschen-farbe); }
+
+  /* Auf Heute stehen die faelligen Aufgaben ohne Karte drumherum */
+  .heute-aufgaben .nz-oben{ padding-left:0; padding-right:0; }
+  .heute-aufgaben .notiz-zeile:last-child{ border-bottom:none; }
 
   /* ---------- Login-Gate ---------- */
   body.pre-auth header, body.pre-auth nav, body.pre-auth main{ display:none; }

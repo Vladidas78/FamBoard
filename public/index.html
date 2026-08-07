@@ -127,7 +127,7 @@
 
     <div class="card" id="heuteKarteAufgaben">
       <div class="shop-head"><div class="wk">Aufgaben</div></div>
-      <p class="ex-hint">Sobald es Notizen gibt, stehen hier die fälligen Aufgaben.</p>
+      <div id="heuteAufgaben"></div>
     </div>
   </section>
 
@@ -422,10 +422,49 @@
     </div>
   </section>
 
+  <!-- Notizen (B3) — frei aufbaubare Listen, jeder Eintrag abhakbar (K-7, K-8).
+       Zwei Ansichten in einem Bereich: Uebersicht der Listen und die geoeffnete
+       Liste. Zustaendigkeit fehlt bewusst, sie kommt mit dem Personen-Modell in
+       B4. Neu gebaut, deshalb schon im Zielentwurf statt im alten Bauteilsatz. -->
   <section id="notizen">
-    <div class="card">
-      <div class="shop-head"><div class="wk">Notizen</div></div>
-      <p class="ex-hint">Notizen und To-Dos werden gebaut. Bis dahin bleibt hier Platz.</p>
+    <div id="notizUebersicht">
+      <header class="seiten-kopf">
+        <div class="sk-text">
+          <p class="sk-lage" id="notizLage">Notizen</p>
+          <h1 class="sk-titel">Notizen</h1>
+        </div>
+      </header>
+      <div id="notizListen" class="notiz-listen"></div>
+      <p id="notizLeer" class="notiz-leer" hidden></p>
+      <div class="karte notiz-neu-karte">
+        <button class="weiter" id="notizListeNeu" type="button">
+          <span>Liste anlegen</span><span class="weiter-pfeil">›</span>
+        </button>
+      </div>
+    </div>
+
+    <div id="notizDetail" hidden>
+      <header class="seiten-kopf detail-kopf">
+        <button class="sk-zurueck" id="notizZurueck" type="button" aria-label="Zurück zur Übersicht">‹</button>
+        <div class="sk-text">
+          <p class="sk-lage" id="notizDetailLage">0 von 0 offen</p>
+          <h1 class="sk-titel" id="notizDetailTitel">Liste</h1>
+        </div>
+        <span class="sk-werkzeuge">
+          <button class="sk-werkzeug" id="notizListeUmbenennen" type="button" aria-label="Liste umbenennen">✎</button>
+          <button class="sk-werkzeug loeschen" id="notizListeLoeschen" type="button" aria-label="Liste löschen">🗑</button>
+        </span>
+      </header>
+
+      <div class="karte notiz-eingabe">
+        <div class="notiz-eingabe-zeile">
+          <span class="ne-plus">+</span>
+          <input type="text" id="notizEintragText" placeholder="Eintrag hinzufügen" autocomplete="off">
+        </div>
+        <p class="feld-fehler" data-fehler-fuer="notizEintragText" hidden></p>
+      </div>
+
+      <div id="notizEintraege"></div>
     </div>
   </section>
 
