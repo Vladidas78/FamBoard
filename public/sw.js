@@ -1,7 +1,7 @@
 /* Butley – Service Worker
    Shell wird gecacht, damit die App auch ohne Netz startet.
    Die Daten selbst kommen von Firebase und werden dort nie gecacht. */
-const CACHE = 'butley-v5';
+const CACHE = 'butley-v6';
 const SHELL = [
   './',
   './index.html',

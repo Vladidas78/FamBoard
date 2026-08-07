@@ -467,7 +467,8 @@ function emptyState(){
     extras: [],        // { id, name, qty, cat, recurring, doneWk, from }
     haushalt: [],              // { id, name, cat, market } — Alt-Katalog, seit T-9 nur noch Sicherung
     customIngredients: [],     // { name } — Artikelstamm: selbst angelegte Artikel
-    notizen: {}                // { listeId: { name, angelegt, eintraege: { id: {text, angelegt, erledigt?, faellig?} } } }
+    notizen: {},               // { listeId: { name, angelegt, eintraege: { id: {text, angelegt, erledigt?, faellig?, wer?} } } }
+    personen: {}               // { personId: { name, farbe, angelegt, uid?, geburtstag?, ehemalig? } }
   };
 }
 let state = emptyState();
@@ -840,6 +841,7 @@ function fromRemote(d){
   s.haushalt = (d.haushalt || []).filter(Boolean);
   s.customIngredients = (d.customIngredients || []).filter(Boolean);
   s.notizen  = d.notizen || {};
+  s.personen = d.personen || {};
   Object.keys(d.catOverrides || {}).forEach(k=>{ s.catOverrides[decKey(k)] = d.catOverrides[k]; });
   Object.keys(d.marketOverrides || {}).forEach(k=>{ s.marketOverrides[decKey(k)] = d.marketOverrides[k]; });
   Object.keys(d.weeks || {}).forEach(wk=>{
@@ -1056,6 +1058,7 @@ function renderAll(){
   renderRecipeList(); renderShop(); renderCatOrder();
   renderNutritionReport(); refreshIngNameDatalist();
   /* Zusatzansichten abgeschirmt: keine von ihnen darf die Kernbereiche mitreissen (Kapitel 2.6, Regel 2) */
+  try{ renderPersonen(); }catch(e){ console.warn('Personen konnten nicht gezeichnet werden:', e); }
   try{ renderNotizen(); }catch(e){ console.warn('Notizen konnten nicht gezeichnet werden:', e); }
 }
 
@@ -3129,6 +3132,7 @@ function neueId(prefix){ return prefix + Date.now() + Math.random().toString(36)
 
 /* Ansichtszustand nach IA-11: bleibt innerhalb der Sitzung erhalten. */
 let offeneNotizListe = null;
+let notizWer = null;          // Zuständigkeit, die der nächste neue Eintrag bekommt (B4)
 
 function notizListen(){
   const n = state.notizen || {};
@@ -3246,7 +3250,9 @@ function renderNotizDetail(){
           '<span class="nz-titel">'+escapeHtml(e.text)+'</span>' +
           (istErledigt ? '' :
             '<span class="nz-fuss">' +
+              (personVon(e.wer) ? personPunkt(e.wer, 'klein') + '<button class="nz-wer" type="button">'+escapeHtml(personVon(e.wer).name||'')+'</button> · ' : '') +
               '<button class="nz-datum'+zustand+'" type="button">'+(e.faellig ? escapeHtml(faelligText(e.faellig)) : 'Fällig zuordnen')+'</button>' +
+              (personen(true).length && !personVon(e.wer) ? ' · <button class="nz-wer" type="button">Wer?</button>' : '') +
             '</span>') +
         '</div>' +
         '<button class="nz-weg" type="button" aria-label="'+escapeHtml(e.text)+' löschen">🗑</button>' +
@@ -3255,6 +3261,12 @@ function renderNotizDetail(){
         '<div class="nz-datum-feld">' +
           '<input type="date" class="nz-datum-input" value="'+escapeHtml(e.faellig||'')+'" aria-label="Fällig am">' +
           '<button class="nz-datum-weg" type="button">Ohne Datum</button>' +
+        '</div>') +
+      (istErledigt || !personen(true).length ? '' :
+        '<div class="nz-wer-feld wer-wahl">' +
+          '<button class="wer-chip'+(!e.wer?' an':'')+'" type="button" data-wer="">Ohne</button>' +
+          personen(true).map(pe=>'<button class="wer-chip'+(e.wer===pe.id?' an':'')+'" type="button" data-wer="'+escapeHtml(pe.id)+'">' +
+            '<span class="wer-punkt" style="background:'+escapeHtml(pe.farbe||'#5A6B7A')+'"></span>'+escapeHtml(pe.name||'')+'</button>').join('') +
         '</div>') +
     '</li>';
   };
@@ -3333,6 +3345,21 @@ function renderNotizDetail(){
     renderNotizen();
   }));
 
+  Array.prototype.forEach.call(box.querySelectorAll('.nz-wer'), b=>b.addEventListener('click', e=>{
+    const li = e.currentTarget.closest('.notiz-zeile');
+    Array.prototype.forEach.call(box.querySelectorAll('.notiz-zeile.wer-offen'), o=>{ if(o!==li) o.classList.remove('wer-offen'); });
+    li.classList.toggle('wer-offen');
+  }));
+  Array.prototype.forEach.call(box.querySelectorAll('.nz-wer-feld .wer-chip'), b=>b.addEventListener('click', e=>{
+    const eid = e.currentTarget.closest('.notiz-zeile').dataset.id;
+    const eintrag = (liste.eintraege||{})[eid];
+    if(!eintrag) return;
+    const wer = e.currentTarget.dataset.wer || '';
+    if(wer) eintrag.wer = wer; else delete eintrag.wer;
+    saveNotizFeld(lid, eid, 'wer', wer || null);
+    renderNotizen();
+  }));
+
   const weg = box.querySelector('.notiz-erledigte-weg');
   if(weg) weg.addEventListener('click', ()=>{
     const sicherung = {};
@@ -3350,6 +3377,25 @@ function renderNotizDetail(){
   });
 }
 
+/* Zuständigkeit ist ein Angebot, kein Pflichtfeld (K-7). Gibt es keine
+   Personen, erscheint die Auswahl gar nicht — ein leerer Chipstreifen wäre
+   eine Aufforderung, erst einmal Personen anzulegen. */
+function renderNotizWerWahl(){
+  const box = document.getElementById('notizWerWahl');
+  if(!box) return;
+  const leute = personen(true);
+  if(!leute.length){ box.hidden = true; box.innerHTML = ''; notizWer = null; return; }
+  if(notizWer && !leute.some(p=>p.id === notizWer)) notizWer = null;
+  box.hidden = false;
+  box.innerHTML = '<button class="wer-chip'+(!notizWer?' an':'')+'" type="button" data-wer="">Ohne Zuständigkeit</button>' +
+    leute.map(p=>'<button class="wer-chip'+(notizWer===p.id?' an':'')+'" type="button" data-wer="'+escapeHtml(p.id)+'">' +
+      '<span class="wer-punkt" style="background:'+escapeHtml(p.farbe||'#5A6B7A')+'"></span>'+escapeHtml(p.name||'')+'</button>').join('');
+  Array.prototype.forEach.call(box.querySelectorAll('.wer-chip'), b=>b.addEventListener('click', e=>{
+    notizWer = e.currentTarget.dataset.wer || null;
+    renderNotizWerWahl();
+  }));
+}
+
 function renderNotizen(){
   const uebersicht = document.getElementById('notizUebersicht');
   const detail = document.getElementById('notizDetail');
@@ -3358,6 +3404,7 @@ function renderNotizen(){
   if(!gibtEs) offeneNotizListe = null;
   uebersicht.hidden = !!offeneNotizListe;
   detail.hidden = !offeneNotizListe;
+  renderNotizWerWahl();
   if(offeneNotizListe) renderNotizDetail(); else renderNotizUebersicht();
   /* Heute liest aus denselben Daten — abgeschirmt wie überall sonst. */
   try{ renderHeuteAufgaben(); }catch(e){ console.warn('Aufgaben auf Heute:', e); }
@@ -3387,6 +3434,7 @@ function legeNotizEintragAn(){
   if(!liste) return;
   const eid = neueId('p');
   const eintrag = {text: text, angelegt: Date.now()};
+  if(notizWer && personVon(notizWer)) eintrag.wer = notizWer;
   liste.eintraege = liste.eintraege || {};
   liste.eintraege[eid] = eintrag;
   saveNotizEintrag(offeneNotizListe, eid, eintrag);
@@ -3467,7 +3515,10 @@ function renderHeuteAufgaben(){
         '<button class="haken" type="button" role="checkbox" aria-checked="false" aria-label="'+escapeHtml(f.eintrag.text)+' erledigen">✓</button>' +
         '<div class="nz-text">' +
           '<span class="nz-titel">'+escapeHtml(f.eintrag.text)+'</span>' +
-          '<span class="nz-fuss"><span class="nz-marke'+(f.eintrag.faellig < heute ? ' ueberfaellig' : ' heute')+'">'+escapeHtml(f.liste.name||'')+' · '+escapeHtml(faelligText(f.eintrag.faellig))+'</span></span>' +
+          '<span class="nz-fuss">' +
+            (personVon(f.eintrag.wer) ? personPunkt(f.eintrag.wer, 'klein') + '<span class="nz-marke">'+escapeHtml(personVon(f.eintrag.wer).name||'')+'</span> · ' : '') +
+            '<span class="nz-marke'+(f.eintrag.faellig < heute ? ' ueberfaellig' : ' heute')+'">'+escapeHtml(f.liste.name||'')+' · '+escapeHtml(faelligText(f.eintrag.faellig))+'</span>' +
+          '</span>' +
         '</div>' +
       '</div>' +
     '</li>').join('') + '</ul>';
@@ -3489,7 +3540,262 @@ function renderHeuteAufgaben(){
 }
 
 /* =========================================================================
-   19. Bildschirm an halten — beim Einkaufen und bei offenem Rezept
+   19. Personen (B4) — Datenobjekte im Haushalt, keine Konten
+
+   Kapitel 3.1: Person ≠ Konto. Kinder und Mitbewohner ohne Login sind
+   Personen; damit entfällt DSGVO Art. 8 vollständig. Die Verknüpfung zum
+   Konto ist ein optionales Feld `uid` an der Person — `members` bleibt die
+   Rechteliste und weiß nichts von Personen.
+
+   Datenform:
+     data/personen/<personId> = { name, farbe, angelegt, uid?, geburtstag?, ehemalig? }
+
+   Die Haushaltsgröße unter `settings/personen` bleibt davon unberührt: Wer
+   mitisst, ist nicht dasselbe wie wer im Haushalt steht. Ein Säugling zählt
+   als Person, aber nicht als Portion.
+   ========================================================================= */
+
+/* Feste Palette. Keine freie Farbwahl: Messing (Aktion), Grün (erledigt) und
+   Rot (löschen) tragen in dieser App Bedeutung, und eine frei gewählte Farbe
+   könnte sie entwerten oder im Dunkelmodus unlesbar werden. */
+const PERSON_FARBEN = [
+  {id:'blau',       wert:'#4A6FA5'},
+  {id:'himmelblau', wert:'#3F7E9E'},
+  {id:'petrol',     wert:'#2F7D74'},
+  {id:'violett',    wert:'#6B5B95'},
+  {id:'mauve',      wert:'#9C5A7D'},
+  {id:'orange',     wert:'#C2703D'},
+  {id:'schiefer',   wert:'#5A6B7A'},
+  {id:'taupe',      wert:'#7A6459'}
+];
+
+const savePerson     = (pid, wert)       => put('data/personen/'+pid, wert);
+const savePersonFeld = (pid, feld, wert) => put('data/personen/'+pid+'/'+feld, wert);
+
+function personen(nurAktive){
+  const p = state.personen || {};
+  return Object.keys(p)
+    .map(id=>Object.assign({id:id}, p[id]))
+    .filter(x=>!nurAktive || !x.ehemalig)
+    .sort((a,b)=>(a.angelegt||0) - (b.angelegt||0));
+}
+function personVon(id){
+  const p = (state.personen || {})[id];
+  return p ? Object.assign({id:id}, p) : null;
+}
+function personFarbe(id){
+  const p = personVon(id);
+  return (p && p.farbe) || 'var(--text-leise)';
+}
+function personInitiale(name){
+  return String(name||'?').trim().charAt(0).toUpperCase() || '?';
+}
+/* Nächste freie Farbe, damit niemand von Hand suchen muss. */
+function naechsteFarbe(){
+  const belegt = personen().map(p=>p.farbe);
+  const frei = PERSON_FARBEN.filter(f=>belegt.indexOf(f.wert) < 0)[0];
+  return (frei || PERSON_FARBEN[personen().length % PERSON_FARBEN.length]).wert;
+}
+/* Zeigt eine Person überall gleich: farbiger Punkt mit Initiale. Ein Bild
+   gibt es bewusst nicht — es kostet Speicher und sagt bei 24 px nichts. */
+function personPunkt(id, klasse){
+  const p = personVon(id);
+  if(!p) return '';
+  return '<span class="person-punkt '+(klasse||'')+'" style="background:'+escapeHtml(p.farbe||'#5A6B7A')+'" title="'+escapeHtml(p.name||'')+'">'+escapeHtml(personInitiale(p.name))+'</span>';
+}
+
+/* Wird eine Person irgendwo verwendet? Dann wird sie nicht gelöscht, sondern
+   als „ehemalig" geführt — sonst verlieren alte Zuordnungen ihre Referenz
+   (Kapitel 3.1). */
+function personIstVerwendet(pid){
+  const n = state.notizen || {};
+  return Object.keys(n).some(lid=>{
+    const e = n[lid].eintraege || {};
+    return Object.keys(e).some(eid=>e[eid].wer === pid);
+  });
+}
+
+let offenePerson = null;   // welche Zeile im Einstellungsbereich aufgeklappt ist
+
+function renderPersonen(){
+  const box = document.getElementById('personenListe');
+  if(!box) return;
+  const cnt = document.getElementById('personenCount');
+  const alle = personen();
+  const aktive = alle.filter(p=>!p.ehemalig);
+  if(cnt) cnt.textContent = aktive.length ? '('+aktive.length+')' : '';
+
+  if(!alle.length){
+    box.innerHTML = '<li class="person-leer">Noch niemand angelegt. Der erste Name genügt.</li>';
+    return;
+  }
+
+  const meineUid = (auth.currentUser && auth.currentUser.uid) || null;
+
+  box.innerHTML = alle.map(p=>{
+    const offen = offenePerson === p.id;
+    const meta = [];
+    if(p.uid) meta.push(p.uid === meineUid ? 'dein Konto' : 'mit Konto verknüpft');
+    if(p.geburtstag) meta.push(fmtGeburtstag(p.geburtstag));
+    if(p.ehemalig) meta.push('ehemalig');
+    return '<li class="person-zeile'+(offen?' offen':'')+(p.ehemalig?' ehemalig':'')+'" data-id="'+escapeHtml(p.id)+'">' +
+      '<button class="person-haupt" type="button">' +
+        personPunkt(p.id) +
+        '<span class="person-text">' +
+          '<span class="person-name">'+escapeHtml(p.name||'')+'</span>' +
+          (meta.length ? '<span class="person-meta">'+escapeHtml(meta.join(' · '))+'</span>' : '') +
+        '</span>' +
+        '<span class="person-chev">▾</span>' +
+      '</button>' +
+      '<div class="person-editor">' +
+        '<div class="farb-wahl">' +
+          PERSON_FARBEN.map(f=>'<button class="farb-knopf'+(p.farbe===f.wert?' an':'')+'" type="button" data-farbe="'+f.wert+'" style="background:'+f.wert+'" aria-label="Farbe '+f.id+'"></button>').join('') +
+        '</div>' +
+        '<div class="person-felder">' +
+          '<label class="person-feld">Name<input type="text" class="person-name-feld" value="'+escapeHtml(p.name||'')+'"></label>' +
+          '<label class="person-feld">Geburtstag<input type="date" class="person-geb" value="'+escapeHtml(p.geburtstag||'')+'"></label>' +
+        '</div>' +
+        '<div class="person-knoepfe">' +
+          (p.ehemalig
+            ? '<button class="btn btn-soft btn-sm person-zurueck" type="button">Wieder aufnehmen</button>'
+            : (p.uid === meineUid
+                ? '<button class="btn btn-soft btn-sm person-ich an" type="button">✓ Das bin ich</button>'
+                : '<button class="btn btn-soft btn-sm person-ich" type="button">Das bin ich</button>')) +
+          '<button class="btn btn-ghost btn-loeschen btn-sm person-weg" type="button">'+(p.ehemalig?'Endgültig löschen':'Entfernen')+'</button>' +
+        '</div>' +
+      '</div>' +
+    '</li>';
+  }).join('');
+
+  Array.prototype.forEach.call(box.querySelectorAll('.person-haupt'), b=>b.addEventListener('click', e=>{
+    const id = e.currentTarget.closest('.person-zeile').dataset.id;
+    offenePerson = (offenePerson === id) ? null : id;
+    renderPersonen();
+  }));
+
+  Array.prototype.forEach.call(box.querySelectorAll('.farb-knopf'), b=>b.addEventListener('click', e=>{
+    const id = e.currentTarget.closest('.person-zeile').dataset.id;
+    const farbe = e.currentTarget.dataset.farbe;
+    const p = (state.personen||{})[id];
+    if(!p) return;
+    p.farbe = farbe;
+    savePersonFeld(id, 'farbe', farbe);
+    renderPersonen(); renderNotizen();
+  }));
+
+  Array.prototype.forEach.call(box.querySelectorAll('.person-name-feld'), inp=>inp.addEventListener('change', e=>{
+    const id = e.currentTarget.closest('.person-zeile').dataset.id;
+    const p = (state.personen||{})[id];
+    const neu = e.currentTarget.value.trim();
+    if(!p || !neu){ renderPersonen(); return; }
+    p.name = neu;
+    savePersonFeld(id, 'name', neu);
+    renderPersonen(); renderNotizen();
+  }));
+
+  Array.prototype.forEach.call(box.querySelectorAll('.person-geb'), inp=>inp.addEventListener('change', e=>{
+    const id = e.currentTarget.closest('.person-zeile').dataset.id;
+    const p = (state.personen||{})[id];
+    if(!p) return;
+    const wert = e.currentTarget.value || '';
+    if(wert) p.geburtstag = wert; else delete p.geburtstag;
+    savePersonFeld(id, 'geburtstag', wert || null);
+    renderPersonen();
+  }));
+
+  /* „Das bin ich" — ein Konto gehört zu höchstens einer Person. */
+  Array.prototype.forEach.call(box.querySelectorAll('.person-ich'), b=>b.addEventListener('click', e=>{
+    const id = e.currentTarget.closest('.person-zeile').dataset.id;
+    const p = (state.personen||{})[id];
+    if(!p || !auth.currentUser) return;
+    const uid = auth.currentUser.uid;
+    const abwaehlen = p.uid === uid;
+    Object.keys(state.personen||{}).forEach(anderes=>{
+      if(state.personen[anderes].uid === uid){
+        delete state.personen[anderes].uid;
+        savePersonFeld(anderes, 'uid', null);
+      }
+    });
+    if(!abwaehlen){ p.uid = uid; savePersonFeld(id, 'uid', uid); }
+    renderPersonen();
+  }));
+
+  Array.prototype.forEach.call(box.querySelectorAll('.person-zurueck'), b=>b.addEventListener('click', e=>{
+    const id = e.currentTarget.closest('.person-zeile').dataset.id;
+    const p = (state.personen||{})[id];
+    if(!p) return;
+    delete p.ehemalig;
+    savePersonFeld(id, 'ehemalig', null);
+    renderPersonen(); renderNotizen();
+  }));
+
+  /* Entfernen heißt nicht löschen, solange die Person noch irgendwo zugeordnet
+     ist: Sie bleibt als „ehemalig" bestehen, sonst verlieren alte Zuordnungen
+     ihre Referenz (Kapitel 3.1). Erst wenn niemand mehr auf sie zeigt, geht
+     sie ganz. */
+  Array.prototype.forEach.call(box.querySelectorAll('.person-weg'), b=>b.addEventListener('click', e=>{
+    const id = e.currentTarget.closest('.person-zeile').dataset.id;
+    const p = (state.personen||{})[id];
+    if(!p) return;
+    const sicherung = JSON.parse(JSON.stringify(p));
+    if(!p.ehemalig && personIstVerwendet(id)){
+      p.ehemalig = true;
+      savePersonFeld(id, 'ehemalig', true);
+      renderPersonen(); renderNotizen();
+      showToast(sicherung.name+' ist jetzt ehemalig — bestehende Zuordnungen bleiben', ()=>{
+        delete state.personen[id].ehemalig;
+        savePersonFeld(id, 'ehemalig', null);
+        renderPersonen(); renderNotizen();
+      });
+      return;
+    }
+    delete state.personen[id];
+    savePerson(id, null);
+    if(offenePerson === id) offenePerson = null;
+    renderPersonen(); renderNotizen();
+    showToast(sicherung.name+' gelöscht', ()=>{
+      state.personen[id] = sicherung;
+      savePerson(id, sicherung);
+      renderPersonen(); renderNotizen();
+    });
+  }));
+}
+
+function fmtGeburtstag(iso){
+  const d = new Date(iso + 'T00:00:00');
+  if(isNaN(d)) return iso;
+  return d.getDate() + '.' + (d.getMonth()+1) + '.';
+}
+
+function legePersonAn(){
+  const feld = document.getElementById('personName');
+  if(!feld) return;
+  const name = feld.value.trim();
+  if(!name){ feldFehler(feld, 'Ohne Namen lässt sich niemand anlegen.'); return; }
+  if(personen().some(p=>(p.name||'').toLowerCase() === name.toLowerCase())){
+    feldFehler(feld, '„'+name+'" gibt es schon.');
+    return;
+  }
+  const id = neueId('pe');
+  const person = {name: name, farbe: naechsteFarbe(), angelegt: Date.now()};
+  state.personen = state.personen || {};
+  state.personen[id] = person;
+  savePerson(id, person);
+  feld.value = '';
+  offenePerson = id;
+  renderPersonen(); renderNotizen();
+  feld.focus();
+}
+
+(function(){
+  const knopf = document.getElementById('personAdd');
+  if(knopf) knopf.addEventListener('click', legePersonAn);
+  const feld = document.getElementById('personName');
+  if(feld) feld.addEventListener('keydown', e=>{ if(e.key === 'Enter'){ e.preventDefault(); legePersonAn(); } });
+})();
+
+/* =========================================================================
+   20. Bildschirm an halten — beim Einkaufen und bei offenem Rezept
    ========================================================================= */
 let wakeLock = null;
 async function requestWakeLock(){
@@ -3518,7 +3824,7 @@ document.addEventListener('visibilitychange', ()=>{
 });
 
 /* =========================================================================
-   20. Navigation, Kopfzeile, Heute
+   21. Navigation, Kopfzeile, Heute
    ========================================================================= */
 
 /* IA-15 - fuenf Bereiche statt acht Reiter, zwei davon mit Unterbereichen.
@@ -3726,7 +4032,7 @@ document.getElementById('joinHhBtn').addEventListener('click', async ()=>{
 });
 
 /* =========================================================================
-   21. Einstellungen: Haushaltsname, eigenes Profil (Name/E-Mail/Passwort)
+   22. Einstellungen: Haushaltsname, eigenes Profil (Name/E-Mail/Passwort)
    ========================================================================= */
 const AUTH_ERR_DE_2 = {
   'auth/requires-recent-login': 'Das geht aus Sicherheitsgründen nur kurz nach dem Anmelden. Einmal ab- und wieder anmelden, dann nochmal versuchen.',

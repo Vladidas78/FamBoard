@@ -843,6 +843,70 @@
   .heute-aufgaben .nz-oben{ padding-left:0; padding-right:0; }
   .heute-aufgaben .notiz-zeile:last-child{ border-bottom:none; }
 
+  /* ---------- Personen (B4) ----------
+     Farbiger Punkt mit Initiale statt Bild: kostet keinen Speicher und sagt
+     bei 24 px genauso viel. Die Palette liegt in `app.js` (PERSON_FARBEN). */
+  .person-punkt{
+    display:inline-grid; place-items:center; flex:none;
+    width:28px; height:28px; border-radius:999px;
+    color:#fff; font-size:12px; font-weight:600; line-height:1;
+  }
+  .person-punkt.klein{ width:16px; height:16px; font-size:9px; margin-right:5px; vertical-align:-3px; }
+
+  .personen-liste{ list-style:none; margin:12px 0 0; padding:0; }
+  .person-leer{ font-size:0.84rem; color:var(--text-leise); font-style:italic; padding:6px 2px; }
+  .person-zeile{ border-bottom:1px solid var(--linie-leise); }
+  .person-zeile:last-child{ border-bottom:none; }
+  .person-zeile.ehemalig .person-punkt{ opacity:.45; }
+  .person-zeile.ehemalig .person-name{ color:var(--text-leise); }
+  .person-haupt{
+    display:flex; align-items:center; gap:var(--abstand-m); width:100%;
+    min-height:var(--hoehe-control); padding:8px 2px; border:none; background:none;
+    font:inherit; color:inherit; text-align:left; cursor:pointer;
+  }
+  .person-text{ min-width:0; flex:1; }
+  .person-name{ display:block; font-size:0.96rem; font-weight:600; color:var(--text-haupt); }
+  .person-meta{ display:block; margin-top:2px; font-size:0.74rem; color:var(--text-leise); }
+  .person-chev{ flex:none; color:var(--text-leise); font-size:0.8rem; transition:transform .15s ease; }
+  .person-zeile.offen .person-chev{ transform:rotate(180deg); }
+  .person-editor{ display:none; padding:0 2px 14px 40px; }
+  .person-zeile.offen .person-editor{ display:block; }
+  .farb-wahl{ display:flex; flex-wrap:wrap; gap:var(--abstand-s); margin-bottom:var(--abstand-m); }
+  .farb-knopf{
+    width:28px; height:28px; border-radius:999px; border:2px solid transparent;
+    cursor:pointer; padding:0; box-shadow:inset 0 0 0 1px rgb(0 0 0 / 0.08);
+  }
+  .farb-knopf.an{ border-color:var(--text-haupt); }
+  .person-felder{ display:flex; flex-wrap:wrap; gap:var(--abstand-m); margin-bottom:var(--abstand-m); }
+  .person-feld{ display:flex; flex-direction:column; gap:4px; font-size:0.74rem; color:var(--text-leise); }
+  .person-feld input{
+    height:var(--hoehe-control); padding:0 var(--abstand-m);
+    border:1px solid var(--linie); border-radius:var(--radius-s);
+    background:var(--flaeche-feld); color:var(--text-haupt); font:inherit; font-size:15px;
+  }
+  .person-knoepfe{ display:flex; flex-wrap:wrap; gap:var(--abstand-s); }
+  .person-ich.an{ background:var(--messing-flaeche); color:var(--auf-messing-flaeche); border-color:var(--messing-aktion); }
+
+  /* Zustaendigkeit an Notizen — Chips beim Anlegen und an der Zeile */
+  .wer-wahl{ display:flex; flex-wrap:wrap; gap:var(--abstand-s); margin-top:var(--abstand-m); }
+  .wer-wahl[hidden]{ display:none; }
+  .wer-chip{
+    display:inline-flex; align-items:center; gap:6px; min-height:var(--hoehe-chip);
+    padding:0 var(--abstand-m); border-radius:var(--radius-rund);
+    border:1px solid var(--linie); background:var(--flaeche-senke);
+    color:var(--text-leise); font:inherit; font-size:13px; font-weight:500; cursor:pointer;
+  }
+  .wer-chip:hover{ color:var(--text-haupt); }
+  .wer-chip.an{ background:var(--messing-aktion); border-color:var(--messing-aktion); color:var(--auf-aktion); }
+  .wer-punkt{ display:inline-block; width:8px; height:8px; border-radius:999px; flex:none; }
+  .nz-wer{
+    background:none; border:none; padding:0; margin:0; font:inherit; font-size:13px;
+    color:var(--text-leise); cursor:pointer; text-decoration:underline dotted;
+  }
+  .nz-wer:hover{ color:var(--messing-aktion); }
+  .nz-wer-feld{ display:none; padding:0 var(--abstand-l) 12px 52px; margin-top:0; }
+  .notiz-zeile.wer-offen .nz-wer-feld{ display:flex; }
+
   /* ---------- Login-Gate ---------- */
   body.pre-auth header, body.pre-auth nav, body.pre-auth main{ display:none; }
   body:not(.pre-auth) .auth-gate{ display:none; }

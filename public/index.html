@@ -462,6 +462,7 @@
           <input type="text" id="notizEintragText" placeholder="Eintrag hinzufügen" autocomplete="off">
         </div>
         <p class="feld-fehler" data-fehler-fuer="notizEintragText" hidden></p>
+        <div class="wer-wahl" id="notizWerWahl"></div>
       </div>
 
       <div id="notizEintraege"></div>
@@ -485,6 +486,21 @@
           <button class="btn btn-primary" id="hhNameSave" type="button">Speichern</button>
         </div>
         <div class="ex-hint" id="hhNameOut" style="margin-top:10px;"></div>
+      </div>
+
+      <!-- Personen (B4) — Datenobjekte im Haushalt, nicht Konten (Kapitel 3.1).
+           Kinder und Mitbewohner ohne Login sind Personen; damit entfaellt
+           DSGVO Art. 8. Die Verknuepfung zum Konto ist ein optionales Feld
+           `uid` an der Person. -->
+      <div class="card">
+        <div class="shop-head"><div class="wk">Personen <span class="count" id="personenCount"></span></div></div>
+        <p class="ex-hint">Wer zum Haushalt gehört — auch ohne eigenes Konto. Die Farbe taucht an Aufgaben und später an Terminen auf.</p>
+        <ul class="personen-liste" id="personenListe"></ul>
+        <div class="ing-input-row" style="grid-template-columns:1fr auto; margin-top:12px;">
+          <input type="text" id="personName" placeholder="z. B. Mila" autocomplete="off">
+          <button class="btn btn-primary" id="personAdd" type="button">Anlegen</button>
+        </div>
+        <p class="feld-fehler" data-fehler-fuer="personName" hidden></p>
       </div>
 
       <div class="card">
