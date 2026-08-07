@@ -907,6 +907,65 @@
   .nz-wer-feld{ display:none; padding:0 var(--abstand-l) 12px 52px; margin-top:0; }
   .notiz-zeile.wer-offen .nz-wer-feld{ display:flex; }
 
+  /* ---------- Kalender (B5) ----------
+     Monatsraster als Standard (K-2). Ein Tag zeigt nur Zahl und farbige Punkte
+     — Titel im Raster waeren bei sieben Spalten auf dem Telefon unlesbar. Was
+     an dem Tag ansteht, steht darunter als Liste. */
+  .kal-karte{ padding:var(--abstand-m); margin-bottom:var(--abstand-l); }
+  .kal-wochentage{
+    display:grid; grid-template-columns:repeat(7,1fr); gap:2px; margin-bottom:6px;
+    font-size:11px; font-weight:600; letter-spacing:.06em; text-transform:uppercase;
+    color:var(--text-leise); text-align:center;
+  }
+  .kal-raster{ display:grid; grid-template-columns:repeat(7,1fr); gap:2px; }
+  .kal-tag{
+    display:flex; flex-direction:column; align-items:center; justify-content:flex-start; gap:3px;
+    min-height:46px; padding:5px 2px; border:1px solid transparent; border-radius:var(--radius-s);
+    background:none; color:var(--text-haupt); font:inherit; cursor:pointer;
+  }
+  .kal-raster.woche .kal-tag{ min-height:62px; }
+  .kal-tag:hover{ background:var(--flaeche-senke); }
+  .kal-tag.fremd .kal-zahl{ color:var(--text-leise); opacity:.5; }
+  .kal-tag.heute .kal-zahl{
+    background:var(--messing-flaeche); color:var(--auf-messing-flaeche);
+    border-radius:999px; width:24px; height:24px; display:grid; place-items:center; font-weight:600;
+  }
+  .kal-tag.gewaehlt{ border-color:var(--messing-aktion); background:var(--flaeche-senke); }
+  .kal-zahl{ font-size:14px; line-height:24px; height:24px; }
+  .kal-punkte{ display:flex; flex-wrap:wrap; gap:2px; justify-content:center; }
+  .kal-punkt{
+    display:inline-block; width:6px; height:6px; border-radius:999px; flex:none;
+    background:var(--text-leise);
+  }
+  .kal-punkt.haushalt{ background:var(--messing-marke); }
+
+  .kal-liste{ list-style:none; margin:0; padding:0; }
+  .kal-zeile{ border-bottom:1px solid var(--linie-leise); }
+  .kal-zeile:last-child{ border-bottom:none; }
+  .kal-zeile-btn{
+    display:flex; align-items:flex-start; gap:var(--abstand-m); width:100%;
+    padding:10px var(--abstand-l); border:none; background:none;
+    font:inherit; color:inherit; text-align:left; cursor:pointer;
+  }
+  .kal-zeile-btn:hover{ background:var(--flaeche-senke); }
+  .kal-zeit{ flex:none; width:82px; font-size:13px; color:var(--text-leise); padding-top:2px; }
+  .kal-text{ min-width:0; flex:1; }
+  .kal-titel{ display:block; font-size:15px; line-height:1.35; color:var(--text-haupt); }
+  .kal-meta{ display:block; margin-top:2px; font-size:13px; color:var(--text-leise); }
+
+  .kal-form{ padding:var(--abstand-l); margin-bottom:var(--abstand-l); }
+  .kal-form[hidden]{ display:none; }
+  .kal-ganztag{ display:flex; align-items:center; gap:8px; font-size:0.88rem; color:var(--text-haupt); margin:0 0 12px; cursor:pointer; }
+  .kal-ganztag input{ width:17px; height:17px; accent-color:var(--messing-aktion); }
+  .kal-form-knoepfe{ display:flex; flex-wrap:wrap; gap:var(--abstand-s); margin-top:var(--abstand-m); }
+  .kal-export{ padding:var(--abstand-l); }
+  .ics-link{
+    font-size:0.78rem; word-break:break-all; margin:0 0 4px;
+    padding:10px; border-radius:var(--radius-s);
+    background:var(--flaeche-senke); border:1px solid var(--linie-leise); color:var(--text-haupt);
+    font-variant-numeric:tabular-nums;
+  }
+
   /* ---------- Login-Gate ---------- */
   body.pre-auth header, body.pre-auth nav, body.pre-auth main{ display:none; }
   body:not(.pre-auth) .auth-gate{ display:none; }

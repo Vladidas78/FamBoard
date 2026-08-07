@@ -468,7 +468,8 @@ function emptyState(){
     haushalt: [],              // { id, name, cat, market } — Alt-Katalog, seit T-9 nur noch Sicherung
     customIngredients: [],     // { name } — Artikelstamm: selbst angelegte Artikel
     notizen: {},               // { listeId: { name, angelegt, eintraege: { id: {text, angelegt, erledigt?, faellig?, wer?} } } }
-    personen: {}               // { personId: { name, farbe, angelegt, uid?, geburtstag?, ehemalig? } }
+    personen: {},              // { personId: { name, farbe, angelegt, uid?, geburtstag?, ehemalig? } }
+    kalender: {gemeinsam:{}}   // { gemeinsam: { terminId: {…} } } — privat bleibt leer (K-5, K-9)
   };
 }
 let state = emptyState();
@@ -842,6 +843,7 @@ function fromRemote(d){
   s.customIngredients = (d.customIngredients || []).filter(Boolean);
   s.notizen  = d.notizen || {};
   s.personen = d.personen || {};
+  s.kalender = {gemeinsam: (d.kalender && d.kalender.gemeinsam) || {}};
   Object.keys(d.catOverrides || {}).forEach(k=>{ s.catOverrides[decKey(k)] = d.catOverrides[k]; });
   Object.keys(d.marketOverrides || {}).forEach(k=>{ s.marketOverrides[decKey(k)] = d.marketOverrides[k]; });
   Object.keys(d.weeks || {}).forEach(wk=>{
@@ -925,6 +927,19 @@ function put(path, value){
       : 'Speichern fehlgeschlagen: ' + err.message);
   });
   return p;
+}
+/* Schreibt an der Wurzel der Datenbank statt im Haushaltszweig. Nur fuer den
+   ICS-Feed: der liegt unter `ics/<token>` und muss ohne Anmeldung lesbar sein
+   (K-10) — im Haushaltszweig ginge das nicht, ohne alles zu oeffnen. */
+function putWurzel(pfad, wert){
+  const r = ref(db, pfad);
+  const pr = (wert === null || wert === undefined) ? remove(r) : set(r, wert);
+  pr.catch(err=>{
+    zeigeFehler(err.code === 'PERMISSION_DENIED'
+      ? 'Der Abo-Link konnte nicht geschrieben werden. Sind die Sicherheitsregeln veroeffentlicht?'
+      : 'Speichern fehlgeschlagen: ' + err.message);
+  });
+  return pr;
 }
 const saveRecipes  = ()          => put('data/recipes', recipesForRemote());
 const saveExcluded = ()          => put('data/excluded', state.excluded.length ? state.excluded : null);
@@ -1060,6 +1075,7 @@ function renderAll(){
   /* Zusatzansichten abgeschirmt: keine von ihnen darf die Kernbereiche mitreissen (Kapitel 2.6, Regel 2) */
   try{ renderPersonen(); }catch(e){ console.warn('Personen konnten nicht gezeichnet werden:', e); }
   try{ renderNotizen(); }catch(e){ console.warn('Notizen konnten nicht gezeichnet werden:', e); }
+  try{ renderKalender(); }catch(e){ console.warn('Kalender konnte nicht gezeichnet werden:', e); }
 }
 
 /* =========================================================================
@@ -3795,7 +3811,521 @@ function legePersonAn(){
 })();
 
 /* =========================================================================
-   20. Bildschirm an halten — beim Einkaufen und bei offenem Rezept
+   20. Kalender (B5)
+
+   K-1  Kernmodul der Stufe 1
+   K-2  Monat Standard, Woche umschaltbar
+   K-3  Wiederholungen als iCalendar-RRULE-Teilmenge, kein Eigenbau
+   K-5  Getrennte Zweige gemeinsam/privat von Anfang an
+   K-9  Private Termine werden in Stufe 1 nicht gebaut — der Zweig bleibt leer
+   K-10 Nur ICS-Export, einseitig. `uid`, `sequence`, `herkunft` ab der ersten Zeile
+
+   Datenform:
+     data/kalender/gemeinsam/<terminId> = {
+       uid, sequence, herkunft, datum, zeit?, bis?, ganztag?, titel, ort?,
+       wer: 'haushalt' | [personId,…], rrule?, angelegt
+     }
+
+   Zeit ist Ortszeit ohne Zeitzone: `datum` als JJJJ-MM-TT, `zeit` als HH:MM.
+   Gemeint ist die Wanduhr zu Hause; im Export steht TZID=Europe/Berlin.
+   ========================================================================= */
+
+const KAL_ZWEIG = 'data/kalender/gemeinsam';
+const WOCHENTAGE_KURZ = ['Mo','Di','Mi','Do','Fr','Sa','So'];
+const MONATE = ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+
+/* Fünf Wiederholungen, gespeichert als echte RRULE — damit ist der Export
+   ohne Übersetzung möglich und eine spätere Erweiterung ändert keine Daten. */
+const WIEDERHOLUNGEN = [
+  {id:'',                        label:'Einmalig'},
+  {id:'FREQ=DAILY',              label:'Täglich'},
+  {id:'FREQ=WEEKLY',             label:'Wöchentlich'},
+  {id:'FREQ=WEEKLY;INTERVAL=2',  label:'Alle 2 Wochen'},
+  {id:'FREQ=MONTHLY',            label:'Monatlich'}
+];
+function wdhLabel(rrule){
+  const t = WIEDERHOLUNGEN.filter(w=>w.id === (rrule||''))[0];
+  return t ? t.label : rrule;
+}
+
+const saveTermin = (tid, wert) => put(KAL_ZWEIG+'/'+tid, wert);
+
+/* ---------- Datumsrechnung, alles auf JJJJ-MM-TT ---------- */
+function isoVon(d){
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+function datumVon(iso){ const d = new Date(iso + 'T00:00:00'); return isNaN(d) ? null : d; }
+function tageAddieren(iso, n){ const d = datumVon(iso); d.setDate(d.getDate()+n); return isoVon(d); }
+function monatsErster(jahr, monat){ return isoVon(new Date(jahr, monat, 1)); }
+function fmtTag(iso){
+  const d = datumVon(iso);
+  return d ? d.getDate() + '. ' + MONATE[d.getMonth()] : iso;
+}
+function wochentagIndex(iso){ const d = datumVon(iso); return (d.getDay() + 6) % 7; }   // Mo=0
+
+/* Fällt ein Termin auf diesen Tag? Die Serie wird nicht ausgerollt, sondern
+   gefragt — das spart einen Speicher voller erzeugter Termine und hält die
+   Regel an genau einer Stelle. */
+function terminAmTag(t, iso){
+  if(!t || !t.datum) return false;
+  if(t.datum === iso) return true;
+  if(!t.rrule || iso < t.datum) return false;
+  const start = datumVon(t.datum), tag = datumVon(iso);
+  if(!start || !tag) return false;
+  const tage = Math.round((tag - start) / 86400000);
+  if(tage < 0) return false;
+  if(t.rrule === 'FREQ=DAILY') return true;
+  if(t.rrule === 'FREQ=WEEKLY') return tage % 7 === 0;
+  if(t.rrule === 'FREQ=WEEKLY;INTERVAL=2') return tage % 14 === 0;
+  if(t.rrule === 'FREQ=MONTHLY') return start.getDate() === tag.getDate();
+  return false;
+}
+function termine(){
+  const k = (state.kalender && state.kalender.gemeinsam) || {};
+  return Object.keys(k).map(id=>Object.assign({id:id}, k[id]));
+}
+function termineAmTag(iso){
+  return termine().filter(t=>terminAmTag(t, iso)).sort((a,b)=>{
+    if(!!a.ganztag !== !!b.ganztag) return a.ganztag ? -1 : 1;
+    return String(a.zeit||'').localeCompare(String(b.zeit||''));
+  });
+}
+function werText(t){
+  if(!t.wer || t.wer === 'haushalt') return 'Haushalt';
+  const ids = Array.isArray(t.wer) ? t.wer : [t.wer];
+  const namen = ids.map(id=>{ const p = personVon(id); return p ? p.name : null; }).filter(Boolean);
+  return namen.length ? namen.join(', ') : 'Haushalt';
+}
+function werPunkte(t){
+  if(!t.wer || t.wer === 'haushalt') return '<span class="kal-punkt haushalt"></span>';
+  const ids = Array.isArray(t.wer) ? t.wer : [t.wer];
+  const punkte = ids.map(id=>{
+    const p = personVon(id);
+    return p ? '<span class="kal-punkt" style="background:'+escapeHtml(p.farbe||'#5A6B7A')+'"></span>' : '';
+  }).join('');
+  return punkte || '<span class="kal-punkt haushalt"></span>';
+}
+
+/* ---------- Ansichtszustand (IA-11) ---------- */
+let kalAnsicht = 'monat';     // 'monat' | 'woche'
+let kalAnker = null;          // JJJJ-MM-TT im angezeigten Zeitraum
+let kalGewaehlt = null;       // ausgewählter Tag
+let terminBearbeitet = null;  // id des Termins im Formular, null = neuer
+
+function kalInit(){
+  if(!kalAnker){ kalAnker = heuteIso(); kalGewaehlt = heuteIso(); }
+}
+
+function renderKalender(){
+  const raster = document.getElementById('kalRaster');
+  if(!raster) return;
+  kalInit();
+  const kopfEl = document.getElementById('kalWochentage');
+  if(kopfEl) kopfEl.innerHTML = WOCHENTAGE_KURZ.map(t=>'<span>'+t+'</span>').join('');
+
+  const anker = datumVon(kalAnker) || new Date();
+  const lage = document.getElementById('kalLage');
+  const titel = document.getElementById('kalTitel');
+
+  let tage = [];
+  if(kalAnsicht === 'monat'){
+    const jahr = anker.getFullYear(), monat = anker.getMonth();
+    const erster = monatsErster(jahr, monat);
+    const start = tageAddieren(erster, -wochentagIndex(erster));
+    for(let i=0;i<42;i++) tage.push(tageAddieren(start, i));
+    if(titel) titel.textContent = MONATE[monat];
+    if(lage) lage.textContent = String(jahr);
+  } else {
+    const start = tageAddieren(kalAnker, -wochentagIndex(kalAnker));
+    for(let i=0;i<7;i++) tage.push(tageAddieren(start, i));
+    const w = isoWeek(datumVon(start));
+    if(titel) titel.textContent = 'KW ' + w.week;
+    if(lage) lage.textContent = fmtTag(tage[0]) + ' – ' + fmtTag(tage[6]);
+  }
+
+  const heute = heuteIso();
+  const monatDesAnkers = anker.getMonth();
+  raster.className = 'kal-raster' + (kalAnsicht === 'woche' ? ' woche' : '');
+  raster.innerHTML = tage.map(iso=>{
+    const d = datumVon(iso);
+    const dran = termineAmTag(iso);
+    const fremd = kalAnsicht === 'monat' && d.getMonth() !== monatDesAnkers;
+    return '<button class="kal-tag'+(fremd?' fremd':'')+(iso===heute?' heute':'')+(iso===kalGewaehlt?' gewaehlt':'')+'" type="button" data-tag="'+iso+'">' +
+      '<span class="kal-zahl zahl">'+d.getDate()+'</span>' +
+      (dran.length ? '<span class="kal-punkte">'+dran.slice(0,4).map(t=>werPunkte(t)).join('')+'</span>' : '') +
+    '</button>';
+  }).join('');
+
+  Array.prototype.forEach.call(raster.querySelectorAll('.kal-tag'), b=>b.addEventListener('click', e=>{
+    kalGewaehlt = e.currentTarget.dataset.tag;
+    if(kalAnsicht === 'monat') kalAnker = kalGewaehlt;
+    renderKalender();
+  }));
+
+  renderKalTag();
+  renderIcsAus();
+}
+
+function renderKalTag(){
+  const box = document.getElementById('kalTag');
+  if(!box) return;
+  const iso = kalGewaehlt || heuteIso();
+  const dran = termineAmTag(iso);
+  const d = datumVon(iso);
+  const kopf = '<div class="notiz-kopf">' + WOCHENTAGE_KURZ[wochentagIndex(iso)] + ', ' + fmtTag(iso) +
+    (dran.length ? ' <span class="zahl">'+dran.length+'</span>' : '') + '</div>';
+
+  if(!dran.length){
+    box.innerHTML = '<div class="notiz-block">'+kopf+'<p class="notiz-leer">An diesem Tag steht nichts an.</p></div>';
+    return;
+  }
+  box.innerHTML = '<div class="notiz-block">'+kopf+'<div class="karte"><ul class="kal-liste">' +
+    dran.map(t=>'<li class="kal-zeile" data-id="'+escapeHtml(t.id)+'">' +
+      '<button class="kal-zeile-btn" type="button">' +
+        '<span class="kal-zeit zahl">'+(t.ganztag ? 'ganztägig' : escapeHtml(t.zeit||'') + (t.bis ? '–'+escapeHtml(t.bis) : ''))+'</span>' +
+        '<span class="kal-text">' +
+          '<span class="kal-titel">'+escapeHtml(t.titel||'')+'</span>' +
+          '<span class="kal-meta">'+werPunkte(t)+' '+escapeHtml(werText(t)) +
+            (t.ort ? ' · '+escapeHtml(t.ort) : '') +
+            (t.rrule ? ' · '+escapeHtml(wdhLabel(t.rrule)) : '') +
+          '</span>' +
+        '</span>' +
+      '</button>' +
+    '</li>').join('') + '</ul></div></div>';
+
+  Array.prototype.forEach.call(box.querySelectorAll('.kal-zeile-btn'), b=>b.addEventListener('click', e=>{
+    oeffneTerminForm(e.currentTarget.closest('.kal-zeile').dataset.id);
+  }));
+}
+
+/* ---------- Formular ---------- */
+let terminWer = [];   // Auswahl im Formular: [] heißt Haushalt
+
+function renderTerminWer(){
+  const box = document.getElementById('terminWerWahl');
+  if(!box) return;
+  const leute = personen(true);
+  box.innerHTML = '<button class="wer-chip'+(!terminWer.length?' an':'')+'" type="button" data-wer="">Ganzer Haushalt</button>' +
+    leute.map(p=>'<button class="wer-chip'+(terminWer.indexOf(p.id)>=0?' an':'')+'" type="button" data-wer="'+escapeHtml(p.id)+'">' +
+      '<span class="wer-punkt" style="background:'+escapeHtml(p.farbe||'#5A6B7A')+'"></span>'+escapeHtml(p.name||'')+'</button>').join('');
+  Array.prototype.forEach.call(box.querySelectorAll('.wer-chip'), b=>b.addEventListener('click', e=>{
+    const id = e.currentTarget.dataset.wer;
+    if(!id){ terminWer = []; }
+    else {
+      const i = terminWer.indexOf(id);
+      if(i >= 0) terminWer.splice(i,1); else terminWer.push(id);
+    }
+    renderTerminWer();
+  }));
+}
+function renderTerminWdh(gewaehlt){
+  const box = document.getElementById('terminWdhRow');
+  if(!box) return;
+  box.innerHTML = WIEDERHOLUNGEN.map(w=>'<button class="filter-pill'+((gewaehlt||'')===w.id?' active':'')+'" type="button" data-rrule="'+escapeHtml(w.id)+'">'+w.label+'</button>').join('');
+  Array.prototype.forEach.call(box.querySelectorAll('.filter-pill'), b=>b.addEventListener('click', e=>{
+    Array.prototype.forEach.call(box.querySelectorAll('.filter-pill'), x=>x.classList.toggle('active', x===e.currentTarget));
+  }));
+}
+function gewaehlteWdh(){
+  const an = document.querySelector('#terminWdhRow .filter-pill.active');
+  return an ? an.dataset.rrule : '';
+}
+
+function zeitZeileZeigen(){
+  const zeile = document.getElementById('terminZeitZeile');
+  const ganz = document.getElementById('terminGanztag');
+  if(zeile && ganz) zeile.style.display = ganz.checked ? 'none' : '';
+}
+
+function oeffneTerminForm(id){
+  const form = document.getElementById('terminForm');
+  if(!form) return;
+  terminBearbeitet = id || null;
+  const t = id ? termine().filter(x=>x.id === id)[0] : null;
+  document.getElementById('terminFormTitel').textContent = t ? 'Termin bearbeiten' : 'Neuer Termin';
+  document.getElementById('terminTitel').value  = t ? (t.titel||'') : '';
+  document.getElementById('terminDatum').value  = t ? (t.datum||'') : (kalGewaehlt || heuteIso());
+  document.getElementById('terminOrt').value    = t ? (t.ort||'') : '';
+  document.getElementById('terminGanztag').checked = !!(t && t.ganztag);
+  document.getElementById('terminZeit').value   = t ? (t.zeit||'') : '18:00';
+  document.getElementById('terminBis').value    = t ? (t.bis||'') : '';
+  terminWer = (t && Array.isArray(t.wer)) ? t.wer.slice() : [];
+  renderTerminWer();
+  renderTerminWdh(t ? t.rrule : '');
+  zeitZeileZeigen();
+  document.getElementById('terminLoeschen').hidden = !t;
+  form.hidden = false;
+  form.scrollIntoView({block:'nearest'});
+  document.getElementById('terminTitel').focus();
+}
+function schliesseTerminForm(){
+  const form = document.getElementById('terminForm');
+  if(form) form.hidden = true;
+  terminBearbeitet = null;
+}
+
+function speichereTermin(){
+  const titelEl = document.getElementById('terminTitel');
+  const titel = titelEl.value.trim();
+  if(!titel){ feldFehler(titelEl, 'Ohne Bezeichnung lässt sich der Termin nicht speichern.'); return; }
+  const datum = document.getElementById('terminDatum').value;
+  if(!datum){ feldFehler(document.getElementById('terminDatum'), 'Ein Datum braucht der Termin.'); return; }
+
+  const ganztag = document.getElementById('terminGanztag').checked;
+  const zeit = ganztag ? '' : document.getElementById('terminZeit').value;
+  const bis  = ganztag ? '' : document.getElementById('terminBis').value;
+  const ort  = document.getElementById('terminOrt').value.trim();
+  const rrule = gewaehlteWdh();
+
+  const alt = terminBearbeitet ? termine().filter(x=>x.id === terminBearbeitet)[0] : null;
+  const id = terminBearbeitet || neueId('t');
+
+  /* K-10 — uid, sequence und herkunft stehen ab der ersten Zeile. `uid` bleibt
+     über die gesamte Lebensdauer gleich, `sequence` zählt bei jeder inhaltlichen
+     Änderung hoch: daran entscheidet ein abonnierender Kalender, ob eine Fassung
+     neuer ist. Ohne beides liest er eine Änderung als Löschung plus Neuanlage. */
+  const termin = {
+    uid: (alt && alt.uid) || (id + '@butley'),
+    sequence: alt ? ((alt.sequence || 0) + 1) : 0,
+    herkunft: (alt && alt.herkunft) || 'butley',
+    datum: datum,
+    titel: titel,
+    wer: terminWer.length ? terminWer.slice() : 'haushalt',
+    angelegt: (alt && alt.angelegt) || Date.now()
+  };
+  if(ganztag) termin.ganztag = true;
+  if(zeit) termin.zeit = zeit;
+  if(bis)  termin.bis = bis;
+  if(ort)  termin.ort = ort;
+  if(rrule) termin.rrule = rrule;
+
+  state.kalender = state.kalender || {gemeinsam:{}};
+  state.kalender.gemeinsam = state.kalender.gemeinsam || {};
+  state.kalender.gemeinsam[id] = termin;
+  saveTermin(id, termin);
+  kalGewaehlt = datum;
+  kalAnker = datum;
+  schliesseTerminForm();
+  renderKalender();
+  schreibeIcs();
+  showToast(alt ? 'Termin geändert' : 'Termin angelegt');
+}
+
+function loescheTermin(){
+  const id = terminBearbeitet;
+  if(!id) return;
+  const sicherung = ((state.kalender||{}).gemeinsam||{})[id];
+  if(!sicherung) return;
+  delete state.kalender.gemeinsam[id];
+  saveTermin(id, null);
+  schliesseTerminForm();
+  renderKalender();
+  schreibeIcs();
+  showToast('„'+(sicherung.titel||'')+'" gelöscht', ()=>{
+    state.kalender.gemeinsam[id] = sicherung;
+    saveTermin(id, sicherung);
+    renderKalender();
+    schreibeIcs();
+  });
+}
+
+(function(){
+  const an = (id, ev, fn) => { const el = document.getElementById(id); if(el) el.addEventListener(ev, fn); };
+  an('kalZurueck','click', ()=>{
+    kalInit();
+    if(kalAnsicht === 'monat'){
+      const d = datumVon(kalAnker); d.setMonth(d.getMonth()-1); kalAnker = isoVon(d);
+    } else kalAnker = tageAddieren(kalAnker, -7);
+    renderKalender();
+  });
+  an('kalVor','click', ()=>{
+    kalInit();
+    if(kalAnsicht === 'monat'){
+      const d = datumVon(kalAnker); d.setMonth(d.getMonth()+1); kalAnker = isoVon(d);
+    } else kalAnker = tageAddieren(kalAnker, 7);
+    renderKalender();
+  });
+  an('kalHeute','click', ()=>{ kalAnker = heuteIso(); kalGewaehlt = heuteIso(); renderKalender(); });
+  Array.prototype.forEach.call(document.querySelectorAll('#kalAnsichtRow .filter-pill'), b=>b.addEventListener('click', e=>{
+    kalAnsicht = e.currentTarget.dataset.ansicht;
+    Array.prototype.forEach.call(document.querySelectorAll('#kalAnsichtRow .filter-pill'), x=>x.classList.toggle('active', x===e.currentTarget));
+    renderKalender();
+  }));
+  an('terminNeu','click', ()=>oeffneTerminForm(null));
+  an('terminAbbrechen','click', schliesseTerminForm);
+  an('terminSpeichern','click', speichereTermin);
+  an('terminLoeschen','click', loescheTermin);
+  an('terminGanztag','change', zeitZeileZeigen);
+  an('terminTitel','keydown', e=>{ if(e.key === 'Enter'){ e.preventDefault(); speichereTermin(); } });
+})();
+
+/* =========================================================================
+   20b. ICS-Export — einseitig, nach K-10
+
+   Der Feed muss ohne Anmeldung abrufbar sein: Google und Apple schicken beim
+   Abholen keine Anmeldedaten mit. Der Schutz liegt deshalb allein in einem
+   langen, zufälligen Token im Pfad — dieselbe Bauform wie die Haushalts-IDs
+   nach Kapitel 7.1.
+
+   Der Client schreibt den fertigen Text nach `ics/<token>`; der Worker liest
+   ihn und liefert ihn als text/calendar aus. Damit braucht der Worker kein
+   Firebase-Geheimnis — er liest einen Zweig, der ohnehin per Token öffentlich
+   ist. Die Sicherheitsregel erlaubt das Schreiben nur Mitgliedern des
+   Haushalts, der im Datensatz steht.
+   ========================================================================= */
+const saveIcsToken = (t) => put('data/settings/icsToken', t);
+
+function icsToken(){ return (state.settings && state.settings.icsToken) || ''; }
+
+function neuesToken(){
+  let s = '';
+  const zeichen = 'abcdefghijklmnopqrstuvwxyz0123456789';
+  const zufall = new Uint8Array(24);
+  (self.crypto || window.crypto).getRandomValues(zufall);
+  for(let i=0;i<zufall.length;i++) s += zeichen[zufall[i] % zeichen.length];
+  return s;
+}
+
+function icsZeile(text){
+  /* iCalendar bricht bei 75 Oktetten. Fortsetzungszeilen beginnen mit einem
+     Leerzeichen — ohne das lehnen manche Kalender die Datei still ab. */
+  const roh = String(text);
+  if(roh.length <= 73) return roh;
+  let aus = roh.slice(0,73), rest = roh.slice(73);
+  while(rest.length){ aus += '\r\n ' + rest.slice(0,72); rest = rest.slice(72); }
+  return aus;
+}
+function icsText(wert){
+  return String(wert==null?'':wert).replace(/\\/g,'\\\\').replace(/;/g,'\\;').replace(/,/g,'\\,').replace(/\r?\n/g,'\\n');
+}
+function icsStempel(){
+  return new Date().toISOString().replace(/[-:]/g,'').replace(/\.\d{3}/,'');
+}
+function baueIcs(){
+  const zeilen = [
+    'BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Butley//Haushaltskalender//DE',
+    'CALSCALE:GREGORIAN','METHOD:PUBLISH',
+    'X-WR-CALNAME:' + icsText(aktivesHaushaltName || 'Butley'),
+    'X-WR-TIMEZONE:Europe/Berlin'
+  ];
+  const stempel = icsStempel();
+  termine().forEach(t=>{
+    const tag = String(t.datum||'').replace(/-/g,'');
+    if(!tag) return;
+    zeilen.push('BEGIN:VEVENT');
+    zeilen.push('UID:' + icsText(t.uid || (t.id + '@butley')));
+    zeilen.push('SEQUENCE:' + (t.sequence || 0));
+    zeilen.push('DTSTAMP:' + stempel);
+    if(t.ganztag || !t.zeit){
+      zeilen.push('DTSTART;VALUE=DATE:' + tag);
+      zeilen.push('DTEND;VALUE=DATE:' + String(tageAddieren(t.datum,1)).replace(/-/g,''));
+    } else {
+      zeilen.push('DTSTART;TZID=Europe/Berlin:' + tag + 'T' + t.zeit.replace(':','') + '00');
+      if(t.bis) zeilen.push('DTEND;TZID=Europe/Berlin:' + tag + 'T' + t.bis.replace(':','') + '00');
+    }
+    if(t.rrule) zeilen.push('RRULE:' + t.rrule);
+    zeilen.push(icsZeile('SUMMARY:' + icsText(t.titel)));
+    if(t.ort) zeilen.push(icsZeile('LOCATION:' + icsText(t.ort)));
+    zeilen.push(icsZeile('DESCRIPTION:' + icsText(werText(t))));
+    zeilen.push('END:VEVENT');
+  });
+  zeilen.push('END:VCALENDAR');
+  return zeilen.join('\r\n') + '\r\n';
+}
+
+/* Wird nach jeder Terminänderung aufgerufen. Ohne Token passiert nichts —
+   wer nie einen Link erzeugt hat, soll auch keinen Feed in der Datenbank haben. */
+function schreibeIcs(){
+  const token = icsToken();
+  if(!token || !HAUSHALT_ID) return;
+  putWurzel('ics/' + token, {hh: HAUSHALT_ID, text: baueIcs(), aktualisiert: Date.now()});
+}
+
+function icsAdresse(){
+  const token = icsToken();
+  return token ? (location.origin + '/ics/' + token + '.ics') : '';
+}
+
+function renderIcsAus(){
+  const aus = document.getElementById('icsAus');
+  const neu = document.getElementById('icsNeu');
+  const knopf = document.getElementById('icsKopieren');
+  if(!aus) return;
+  const adresse = icsAdresse();
+  if(!adresse){
+    aus.innerHTML = '';
+    if(neu) neu.hidden = true;
+    if(knopf) knopf.textContent = '🔗 Link erzeugen';
+    return;
+  }
+  aus.innerHTML = '<p class="ics-link">'+escapeHtml(adresse)+'</p>';
+  if(neu) neu.hidden = false;
+  if(knopf) knopf.textContent = '🔗 Link kopieren';
+}
+
+(function(){
+  const knopf = document.getElementById('icsKopieren');
+  if(knopf) knopf.addEventListener('click', async ()=>{
+    if(!icsToken()){
+      const token = neuesToken();
+      state.settings.icsToken = token;
+      saveIcsToken(token);
+      schreibeIcs();
+      renderIcsAus();
+      showToast('Abo-Link erzeugt');
+      return;
+    }
+    schreibeIcs();
+    try{
+      await navigator.clipboard.writeText(icsAdresse());
+      showToast('Link kopiert');
+    }catch(e){
+      showToast('Kopieren ging nicht — Link steht oben zum Markieren');
+    }
+  });
+  const neu = document.getElementById('icsNeu');
+  if(neu) neu.addEventListener('click', ()=>{
+    const alt = icsToken();
+    if(!alt) return;
+    if(!confirm('Der bisherige Link wird ungültig. Alle, die den Kalender abonniert haben, müssen ihn neu einrichten. Fortfahren?')) return;
+    putWurzel('ics/' + alt, null);
+    const token = neuesToken();
+    state.settings.icsToken = token;
+    saveIcsToken(token);
+    schreibeIcs();
+    renderIcsAus();
+    showToast('Neuer Link erzeugt, der alte ist ungültig');
+  });
+})();
+
+/* ---------- Termine auf Heute ---------- */
+function renderHeuteTermine(){
+  const box = document.getElementById('heuteTermine');
+  if(!box) return;
+  const heute = heuteIso();
+  let dran = termineAmTag(heute);
+  let hinweis = '';
+  if(!dran.length){
+    /* Steht heute nichts an, die nächsten Tage — Kapitel 3.2. */
+    for(let i=1;i<=7 && !dran.length;i++){
+      const tag = tageAddieren(heute, i);
+      const treffer = termineAmTag(tag);
+      if(treffer.length){ dran = treffer; hinweis = (i===1 ? 'Morgen' : WOCHENTAGE_KURZ[wochentagIndex(tag)] + ', ' + fmtTag(tag)); }
+    }
+  }
+  if(!dran.length){
+    box.innerHTML = '<p class="ex-hint">In den nächsten Tagen steht nichts an.</p>';
+    return;
+  }
+  box.innerHTML = (hinweis ? '<p class="ex-hint">Heute nichts. Als Nächstes — '+escapeHtml(hinweis)+':</p>' : '') +
+    dran.map(t=>'<div class="heute-zeile">' +
+      '<span class="heute-was">'+(t.ganztag || !t.zeit ? 'ganztägig' : escapeHtml(t.zeit))+'</span>' +
+      '<span class="heute-wer">'+werPunkte(t)+' '+escapeHtml(t.titel||'')+'</span>' +
+    '</div>').join('');
+}
+
+/* =========================================================================
+   21. Bildschirm an halten — beim Einkaufen und bei offenem Rezept
    ========================================================================= */
 let wakeLock = null;
 async function requestWakeLock(){
@@ -3824,7 +4354,7 @@ document.addEventListener('visibilitychange', ()=>{
 });
 
 /* =========================================================================
-   21. Navigation, Kopfzeile, Heute
+   22. Navigation, Kopfzeile, Heute
    ========================================================================= */
 
 /* IA-15 - fuenf Bereiche statt acht Reiter, zwei davon mit Unterbereichen.
@@ -3925,6 +4455,9 @@ function renderHeute(){
       ? essenZeilen.join('')
       : '<p class="ex-hint">Fuer heute ist nichts eingeplant.</p>';
   }
+
+  /* Termine — kommen aus dem Kalender, eigener Abschnitt weiter unten */
+  try{ renderHeuteTermine(); }catch(e){ console.warn('Termine auf Heute:', e); }
 
   /* Aufgaben — kommt aus den Notizen, eigener Abschnitt weiter unten */
   try{ renderHeuteAufgaben(); }catch(e){ console.warn('Aufgaben auf Heute:', e); }
@@ -4032,7 +4565,7 @@ document.getElementById('joinHhBtn').addEventListener('click', async ()=>{
 });
 
 /* =========================================================================
-   22. Einstellungen: Haushaltsname, eigenes Profil (Name/E-Mail/Passwort)
+   23. Einstellungen: Haushaltsname, eigenes Profil (Name/E-Mail/Passwort)
    ========================================================================= */
 const AUTH_ERR_DE_2 = {
   'auth/requires-recent-login': 'Das geht aus Sicherheitsgründen nur kurz nach dem Anmelden. Einmal ab- und wieder anmelden, dann nochmal versuchen.',

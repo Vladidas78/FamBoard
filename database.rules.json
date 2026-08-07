@@ -23,6 +23,13 @@
       }
     },
 
+    "ics": {
+      "$token": {
+        ".read": true,
+        ".write": "auth != null && $token.length >= 16 && ( !newData.exists() || ( newData.hasChildren(['hh','text']) && newData.child('text').isString() && newData.child('text').val().length < 400000 && root.child('haushalte/' + newData.child('hh').val() + '/members/' + auth.uid).exists() ) )"
+      }
+    },
+
     "haushalte": {
       "$haushalt": {
         ".read":  "auth != null && $haushalt.length >= 12 && root.child('haushalte/' + $haushalt + '/members/' + auth.uid).exists()",

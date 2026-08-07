@@ -112,7 +112,7 @@
 
     <div class="card" id="heuteKarteTermine">
       <div class="shop-head"><div class="wk">Termine</div></div>
-      <p class="ex-hint">Sobald der Kalender da ist, stehen hier die Termine des Tages.</p>
+      <div id="heuteTermine"></div>
     </div>
 
     <div class="card" id="heuteKarteEssen">
@@ -131,10 +131,81 @@
     </div>
   </section>
 
+  <!-- Kalender (B5) — Monat als Standard, Woche umschaltbar (K-2). Termine je
+       Person farblich, Zuordnung an Personen oder an den ganzen Haushalt.
+       Jeder Termin traegt uid, sequence und herkunft von der ersten Zeile an
+       (K-10). Nach MD-26 direkt im Zielentwurf gebaut. -->
   <section id="kalender">
-    <div class="card">
-      <div class="shop-head"><div class="wk">Kalender</div></div>
-      <p class="ex-hint">Der Kalender wird gebaut. Bis dahin bleibt hier Platz.</p>
+    <header class="seiten-kopf">
+      <div class="sk-text">
+        <p class="sk-lage" id="kalLage">Kalender</p>
+        <h1 class="sk-titel" id="kalTitel">Kalender</h1>
+      </div>
+      <span class="sk-werkzeuge">
+        <button class="sk-werkzeug" id="kalZurueck" type="button" aria-label="Zurück">‹</button>
+        <button class="sk-werkzeug" id="kalHeute" type="button" aria-label="Zu heute">•</button>
+        <button class="sk-werkzeug" id="kalVor" type="button" aria-label="Weiter">›</button>
+      </span>
+    </header>
+
+    <div class="filter-row" id="kalAnsichtRow">
+      <button class="filter-pill active" data-ansicht="monat" type="button">Monat</button>
+      <button class="filter-pill" data-ansicht="woche" type="button">Woche</button>
+    </div>
+
+    <div class="karte kal-karte">
+      <div class="kal-wochentage" id="kalWochentage"></div>
+      <div id="kalRaster" class="kal-raster"></div>
+    </div>
+
+    <div id="kalTag"></div>
+
+    <div class="karte notiz-neu-karte">
+      <button class="weiter" id="terminNeu" type="button">
+        <span>Termin anlegen</span><span class="weiter-pfeil">›</span>
+      </button>
+    </div>
+
+    <div class="karte kal-form" id="terminForm" hidden>
+      <div class="shop-head"><div class="wk" id="terminFormTitel">Neuer Termin</div>
+        <button class="close-add" id="terminAbbrechen" type="button" aria-label="Schließen">✕</button>
+      </div>
+      <div class="field">
+        <label>Was</label>
+        <input type="text" id="terminTitel" placeholder="z. B. Elternabend Klasse 4b" autocomplete="off">
+        <p class="feld-fehler" data-fehler-fuer="terminTitel" hidden></p>
+      </div>
+      <div class="grid2">
+        <div class="field"><label>Datum</label><input type="date" id="terminDatum"></div>
+        <div class="field"><label>Ort <span class="hint">optional</span></label><input type="text" id="terminOrt" placeholder="Hallenbad Nord" autocomplete="off"></div>
+      </div>
+      <label class="kal-ganztag"><input type="checkbox" id="terminGanztag"> Ganztägig</label>
+      <div class="grid2" id="terminZeitZeile">
+        <div class="field"><label>Von</label><input type="time" id="terminZeit"></div>
+        <div class="field"><label>Bis <span class="hint">optional</span></label><input type="time" id="terminBis"></div>
+      </div>
+      <div class="field">
+        <label>Wer</label>
+        <div class="wer-wahl" id="terminWerWahl"></div>
+      </div>
+      <div class="field">
+        <label>Wiederholung</label>
+        <div class="filter-row" id="terminWdhRow"></div>
+      </div>
+      <div class="kal-form-knoepfe">
+        <button class="btn btn-primary" id="terminSpeichern" type="button">Speichern</button>
+        <button class="btn btn-ghost btn-loeschen" id="terminLoeschen" type="button" hidden>Löschen</button>
+      </div>
+    </div>
+
+    <div class="karte kal-export">
+      <div class="shop-head"><div class="wk">In anderen Kalender übernehmen</div></div>
+      <p class="ex-hint">Ein Abo-Link für den ganzen Haushalt. Apple holt ihn je nach Einstellung alle paar Minuten, Google alle 8 bis 24 Stunden. Einseitig — was ihr dort ändert, kommt nicht zurück (K-10).</p>
+      <div id="icsAus"></div>
+      <div class="kal-form-knoepfe">
+        <button class="btn btn-soft" id="icsKopieren" type="button">🔗 Link erzeugen</button>
+        <button class="btn btn-ghost btn-loeschen btn-sm" id="icsNeu" type="button" hidden>Link zurückziehen</button>
+      </div>
     </div>
   </section>
 
