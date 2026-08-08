@@ -7,6 +7,7 @@ import {
   updateProfile, updateEmail, updatePassword, linkWithCredential, EmailAuthProvider
 } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-auth.js";
 import { getDatabase, ref, set, remove, get, onValue } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-database.js";
+import { FIGUR, FIGUR_VIEWBOX } from "./figur.js";
 
 const DAYS = ["Montag","Dienstag","Mittwoch","Donnerstag","Freitag","Samstag","Sonntag"];
 
@@ -4363,6 +4364,14 @@ document.addEventListener('visibilitychange', ()=>{
    mit zurueckgesetzt werden - sonst verliert Essen beim Weggehen seine
    Ansicht (IA-11, Ansichtszustand bleibt in der Sitzung erhalten). */
 function zeigeBereich(name){
+  /* Woher man in die Einstellungen kam, damit "zurueck" dorthin fuehrt.
+     Sie sind kein Bereich mehr und haben deshalb keinen eigenen Reiter. */
+  if(name === 'settings'){
+    const offen = document.querySelector('main > section.active');
+    if(offen && offen.id !== 'settings') bereichVorEinstellungen = offen.id;
+  }else{
+    try{ loeschBestaetigungZuruecknehmen(); }catch(e){}
+  }
   Array.prototype.forEach.call(document.querySelectorAll('nav .tab'),
     b=>b.classList.toggle('active', b.dataset.tab === name));
   Array.prototype.forEach.call(document.querySelectorAll('main > section'),
@@ -4377,16 +4386,39 @@ function zeigeUnter(bereichId, name){
     b=>b.classList.toggle('active', b.dataset.unter === name));
   Array.prototype.forEach.call(wurzel.querySelectorAll(':scope > .unterpanel'),
     p=>p.classList.toggle('active', p.id === name));
+  /* B6 - dieselbe Auswahl steht auf breiten Flaechen in der Seitenleiste.
+     Sie wird mitgefuehrt, nicht eigenstaendig gehalten: zwei Quellen fuer
+     denselben Zustand laufen frueher oder spaeter auseinander. */
+  Array.prototype.forEach.call(document.querySelectorAll('nav .nav-unter[data-tab="' + bereichId + '"]'),
+    b=>b.classList.toggle('active', b.dataset.unter === name));
   updateWakeLock();
 }
 
 Array.prototype.forEach.call(document.querySelectorAll('nav .tab'),
   t=>t.addEventListener('click', ()=>zeigeBereich(t.dataset.tab)));
 
+/* Unterpunkt in der Seitenleiste: erst in den Bereich, dann in den Unterbereich.
+   Beides, weil der Punkt auch angetippt werden kann, waehrend ein anderer
+   Bereich offen ist - genau dafuer steht er ausgeklappt da. */
+Array.prototype.forEach.call(document.querySelectorAll('nav .nav-unter'), b=>{
+  b.addEventListener('click', ()=>{
+    zeigeBereich(b.dataset.tab);
+    zeigeUnter(b.dataset.tab, b.dataset.unter);
+  });
+});
+
 Array.prototype.forEach.call(document.querySelectorAll('.unternav'), leiste=>{
   const bereichId = leiste.closest('section').id;
   Array.prototype.forEach.call(leiste.querySelectorAll('.unter'),
     b=>b.addEventListener('click', ()=>zeigeUnter(bereichId, b.dataset.unter)));
+});
+
+/* Startzustand der Seitenleiste einmal aus der `.unternav` uebernehmen, damit
+   sie nicht ohne Markierung dasteht, bevor zum ersten Mal umgeschaltet wurde. */
+Array.prototype.forEach.call(document.querySelectorAll('.unternav .unter.active'), b=>{
+  const bereichId = b.closest('section').id;
+  Array.prototype.forEach.call(document.querySelectorAll('nav .nav-unter[data-tab="' + bereichId + '"]'),
+    n=>n.classList.toggle('active', n.dataset.unter === b.dataset.unter));
 });
 
 /* ---------- Kopfzeile ----------
@@ -4577,7 +4609,163 @@ function authErrText2(err){
   return AUTH_ERR_DE_2[err.code] || AUTH_ERR_DE[err.code] || ('Fehlgeschlagen (' + (err.code || err.message) + ').');
 }
 
+/* =========================================================================
+   Darstellung, Figur und Verwaltung (B6)
+   ========================================================================= */
+
+/* Beides ist Gerätesache, nicht Haushaltssache: Wer am Abend auf dem Sofa
+   dunkel liest, zwingt damit niemandem am Küchentablett etwas auf. Deshalb
+   localStorage und nicht Firebase. */
+const MODUS_KEY  = 'famboard.modus';    // system | hell | dunkel
+const BUTLEY_KEY = 'famboard.butley';   // voll | hilfe | aus
+
+function lieseWahl(schluessel, erlaubt, standard){
+  try{
+    const v = localStorage.getItem(schluessel);
+    return erlaubt.indexOf(v) !== -1 ? v : standard;
+  }catch(e){ return standard; }
+}
+function merkeWahl(schluessel, wert){ try{ localStorage.setItem(schluessel, wert); }catch(e){} }
+
+function modus(){ return lieseWahl(MODUS_KEY, ['system','hell','dunkel'], 'system'); }
+function butleyStufe(){ return lieseWahl(BUTLEY_KEY, ['voll','hilfe','aus'], 'voll'); }
+/* MD-8 - bei "Aus" bleibt die Hilfe als reines Fragezeichen erhalten.
+   Die Figur zeigt sich nur auf der vollen Stufe von selbst. */
+function figurSichtbar(){ return butleyStufe() === 'voll'; }
+
+/* "system" heisst: kein Attribut setzen. Dann greift die Medienabfrage in
+   styles.css, und die App folgt dem Geraet. */
+function setzeModus(wert){
+  const w = document.documentElement;
+  if(wert === 'system') w.removeAttribute('data-mode');
+  else w.setAttribute('data-mode', wert);
+  /* Die Systemleiste des Browsers zieht mit, sonst steht ueber der dunklen
+     App ein helles Band. */
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if(meta){
+    const dunkel = wert === 'dunkel' ||
+      (wert === 'system' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    meta.setAttribute('content', dunkel ? '#1B1917' : '#FAF7F2');
+  }
+}
+
+/* Zeichnet einen Zustand der Figur in ein vorhandenes <svg>. Reine Anzeige -
+   greift nie hart auf das Element zu (Kapitel 2.6, Regel 1). */
+function zeichneFigur(el, zustand){
+  if(!el) return;
+  const inhalt = FIGUR[zustand] || FIGUR.ruhend;
+  el.setAttribute('viewBox', FIGUR_VIEWBOX);
+  el.innerHTML = inhalt;
+}
+
+const BUTLEY_TEXT = {
+  voll:  'Begrüßung, leere Zustände und Ankündigungen.',
+  hilfe: 'Erscheint nur, wenn du das Fragezeichen antippst.',
+  aus:   'Keine Figur. Die Hilfe bleibt als reines Fragezeichen erhalten.'
+};
+const BUTLEY_ZUSTAND = { voll:'begruessend', hilfe:'ruhend', aus:'schlafend' };
+
+function renderDarstellung(){
+  const m = modus();
+  Array.prototype.forEach.call(document.querySelectorAll('#modusUmschalter .umschalter-knopf'),
+    b=>b.setAttribute('aria-selected', String(b.dataset.modus === m)));
+
+  const stufe = butleyStufe();
+  Array.prototype.forEach.call(document.querySelectorAll('#butleyUmschalter .umschalter-knopf'),
+    b=>b.setAttribute('aria-selected', String(b.dataset.stufe === stufe)));
+  const erkl = document.getElementById('butleyErklaerung');
+  if(erkl) erkl.textContent = BUTLEY_TEXT[stufe] || '';
+  zeichneFigur(document.getElementById('butleyFigur'), BUTLEY_ZUSTAND[stufe] || 'ruhend');
+}
+
+/* Beim Start sofort setzen - nicht erst, wenn die Einstellungen geoeffnet
+   werden. Sonst blitzt die helle Fassung auf. */
+setzeModus(modus());
+if(window.matchMedia){
+  /* Wechselt das Geraet, waehrend die App offen ist, zieht die Kopfleiste mit */
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', ()=>{
+    if(modus() === 'system') setzeModus('system');
+  });
+}
+
+Array.prototype.forEach.call(document.querySelectorAll('#modusUmschalter .umschalter-knopf'), b=>{
+  b.addEventListener('click', ()=>{ merkeWahl(MODUS_KEY, b.dataset.modus); setzeModus(b.dataset.modus); renderDarstellung(); });
+});
+Array.prototype.forEach.call(document.querySelectorAll('#butleyUmschalter .umschalter-knopf'), b=>{
+  b.addEventListener('click', ()=>{ merkeWahl(BUTLEY_KEY, b.dataset.stufe); renderDarstellung(); try{ renderHeute(); }catch(e){} });
+});
+
+/* Rueckweg aus den Einstellungen. Sie sind kein Bereich mehr (Kapitel 3.2),
+   also gibt es keinen Reiter, auf den man zurueckfaellt - der zuletzt offene
+   Bereich wird gemerkt. */
+let bereichVorEinstellungen = 'heute';
+{
+  const zurueck = document.getElementById('settingsZurueck');
+  if(zurueck) zurueck.addEventListener('click', ()=>zeigeBereich(bereichVorEinstellungen));
+}
+
+/* Haushalt loeschen (Verwaltung aus der Oberflaeche).
+   Zwei Schritte statt eines Dialogs: `confirm()` ist ein blockierender
+   Browserdialog, und `alert()` ist seit Welle A bewusst aus dem Code raus.
+   Nur der Eigentuemer darf - Kapitel 3.1. */
+let loeschBestaetigt = false;
+{
+  const btn = document.getElementById('hhLoeschen');
+  const out = document.getElementById('hhLoeschenOut');
+  if(btn) btn.addEventListener('click', async ()=>{
+    if(meineRolle !== 'owner'){
+      if(out) out.textContent = 'Nur der Eigentümer dieses Haushalts kann ihn löschen.';
+      return;
+    }
+    if(!loeschBestaetigt){
+      loeschBestaetigt = true;
+      btn.textContent = 'Wirklich löschen — endgültig';
+      btn.classList.remove('btn-soft'); btn.classList.add('btn-primary');
+      if(out) out.textContent = 'Rezepte, Pläne, Listen, Notizen und Termine dieses Haushalts sind danach weg — auch für alle anderen Mitglieder. Nochmal tippen bestätigt, ein Bereichswechsel bricht ab.';
+      return;
+    }
+    btn.disabled = true;
+    if(out) out.textContent = 'Wird gelöscht …';
+    try{
+      const uidsSnap = await get(ref(db, 'haushalte/' + HAUSHALT_ID + '/members'));
+      const uids = uidsSnap.exists() ? Object.keys(uidsSnap.val()) : [];
+      /* Erst die Verweise der Mitglieder, dann der Haushalt: Bricht es in der
+         Mitte ab, zeigt niemand mehr auf einen Zweig, den es nicht mehr gibt.
+         Andersherum blieben Karteileichen in `users/<uid>/haushalte`. */
+      for(const uid of uids) await set(ref(db, 'users/' + uid + '/haushalte/' + HAUSHALT_ID), null);
+      await set(ref(db, 'haushalte/' + HAUSHALT_ID), null);
+      try{ localStorage.removeItem(HH_KEY); localStorage.removeItem('famboard.cache.' + HAUSHALT_ID); }catch(e){}
+      location.reload();
+    }catch(err){
+      btn.disabled = false;
+      if(out) out.textContent = 'Löschen fehlgeschlagen (' + (err.message || err) + '). Der Haushalt ist unverändert.';
+    }
+  });
+}
+
+/* Ein Bereichswechsel nimmt die Bestaetigung zurueck - sonst steht der Knopf
+   beim naechsten Besuch scharf da. */
+function loeschBestaetigungZuruecknehmen(){
+  if(!loeschBestaetigt) return;
+  loeschBestaetigt = false;
+  const btn = document.getElementById('hhLoeschen');
+  const out = document.getElementById('hhLoeschenOut');
+  if(btn){ btn.textContent = 'Haushalt löschen'; btn.classList.remove('btn-primary'); btn.classList.add('btn-soft'); }
+  if(out) out.textContent = '';
+}
+
 function renderSettingsTab(){
+  renderDarstellung();
+
+  const lage = document.getElementById('settingsLage');
+  if(lage) lage.textContent = (aktivesHaushaltName && aktivesHaushaltName !== HAUSHALT_ID) ? aktivesHaushaltName : 'Haushalt';
+
+  /* Loeschen steht nur dem Eigentuemer offen (Kapitel 3.1). O-C - der Knopf
+     bleibt sichtbar und wird ausgegraut, nicht ausgeblendet: Er steht damit
+     immer an derselben Stelle. */
+  const loesch = document.getElementById('hhLoeschen');
+  if(loesch) loesch.disabled = meineRolle !== 'owner';
+
   const emailEl = document.getElementById('acctEmail');
   if(emailEl && auth.currentUser) emailEl.textContent = auth.currentUser.email || ('Konto ' + auth.currentUser.uid.slice(0,6));
 

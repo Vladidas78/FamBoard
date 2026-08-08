@@ -81,13 +81,47 @@
 
 <!-- IA-15 - fuenf Bereiche. Fuenf sind mobil noch tragbar, sechs nicht; damit ist
      die Obergrenze erreicht. Reihenfolge nach Kapitel 3.2: heute, wann, was, womit,
-     dann Notizen. -->
-<nav>
-  <button class="tab active" data-tab="heute" type="button">Heute</button>
-  <button class="tab" data-tab="kalender" type="button">Kalender</button>
-  <button class="tab" data-tab="essen" type="button">Essen</button>
-  <button class="tab" data-tab="einkauf" type="button">Einkauf</button>
-  <button class="tab" data-tab="notizen" type="button">Notizen</button>
+     dann Notizen.
+
+     B6 - Lage nach Kapitel 3.2: schmal als Fussleiste unten, breit als
+     Seitenleiste links mit flach ausgeklappten Unterbereichen. Vorher stand die
+     Leiste oben und lief auf 402 px an beiden Raendern ueber; unten liegen die
+     fuenf Eintraege ausserdem im Daumenbogen. Es ist dieselbe Leiste, nur
+     zweimal anders gesetzt - kein zweites Markup, damit der aktive Zustand
+     nicht an zwei Stellen gepflegt werden muss.
+
+     Die Unterpunkte sind auf schmalen Geraeten per CSS ausgeblendet, nicht
+     entfernt: Dort traegt sie weiterhin die `.unternav` am Kopf des Bereichs. -->
+<nav id="hauptnav" aria-label="Hauptbereiche">
+  <button class="tab active" data-tab="heute" type="button">
+    <svg class="tab-symbol" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+    <span class="tab-text">Heute</span>
+  </button>
+  <button class="tab" data-tab="kalender" type="button">
+    <svg class="tab-symbol" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2.5"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>
+    <span class="tab-text">Kalender</span>
+  </button>
+  <button class="tab" data-tab="essen" type="button">
+    <svg class="tab-symbol" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3v8a2 2 0 0 0 4 0V3M8 11v10"/><path d="M17 3c-1.5 1.5-2 3.5-2 6s.8 3 2 3v9"/></svg>
+    <span class="tab-text">Essen</span>
+  </button>
+  <span class="nav-unterpunkte" data-fuer="essen">
+    <button class="nav-unter" data-tab="essen" data-unter="plan" type="button">Woche</button>
+    <button class="nav-unter" data-tab="essen" data-unter="recipes" type="button">Rezepte</button>
+    <button class="nav-unter" data-tab="essen" data-unter="nutrition" type="button">Nährwerte</button>
+  </span>
+  <button class="tab" data-tab="einkauf" type="button">
+    <svg class="tab-symbol" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16l-1.4 10.2A2 2 0 0 1 16.6 19H7.4a2 2 0 0 1-2-1.8L4 7Z"/><path d="M9 7a3 3 0 0 1 6 0"/></svg>
+    <span class="tab-text">Einkauf</span>
+  </button>
+  <span class="nav-unterpunkte" data-fuer="einkauf">
+    <button class="nav-unter" data-tab="einkauf" data-unter="shop" type="button">Liste</button>
+    <button class="nav-unter" data-tab="einkauf" data-unter="artikel" type="button">Artikel</button>
+  </span>
+  <button class="tab" data-tab="notizen" type="button">
+    <svg class="tab-symbol" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2.5"/><path d="M8.5 9.5l1.5 1.5 2.5-2.5M8.5 15.5l1.5 1.5 2.5-2.5M15.5 9.5H17M15.5 15.5H17"/></svg>
+    <span class="tab-text">Notizen</span>
+  </button>
 </nav>
 
 <main>
@@ -543,88 +577,158 @@
   <!-- Einstellungen sind kein Bereich mehr, sondern haengen nach Kapitel 3.2 an
        der Kopfzeile. Der Abschnitt bleibt, nur der Weg dorthin ist ein anderer. -->
   <section id="settings">
-      <div class="card" id="hhSwitchCard" style="display:none;">
-        <div class="shop-head"><div class="wk">Aktiver Haushalt</div></div>
-        <p class="ex-hint">Ihr gehört zu mehreren Haushalten. Wählt, welchen ihr auf diesem Gerät seht.</p>
-        <div class="hh-switch" id="hhSwitchList"></div>
-      </div>
-
-      <div class="card">
-        <div class="shop-head"><div class="wk">Haushaltsname</div></div>
-        <p class="ex-hint" id="hhNameHint">So heißt euer Haushalt in der Übersicht und für alle Mitglieder.</p>
-        <div class="ing-input-row" style="grid-template-columns:1fr 100px;">
-          <input type="text" id="hhNameInput" placeholder="z. B. Familie Müller" autocomplete="off">
-          <button class="btn btn-primary" id="hhNameSave" type="button">Speichern</button>
+      <header class="seiten-kopf detail-kopf">
+        <button class="sk-zurueck" id="settingsZurueck" type="button" aria-label="Zurück">‹</button>
+        <div class="sk-text">
+          <p class="sk-lage" id="settingsLage">Haushalt</p>
+          <h1 class="sk-titel">Einstellungen</h1>
         </div>
-        <div class="ex-hint" id="hhNameOut" style="margin-top:10px;"></div>
-      </div>
+      </header>
 
-      <!-- Personen (B4) — Datenobjekte im Haushalt, nicht Konten (Kapitel 3.1).
-           Kinder und Mitbewohner ohne Login sind Personen; damit entfaellt
-           DSGVO Art. 8. Die Verknuepfung zum Konto ist ein optionales Feld
-           `uid` an der Person. -->
-      <div class="card">
-        <div class="shop-head"><div class="wk">Personen <span class="count" id="personenCount"></span></div></div>
-        <p class="ex-hint">Wer zum Haushalt gehört — auch ohne eigenes Konto. Die Farbe taucht an Aufgaben und später an Terminen auf.</p>
-        <ul class="personen-liste" id="personenListe"></ul>
-        <div class="ing-input-row" style="grid-template-columns:1fr auto; margin-top:12px;">
-          <input type="text" id="personName" placeholder="z. B. Mila" autocomplete="off">
-          <button class="btn btn-primary" id="personAdd" type="button">Anlegen</button>
-        </div>
-        <p class="feld-fehler" data-fehler-fuer="personName" hidden></p>
-      </div>
-
-      <div class="card">
-        <div class="shop-head"><div class="wk">Mein Profil</div></div>
-        <div class="field">
-          <label>Name <span class="hint">wird den anderen Mitgliedern angezeigt</span></label>
-          <div class="ing-input-row" style="grid-template-columns:1fr 100px;">
-            <input type="text" id="profilNameInput" placeholder="z. B. Vladi" autocomplete="name">
-            <button class="btn btn-soft" id="profilNameSave" type="button">Speichern</button>
+      <!-- Darstellung. Der Dunkelmodus war bis B6 nur eine CSS-Regel, die
+           niemand eingeschaltet hat - siehe Kommentar in styles.css.
+           Systemvorgabe ist der Standard, die eigene Wahl gewinnt. -->
+      <section class="gruppe">
+        <div class="gruppen-kopf"><h3>Darstellung</h3></div>
+        <div class="karte karte-liste">
+          <div class="reihe reihe-block">
+            <span class="reihe-titel">Modus</span>
+            <div class="umschalter" id="modusUmschalter" role="tablist" aria-label="Darstellungsmodus">
+              <button class="umschalter-knopf" role="tab" data-modus="system" aria-selected="true" type="button">System</button>
+              <button class="umschalter-knopf" role="tab" data-modus="hell" aria-selected="false" type="button">Hell</button>
+              <button class="umschalter-knopf" role="tab" data-modus="dunkel" aria-selected="false" type="button">Dunkel</button>
+            </div>
+            <span class="reihe-unter">Systemvorgabe ist der Standard, deine eigene Wahl gewinnt.</span>
           </div>
         </div>
-        <div class="ex-hint" id="profilNameOut" style="margin-bottom:8px;"></div>
+      </section>
 
-        <div class="field">
-          <label>E-Mail</label>
-          <div class="ing-input-row" style="grid-template-columns:1fr 100px;">
-            <input type="email" id="profilEmailInput" placeholder="neue@adresse.de" autocomplete="email">
-            <button class="btn btn-soft" id="profilEmailSave" type="button">Ändern</button>
+      <!-- MD-8 - dreistufiger Abschalter fuer die Figur.
+           MD-7 - sie traegt nie etwas, das es ohne sie nicht auch gaebe. -->
+      <section class="gruppe">
+        <div class="gruppen-kopf"><h3>Butley</h3></div>
+        <div class="karte karte-liste">
+          <div class="reihe reihe-block">
+            <div class="figur-band" style="margin-bottom:12px;">
+              <svg class="figur" id="butleyFigur" viewBox="0 0 512 512" fill="currentColor" aria-hidden="true"></svg>
+              <p>Wie präsent soll er sein?</p>
+            </div>
+            <div class="umschalter" id="butleyUmschalter" role="tablist" aria-label="Wie präsent Butley ist">
+              <button class="umschalter-knopf" role="tab" data-stufe="voll" aria-selected="true" type="button">Vollständig</button>
+              <button class="umschalter-knopf" role="tab" data-stufe="hilfe" aria-selected="false" type="button">Nur Hilfe</button>
+              <button class="umschalter-knopf" role="tab" data-stufe="aus" aria-selected="false" type="button">Aus</button>
+            </div>
+            <span class="reihe-unter" id="butleyErklaerung"></span>
           </div>
         </div>
-        <div class="ex-hint" id="profilEmailOut" style="margin-bottom:8px;"></div>
+      </section>
 
-        <div class="field">
-          <label id="profilPwLabel">Passwort ändern</label>
-          <div class="ing-input-row" style="grid-template-columns:1fr 100px;">
-            <input type="password" id="profilPwInput" placeholder="neues Passwort, mind. 6 Zeichen" autocomplete="new-password">
-            <button class="btn btn-soft" id="profilPwSave" type="button">Speichern</button>
+      <section class="gruppe">
+        <div class="gruppen-kopf"><h3>Haushalt</h3></div>
+        <div class="karte karte-liste">
+          <div class="reihe reihe-block" id="hhSwitchCard" style="display:none;">
+            <span class="reihe-titel">Aktiver Haushalt</span>
+            <span class="reihe-unter">Ihr gehört zu mehreren Haushalten. Wählt, welchen ihr auf diesem Gerät seht.</span>
+            <div class="hh-switch" id="hhSwitchList" style="margin-top:10px;"></div>
+          </div>
+
+          <div class="reihe reihe-block">
+            <span class="reihe-titel">Name</span>
+            <div class="ing-input-row" style="grid-template-columns:1fr 100px;">
+              <input type="text" id="hhNameInput" placeholder="z. B. Familie Müller" autocomplete="off">
+              <button class="btn btn-primary" id="hhNameSave" type="button">Speichern</button>
+            </div>
+            <span class="reihe-unter" id="hhNameHint">So heißt euer Haushalt in der Übersicht und für alle Mitglieder.</span>
+            <div class="ex-hint" id="hhNameOut"></div>
+          </div>
+
+          <!-- Personen (B4) - Datenobjekte im Haushalt, nicht Konten (Kapitel 3.1).
+               Kinder und Mitbewohner ohne Login sind Personen; damit entfaellt
+               DSGVO Art. 8. Die Verknuepfung zum Konto ist ein optionales Feld
+               `uid` an der Person. -->
+          <div class="reihe reihe-block">
+            <span class="reihe-titel">Personen <span class="count" id="personenCount"></span></span>
+            <span class="reihe-unter" style="margin:0 0 8px;">Wer zum Haushalt gehört — auch ohne eigenes Konto. Die Farbe taucht an Aufgaben und Terminen auf.</span>
+            <ul class="personen-liste" id="personenListe"></ul>
+            <div class="ing-input-row" style="grid-template-columns:1fr auto; margin-top:12px;">
+              <input type="text" id="personName" placeholder="z. B. Mila" autocomplete="off">
+              <button class="btn btn-primary" id="personAdd" type="button">Anlegen</button>
+            </div>
+            <p class="feld-fehler" data-fehler-fuer="personName" hidden></p>
+          </div>
+
+          <div class="reihe reihe-block">
+            <span class="reihe-titel">Mitglieder &amp; Einladung</span>
+            <span class="reihe-unter" style="margin:0 0 10px;">Wer den Einladungslink öffnet und sich anmeldet, sieht Wochenplan und Einkaufsliste und kann beides ändern — also nur an Leute geben, die dazugehören.</span>
+            <button class="btn btn-soft" id="copyInvite" type="button">🔗 Einladungslink erzeugen</button>
+            <div class="ex-hint" id="inviteOut" style="margin-top:10px;"></div>
+            <ul class="member-list" id="memberList"></ul>
+          </div>
+
+          <div class="reihe reihe-block">
+            <span class="reihe-titel">Weiterem Haushalt beitreten</span>
+            <span class="reihe-unter" style="margin:0 0 8px;">Für einen zusätzlichen Haushalt, den ihr schon von früher kennt (Haushalts-ID, z. B. <code>hh-…</code>), oder um einen Einladungscode einzulösen, den ihr per Nachricht bekommen habt.</span>
+            <div class="ing-input-row" style="grid-template-columns:1fr 100px;">
+              <input type="text" id="joinHhInput" placeholder="hh-… oder Einladungscode" autocomplete="off" style="font-family:var(--schrift); font-variant-numeric:tabular-nums; font-size:0.82rem;">
+              <button class="btn btn-primary" id="joinHhBtn" type="button">Beitreten</button>
+            </div>
+            <div class="ex-hint" id="joinHhOut" style="margin-top:10px;"></div>
           </div>
         </div>
-        <div class="ex-hint" id="profilPwOut"></div>
+      </section>
 
-        <div class="acct-row" style="margin-top:6px; border-top:1px solid var(--linie-leise); padding-top:12px;">
-          <span id="acctEmail">—</span><button class="btn btn-ghost btn-sm" id="acctSignOut" type="button">Abmelden</button>
+      <section class="gruppe">
+        <div class="gruppen-kopf"><h3>Konto</h3></div>
+        <div class="karte karte-liste">
+          <div class="reihe reihe-block">
+            <span class="reihe-titel">Name</span>
+            <div class="ing-input-row" style="grid-template-columns:1fr 100px;">
+              <input type="text" id="profilNameInput" placeholder="z. B. Vladi" autocomplete="name">
+              <button class="btn btn-soft" id="profilNameSave" type="button">Speichern</button>
+            </div>
+            <span class="reihe-unter">Wird den anderen Mitgliedern angezeigt.</span>
+            <div class="ex-hint" id="profilNameOut"></div>
+          </div>
+          <div class="reihe reihe-block">
+            <span class="reihe-titel">E-Mail</span>
+            <div class="ing-input-row" style="grid-template-columns:1fr 100px;">
+              <input type="email" id="profilEmailInput" placeholder="neue@adresse.de" autocomplete="email">
+              <button class="btn btn-soft" id="profilEmailSave" type="button">Ändern</button>
+            </div>
+            <div class="ex-hint" id="profilEmailOut"></div>
+          </div>
+          <div class="reihe reihe-block">
+            <span class="reihe-titel" id="profilPwLabel">Passwort ändern</span>
+            <div class="ing-input-row" style="grid-template-columns:1fr 100px;">
+              <input type="password" id="profilPwInput" placeholder="neues Passwort, mind. 6 Zeichen" autocomplete="new-password">
+              <button class="btn btn-soft" id="profilPwSave" type="button">Speichern</button>
+            </div>
+            <div class="ex-hint" id="profilPwOut"></div>
+          </div>
+          <button class="reihe" id="acctSignOut" type="button">
+            <span class="reihe-text">
+              <span class="reihe-titel">Abmelden</span>
+              <span class="reihe-unter" id="acctEmail">—</span>
+            </span>
+            <span class="reihe-pfeil">›</span>
+          </button>
         </div>
+      </section>
+
+      <!-- Der Hinweis steht hier dauerhaft, weil das Onboarding nach der
+           Entscheidung vom 07.08. strikt einmalig laeuft. Ohne diesen Platz
+           waere er nach einmal Wegtippen unerreichbar - und Push in Welle C
+           damit fuer iPhone-Nutzer still kaputt (Kapitel 3.7). -->
+      <div class="hinweis-band" style="margin-bottom:var(--abstand-xl);">
+        <svg class="hb-symbol" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9a6 6 0 1 1 12 0c0 4 1.5 5.5 1.5 5.5h-15S6 13 6 9Z"/><path d="M10 18a2 2 0 0 0 4 0"/></svg>
+        <p><strong>Auf dem iPhone nur vom Homescreen aus.</strong> Erinnerungen erreichen dich dort nur, wenn Butley auf dem Homescreen liegt: Teilen antippen, „Zum Home-Bildschirm“ wählen. Das ist eine Vorgabe von Apple, keine von uns.</p>
       </div>
 
-      <div class="card">
-        <div class="shop-head"><div class="wk">Mitglieder</div></div>
-        <p class="ex-hint">Wer Zugriff auf diesen Haushalt hat. Wer den Einladungslink öffnet und sich anmeldet, sieht Wochenplan und Einkaufsliste und kann beides ändern — also nur an Leute geben, die dazugehören.</p>
-        <button class="btn btn-soft" id="copyInvite" type="button">🔗 Einladungslink erzeugen</button>
-        <div class="ex-hint" id="inviteOut" style="margin-top:10px;"></div>
-        <ul class="member-list" id="memberList"></ul>
+      <div style="display:flex; justify-content:center; padding-bottom:6px;">
+        <button class="btn btn-soft btn-loeschen btn-sm" id="hhLoeschen" type="button">Haushalt löschen</button>
       </div>
-
-      <div class="card">
-        <div class="shop-head"><div class="wk">Weiterem Haushalt beitreten</div></div>
-        <p class="ex-hint">Für einen zusätzlichen Haushalt, den ihr schon von früher kennt (Haushalts-ID, z. B. <code>hh-…</code>), oder um einen Einladungscode einzulösen, den ihr nicht über den Link, sondern z. B. per Nachricht bekommen habt.</p>
-        <div class="ing-input-row" style="grid-template-columns:1fr 100px;">
-          <input type="text" id="joinHhInput" placeholder="hh-… oder Einladungscode" autocomplete="off" style="font-family:var(--schrift); font-variant-numeric:tabular-nums; font-size:0.82rem;">
-          <button class="btn btn-primary" id="joinHhBtn" type="button">Beitreten</button>
-        </div>
-        <div class="ex-hint" id="joinHhOut" style="margin-top:10px;"></div>
-      </div>
+      <div class="ex-hint" id="hhLoeschenOut" style="text-align:center;"></div>
+      <p class="ex-hint" style="text-align:center; padding-top:8px;">Butley <span class="zahl" id="appVersion">0.9.0</span> · Stufe 1</p>
   </section>
 </main>
 
