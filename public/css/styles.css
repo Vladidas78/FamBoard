@@ -1184,6 +1184,57 @@
   .btn:disabled, button:disabled{ opacity:.42; cursor:default; pointer-events:none; }
   .btn:disabled{ background:none; }
 
+  /* ---------- Heute (B6) ----------
+     Zeitschiene: links die Marke (Uhrzeit oder Mahlzeit), rechts der Inhalt an
+     einer durchgehenden Haarlinie. Die Marke ist so breit, dass "ganztags" und
+     "Abendessen" beide passen, ohne dass die Linie springt. */
+  .schiene{ display:flex; gap:12px; padding:13px var(--abstand-l); }
+  .schiene + .schiene{ border-top:1px solid var(--linie-leise); }
+  .schiene.vorbei{ opacity:.45; }
+  .sch-marke{
+    flex:none; width:84px; padding-top:1px;
+    font-size:13.5px; line-height:1.3; font-weight:500; color:var(--text-leise);
+    font-variant-numeric:tabular-nums;
+    overflow:hidden; text-overflow:ellipsis;
+  }
+  .schiene.jetzt .sch-marke{ color:var(--messing-aktion); font-weight:600; }
+  .sch-inhalt{
+    position:relative; min-width:0; flex:1;
+    border-left:1px solid var(--linie-leise); padding-left:14px;
+  }
+  /* Der Punkt sitzt auf der Linie, nicht daneben: Er markiert die Stelle, an
+     der der Tag gerade steht. */
+  .schiene.jetzt .sch-inhalt::before{
+    content:''; position:absolute; left:-3.5px; top:7px; width:6px; height:6px;
+    border-radius:50%; background:var(--messing-aktion);
+  }
+  .sch-titel{ margin:0; font-size:15.5px; line-height:1.35; color:var(--text-haupt); }
+  .schiene.jetzt .sch-titel{ font-weight:500; }
+  .sch-fuss{ display:flex; flex-wrap:wrap; align-items:center; gap:4px 12px; margin-top:3px; font-size:13px; color:var(--text-leise); }
+  .sch-knopf{ display:block; width:100%; padding:0; border:none; background:none; font:inherit; color:inherit; text-align:left; cursor:pointer; }
+  .sch-rechts{ display:flex; align-items:center; gap:8px; }
+  .sch-rechts .sch-menge{ flex:none; font-size:13px; color:var(--text-leise); font-variant-numeric:tabular-nums; }
+  /* Marke fuer Reste und Auswaerts - dieselbe Bauform wie im Wochenplan */
+  .sch-art{
+    flex:none; border-radius:999px; background:var(--flaeche-senke);
+    padding:2px 9px; font-size:12px; font-weight:500; color:var(--text-leise);
+  }
+
+  /* Abhakbare Zeile auf Heute. Kapitel 3.2 verlangt sie ausdruecklich fuer den
+     Einkauf: "offene Posten direkt abhakbar, nicht nur als Zahl" - damit
+     kostet der haeufigste Fall null Bereichswechsel. */
+  .heute-zeile{ display:flex; align-items:center; gap:14px; padding:7px var(--abstand-l); }
+  .heute-zeile + .heute-zeile{ border-top:1px solid var(--linie-leise); }
+  .heute-zeile .hz-text{ min-width:0; flex:1; }
+  .heute-zeile .hz-titel{ display:block; font-size:15.5px; line-height:1.35; color:var(--text-haupt); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .heute-zeile .hz-fuss{ display:flex; align-items:center; gap:6px; margin-top:2px; font-size:13px; color:var(--text-leise); }
+  .heute-zeile .hz-menge{ flex:none; font-size:13px; color:var(--text-leise); font-variant-numeric:tabular-nums; }
+  .heute-zeile .hz-frist{ flex:none; font-size:13px; color:var(--text-leise); }
+  .heute-zeile .hz-frist.heute{ color:var(--messing-aktion); font-weight:500; }
+  .heute-zeile .hz-frist.ueberfaellig{ color:var(--loeschen-farbe); font-weight:500; }
+
+  .heute-leer{ margin:0; padding:18px var(--abstand-l); font-size:15px; color:var(--text-leise); }
+
   /* ---------- Login-Gate ---------- */
   body.pre-auth header, body.pre-auth nav, body.pre-auth main{ display:none; }
   body:not(.pre-auth) .auth-gate{ display:none; }

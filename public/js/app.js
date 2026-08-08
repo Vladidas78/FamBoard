@@ -3510,6 +3510,7 @@ function legeNotizEintragAn(){
    fällig, bleibt die Karte leer; das ist nach Kapitel 3.2 eine Auskunft. */
 function renderHeuteAufgaben(){
   const el = document.getElementById('heuteAufgaben');
+  const zahlEl = document.getElementById('heuteAufgabenZahl');
   if(!el) return;
   const heute = heuteIso();
   const faellig = [];
@@ -3519,30 +3520,34 @@ function renderHeuteAufgaben(){
       if(e.faellig <= heute) faellig.push({liste:l, eintrag:e});
     });
   });
+  if(zahlEl) zahlEl.textContent = faellig.length ? String(faellig.length) : '';
   if(!faellig.length){
     el.innerHTML = (state.notizen && Object.keys(state.notizen).length)
-      ? '<p class="ex-hint">Heute ist nichts fällig.</p>'
-      : '<p class="ex-hint">Sobald es Notizen mit Fälligkeit gibt, stehen hier die fälligen Aufgaben.</p>';
+      ? '<p class="heute-leer">Heute ist nichts fällig.</p>'
+      : '<p class="heute-leer">Sobald es Notizen mit Fälligkeit gibt, stehen hier die fälligen Aufgaben.</p>';
     return;
   }
+  /* Überfälliges zuerst — K-11 */
   faellig.sort((a,b)=>(a.eintrag.faellig||'').localeCompare(b.eintrag.faellig||''));
-  el.innerHTML = '<ul class="notiz-liste heute-aufgaben">' + faellig.map(f=>
-    '<li class="notiz-zeile" data-liste="'+escapeHtml(f.liste.id)+'" data-id="'+escapeHtml(f.eintrag.id)+'">' +
-      '<div class="nz-oben">' +
-        '<button class="haken" type="button" role="checkbox" aria-checked="false" aria-label="'+escapeHtml(f.eintrag.text)+' erledigen">✓</button>' +
-        '<div class="nz-text">' +
-          '<span class="nz-titel">'+escapeHtml(f.eintrag.text)+'</span>' +
-          '<span class="nz-fuss">' +
-            (personVon(f.eintrag.wer) ? personPunkt(f.eintrag.wer, 'klein') + '<span class="nz-marke">'+escapeHtml(personVon(f.eintrag.wer).name||'')+'</span> · ' : '') +
-            '<span class="nz-marke'+(f.eintrag.faellig < heute ? ' ueberfaellig' : ' heute')+'">'+escapeHtml(f.liste.name||'')+' · '+escapeHtml(faelligText(f.eintrag.faellig))+'</span>' +
-          '</span>' +
-        '</div>' +
-      '</div>' +
-    '</li>').join('') + '</ul>';
+  el.innerHTML = faellig.map(f=>{
+    const person = personVon(f.eintrag.wer);
+    const ueber = f.eintrag.faellig < heute;
+    return '<div class="heute-zeile" data-liste="'+escapeHtml(f.liste.id)+'" data-id="'+escapeHtml(f.eintrag.id)+'">' +
+      '<button class="haken" type="button" role="checkbox" aria-checked="false" aria-label="'+escapeHtml(f.eintrag.text)+' erledigen">✓</button>' +
+      '<span class="hz-text">' +
+        '<span class="hz-titel">'+escapeHtml(f.eintrag.text)+'</span>' +
+        '<span class="hz-fuss">' +
+          (person ? personPunkt(f.eintrag.wer, 'klein') + escapeHtml(person.name||'') + ' · ' : '') +
+          escapeHtml(f.liste.name||'') +
+        '</span>' +
+      '</span>' +
+      '<span class="hz-frist '+(ueber ? 'ueberfaellig' : 'heute')+'">'+escapeHtml(faelligText(f.eintrag.faellig))+'</span>' +
+    '</div>';
+  }).join('');
 
   Array.prototype.forEach.call(el.querySelectorAll('.haken'), b=>b.addEventListener('click', e=>{
-    const li = e.currentTarget.closest('.notiz-zeile');
-    const lid = li.dataset.liste, eid = li.dataset.id;
+    const zeile = e.currentTarget.closest('.heute-zeile');
+    const lid = zeile.dataset.liste, eid = zeile.dataset.id;
     const eintrag = (((state.notizen||{})[lid]||{}).eintraege||{})[eid];
     if(!eintrag) return;
     eintrag.erledigt = true;
@@ -4302,10 +4307,12 @@ function renderIcsAus(){
 /* ---------- Termine auf Heute ---------- */
 function renderHeuteTermine(){
   const box = document.getElementById('heuteTermine');
+  const zahlEl = document.getElementById('heuteTermineZahl');
   if(!box) return;
   const heute = heuteIso();
   let dran = termineAmTag(heute);
   let hinweis = '';
+  const heuteEigene = dran.length;
   if(!dran.length){
     /* Steht heute nichts an, die nächsten Tage — Kapitel 3.2. */
     for(let i=1;i<=7 && !dran.length;i++){
@@ -4314,15 +4321,39 @@ function renderHeuteTermine(){
       if(treffer.length){ dran = treffer; hinweis = (i===1 ? 'Morgen' : WOCHENTAGE_KURZ[wochentagIndex(tag)] + ', ' + fmtTag(tag)); }
     }
   }
+  if(zahlEl) zahlEl.textContent = heuteEigene ? String(heuteEigene) : '';
+
   if(!dran.length){
-    box.innerHTML = '<p class="ex-hint">In den nächsten Tagen steht nichts an.</p>';
+    box.innerHTML = '<p class="heute-leer">In den nächsten Tagen steht nichts an.</p>';
     return;
   }
-  box.innerHTML = (hinweis ? '<p class="ex-hint">Heute nichts. Als Nächstes — '+escapeHtml(hinweis)+':</p>' : '') +
-    dran.map(t=>'<div class="heute-zeile">' +
-      '<span class="heute-was">'+(t.ganztag || !t.zeit ? 'ganztägig' : escapeHtml(t.zeit))+'</span>' +
-      '<span class="heute-wer">'+werPunkte(t)+' '+escapeHtml(t.titel||'')+'</span>' +
-    '</div>').join('');
+
+  /* Der nächste noch nicht vergangene Termin traegt den Punkt auf der Linie.
+     Vergangene bleiben stehen, nur matt - sie aus der Liste zu nehmen liesse
+     den Tag am Abend leer aussehen, obwohl er voll war. */
+  const jetztMin = (()=>{ const d=new Date(); return d.getHours()*60 + d.getMinutes(); })();
+  const vorbei = t=>{
+    if(hinweis) return false;              // an einem kuenftigen Tag ist nichts vorbei
+    if(t.ganztag || !t.zeit) return false;
+    const teile = String(t.zeit).split(':');
+    return (Number(teile[0])*60 + Number(teile[1]||0)) < jetztMin;
+  };
+  const naechster = dran.find(t=>!vorbei(t));
+
+  box.innerHTML = (hinweis ? '<p class="heute-leer" style="padding-bottom:2px;">Heute nichts. Als Nächstes — '+escapeHtml(hinweis)+':</p>' : '') +
+    dran.map(t=>{
+      const klassen = ['schiene'];
+      if(t === naechster) klassen.push('jetzt');
+      if(vorbei(t)) klassen.push('vorbei');
+      const ort = t.ort ? '<span>'+escapeHtml(t.ort)+'</span>' : '';
+      return '<div class="'+klassen.join(' ')+'">' +
+        '<div class="sch-marke">'+(t.ganztag || !t.zeit ? 'ganztägig' : escapeHtml(t.zeit))+'</div>' +
+        '<div class="sch-inhalt">' +
+          '<p class="sch-titel">'+escapeHtml(t.titel||'')+'</p>' +
+          '<div class="sch-fuss"><span>'+werPunkte(t)+' '+escapeHtml(werText(t))+'</span>'+ort+'</div>' +
+        '</div>' +
+      '</div>';
+    }).join('');
 }
 
 /* =========================================================================
@@ -4452,8 +4483,15 @@ document.getElementById('kopfHaushalt').addEventListener('click', ()=>{
 });
 document.getElementById('kopfKonto').addEventListener('click', ()=>{
   zeigeBereich('settings');
-  const ziel = document.getElementById('acctEmail');
-  if(ziel) ziel.closest('.card').scrollIntoView({ behavior:'smooth', block:'start' });
+  /* Bis B6.1 stand hier `document.getElementById('acctEmail').closest('.card')`.
+     Mit dem Umbau der Einstellungen gibt es kein `.card` mehr, `closest` gab
+     null zurueck und der Rueckruf warf - der Bereich ging auf, das Springen
+     blieb aus. Dieselbe Bauart wie der Ausfall vom 07.08.: etwas, das nur
+     anzeigt, greift hart auf ein Element zu. Jetzt geprueft (Kapitel 2.6,
+     Regel 1) und an einer Gruppe statt an einem Textfeld festgemacht. */
+  const ziel = document.getElementById('gruppeKonto');
+  if(ziel) ziel.scrollIntoView({ behavior:'smooth', block:'start' });
+  else window.scrollTo({ top:0, behavior:'smooth' });
 });
 
 /* ---------- Heute ----------
@@ -4470,48 +4508,166 @@ function renderHeute(){
   const datumEl = document.getElementById('heuteDatum');
   if(datumEl) datumEl.textContent = tag + ', ' + fmtDate(jetzt);
 
-  /* Essen */
+  /* ---- Essen ----
+     Bis B6 stand hier `if(!e || !e.id) return;`. Reste und Auswaerts tragen
+     keine Rezept-ID und fielen damit still heraus: Im Wochenplan stand
+     "Auswaerts - Bei Oma", auf Heute stand "nichts eingeplant". */
   const essenEl = document.getElementById('heuteEssen');
   const eintraege = ((state.plan[wk] || {})[tag]) || {};
-  let essenZeilen = [];
+  const zeilen = [];
+  const offeneMahlzeiten = [];
   activeSlots().forEach(sl=>{
     const e = eintraege[sl.id];
-    if(!e || !e.id) return;
+    if(!e){ offeneMahlzeiten.push(sl.label); return; }
+
+    if(e.kind === 'out'){
+      zeilen.push(schieneEssen(sl.label,
+        '<span class="sch-art">Auswärts</span> ' + escapeHtml(e.text || 'wird nicht gekocht'), null));
+      return;
+    }
+    if(e.kind === 'leftover'){
+      const q = restenQuelle(wk, e);
+      const r = q && q.id ? state.recipes.find(x=>x.id === q.id) : null;
+      zeilen.push(schieneEssen(sl.label,
+        '<span class="sch-art">Reste</span> ' + escapeHtml(r ? r.name : (e.text || 'vom Vortag')), null));
+      return;
+    }
     const r = state.recipes.find(x=>x.id === e.id);
-    if(!r) return;
-    essenZeilen.push('<div class="heute-zeile"><span class="heute-was">' + escapeHtml(sl.label) +
-      '</span><span class="heute-wer">' + escapeHtml(r.name) + '</span></div>');
+    if(!r){ offeneMahlzeiten.push(sl.label); return; }
+    zeilen.push(schieneEssen(sl.label, escapeHtml(r.name),
+      (e.servings ? e.servings + ' P.' : null), r.id));
   });
   if(essenEl){
-    essenEl.innerHTML = essenZeilen.length
-      ? essenZeilen.join('')
-      : '<p class="ex-hint">Fuer heute ist nichts eingeplant.</p>';
+    essenEl.innerHTML = zeilen.length
+      ? zeilen.join('')
+      : '<p class="heute-leer">Für heute ist nichts eingeplant.</p>';
+    /* Ein Gericht fuehrt in sein Rezept. Nur wo es eines gibt - Reste und
+       Auswaerts haben keins, und ein Knopf, der nirgendwohin fuehrt, ist
+       genau der Schalter, der aussieht, als taete er etwas. */
+    Array.prototype.forEach.call(essenEl.querySelectorAll('[data-rezept]'), b=>{
+      b.addEventListener('click', ()=>{
+        zeigeBereich('essen'); zeigeUnter('essen', 'recipes');
+        const ziel = document.querySelector('#recipes .recipe-item[data-id="'+b.dataset.rezept+'"]');
+        if(ziel){
+          ziel.classList.add('open');
+          ziel.scrollIntoView({ behavior:'smooth', block:'start' });
+          updateWakeLock();
+        }
+      });
+    });
   }
+  const offenEl = document.getElementById('heuteEssenOffen');
+  if(offenEl) offenEl.textContent =
+    (zeilen.length && offeneMahlzeiten.length) ? offeneMahlzeiten.join(' und ') + ' offen' : '';
 
-  /* Termine — kommen aus dem Kalender, eigener Abschnitt weiter unten */
+  /* Termine und Aufgaben kommen aus Kalender und Notizen — abgeschirmt, damit
+     keine der Zusatzansichten die uebrigen mitreisst (Kapitel 2.6, Regel 2) */
   try{ renderHeuteTermine(); }catch(e){ console.warn('Termine auf Heute:', e); }
-
-  /* Aufgaben — kommt aus den Notizen, eigener Abschnitt weiter unten */
   try{ renderHeuteAufgaben(); }catch(e){ console.warn('Aufgaben auf Heute:', e); }
 
-  /* Einkauf */
+  /* ---- Einkauf ----
+     Kapitel 3.2: offene Posten direkt abhakbar, nicht nur als Zahl. Vier
+     Zeilen, darunter der Weg in die ganze Liste. */
   const einkaufEl = document.getElementById('heuteEinkauf');
+  let offen = [];
+  try{ offen = buildItems(wk).items.filter(i=>!i.checked); }catch(e){ offen = []; }
+  const zahlEl = document.getElementById('heuteEinkaufZahl');
+  if(zahlEl) zahlEl.textContent = offen.length ? String(offen.length) : '';
+  const restEl = document.getElementById('heuteEinkaufRest');
+  if(restEl) restEl.textContent = offen.length > 4 ? (offen.length - 4) + ' weitere' : '';
   if(einkaufEl){
-    let offen = [];
-    try{
-      offen = buildItems(wk).items.filter(i=>!i.checked);
-    }catch(e){ offen = []; }
     if(!offen.length){
-      einkaufEl.innerHTML = '<p class="ex-hint">Die Einkaufsliste ist abgearbeitet.</p>';
+      einkaufEl.innerHTML = '<p class="heute-leer">Die Einkaufsliste ist abgearbeitet.</p>';
     }else{
-      const zeigen = offen.slice(0, 5)
-        .map(i=>'<span class="chip">' + escapeHtml(i.name) + '</span>').join('');
-      const rest = offen.length > 5 ? ('<span class="chip">und ' + (offen.length - 5) + ' weitere</span>') : '';
-      einkaufEl.innerHTML = '<p class="ex-hint">' + offen.length +
-        (offen.length === 1 ? ' Posten offen.' : ' Posten offen.') + '</p>' +
-        '<div class="chips">' + zeigen + rest + '</div>';
+      einkaufEl.innerHTML = offen.slice(0, 4).map(i=>
+        '<div class="heute-zeile" data-key="'+escapeHtml(i.key)+'">' +
+          '<button class="haken" type="button" role="checkbox" aria-checked="false" aria-label="'+escapeHtml(i.name)+' abhaken">✓</button>' +
+          '<span class="hz-text"><span class="hz-titel">'+escapeHtml(i.name)+'</span></span>' +
+          (i.qtyText ? '<span class="hz-menge">'+escapeHtml(i.qtyText)+'</span>' : '') +
+        '</div>').join('');
+      Array.prototype.forEach.call(einkaufEl.querySelectorAll('.haken'), b=>b.addEventListener('click', e=>{
+        const key = e.currentTarget.closest('.heute-zeile').dataset.key;
+        const posten = offen.find(i=>i.key === key);
+        if(!posten) return;
+        /* Ueber dieselbe Stelle wie in der Liste selbst, damit einmalige und
+           wiederkehrende Eintraege gleich behandelt werden. */
+        state.checked[wk] = state.checked[wk] || {};
+        state.checked[wk][key] = true;
+        saveChecked(wk, key, true);
+        renderShop(); renderHeute();
+        showToast(posten.name + ' abgehakt', ()=>{
+          delete state.checked[wk][key];
+          saveChecked(wk, key, false);
+          renderShop(); renderHeute();
+        });
+      }));
     }
   }
+
+  /* ---- Lagebild ----
+     MD-7: Der Satz fasst zusammen, was darunter im Einzelnen steht — er
+     traegt nichts Eigenes. MD-15: Zahlen, keine Mahnung. */
+  const band = document.getElementById('heuteFigurBand');
+  const bandText = document.getElementById('heuteFigurText');
+  const lageText = document.getElementById('heuteLageText');
+  {
+    const heute = heuteIso();
+    let termineHeute = 0;
+    try{ termineHeute = termineAmTag(heute).length; }catch(e){}
+    let aufgabenHeute = 0;
+    try{
+      notizListen().forEach(l=>notizEintraege(l).forEach(e=>{
+        if(!e.erledigt && e.faellig && e.faellig <= heute) aufgabenHeute++;
+      }));
+    }catch(e){}
+    const abend = eintraege['abend'];
+    const abendRezept = abend && abend.id ? state.recipes.find(x=>x.id === abend.id) : null;
+
+    const teile = [];
+    if(termineHeute) teile.push(termineHeute + (termineHeute === 1 ? ' Termin' : ' Termine'));
+    if(abendRezept) teile.push('abends ' + abendRezept.name);
+    else if(abend && abend.kind === 'out') teile.push('abends auswärts');
+    if(offen.length) teile.push(offen.length + ' Posten');
+    if(aufgabenHeute) teile.push(aufgabenHeute + (aufgabenHeute === 1 ? ' Aufgabe' : ' Aufgaben'));
+
+    const leer = teile.length === 0;
+    const lage = leer ? 'Heute ist nichts eingetragen.' : (teile.join(', ') + '.');
+    const stunde = new Date().getHours();
+    const tageszeit = stunde < 11 ? 'Morgen' : (stunde < 18 ? 'Tag' : 'Abend');
+    const name = (auth.currentUser && auth.currentUser.displayName) ? auth.currentUser.displayName.split(' ')[0] : '';
+
+    const mitFigur = figurSichtbar();
+    if(band) band.hidden = !mitFigur;
+    if(lageText) lageText.hidden = mitFigur;
+    if(mitFigur){
+      if(bandText) bandText.textContent = 'Guten ' + tageszeit + (name ? ', ' + name : '') + '. ' + lage;
+      /* ruhend bei leerem Tag: Ein Butler ist nicht ratlos, nur weil nichts
+         zu tun ist (MD-18). */
+      zeichneFigur(document.getElementById('heuteFigur'), leer ? 'ruhend' : 'begruessend');
+    }else if(lageText){
+      lageText.textContent = lage;
+    }
+  }
+
+  const leerEl = document.getElementById('heuteLeer');
+  if(leerEl) leerEl.style.display = 'block';
+}
+
+/* Eine Zeile der Zeitschiene im Essensfeld. `rezeptId` macht sie antippbar. */
+function schieneEssen(marke, inhaltHtml, menge, rezeptId){
+  const innen = '<div class="sch-rechts">' +
+      '<span class="sch-titel" style="min-width:0; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">' + inhaltHtml + '</span>' +
+      (menge ? '<span class="sch-menge">' + escapeHtml(menge) + '</span>' : '') +
+      (rezeptId ? '<span class="reihe-pfeil">›</span>' : '') +
+    '</div>';
+  return '<div class="schiene">' +
+    '<div class="sch-marke">' + escapeHtml(marke) + '</div>' +
+    '<div class="sch-inhalt">' +
+      (rezeptId
+        ? '<button class="sch-knopf" type="button" data-rezept="' + escapeHtml(rezeptId) + '">' + innen + '</button>'
+        : innen) +
+    '</div>' +
+  '</div>';
 }
 
 /* Kommt die App aus dem Hintergrund zurück, springt sie auf die laufende Woche */

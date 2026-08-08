@@ -138,31 +138,79 @@
   <!-- Heute — Geruest nach Kapitel 3.2. Termine und Aufgaben bleiben leer, bis
        Kalender (B5) und Notizen (B3) existieren; Essen und Einkauf werden aus
        dem gefuellt, was es heute schon gibt. -->
+  <!-- Heute nach Kapitel 3.2. Vier Felder in fester Reihenfolge:
+       Termine, Essen, Einkauf, Aufgaben - heute, was es gibt, was fehlt,
+       was ansteht. MD-15: Ein leeres Feld ist eine Auskunft, keine Mahnung.
+       MD-18: Die Figur wohnt hier; sie gruesst, wenn etwas ansteht, und ruht,
+       wenn der Tag leer ist. Sie traegt dabei nichts, was darunter nicht auch
+       im Einzelnen staende (MD-7). -->
   <section id="heute" class="active">
-    <div class="card">
-      <div class="shop-head"><div class="wk" id="heuteDatum">Heute</div></div>
-      <p class="ex-hint" id="heuteLeer" style="display:none;">Heute steht nichts an.</p>
-    </div>
+    <header class="seiten-kopf">
+      <div class="sk-text">
+        <p class="sk-lage" id="heuteDatum">Heute</p>
+        <h1 class="sk-titel">Heute</h1>
+      </div>
+    </header>
 
-    <div class="card" id="heuteKarteTermine">
-      <div class="shop-head"><div class="wk">Termine</div></div>
-      <div id="heuteTermine"></div>
+    <!-- MD-18 - die Figur wohnt hier. Sie steht fest im Markup und wird nur
+         ein- und ausgeblendet: Bei jedem Zeichnen 6,6 kB SVG neu zu erzeugen
+         waere Verschwendung, und `pruefe-verweise.py` kann eine ID, die erst
+         zur Laufzeit entsteht, nicht pruefen. -->
+    <div class="figur-band" id="heuteFigurBand" style="margin-bottom:var(--abstand-xl);" hidden>
+      <svg class="figur" id="heuteFigur" viewBox="0 0 512 512" fill="currentColor" aria-hidden="true"></svg>
+      <p id="heuteFigurText"></p>
     </div>
+    <p class="ex-hint" id="heuteLageText" style="padding:0 4px var(--abstand-l);" hidden></p>
 
-    <div class="card" id="heuteKarteEssen">
-      <div class="shop-head"><div class="wk">Essen</div></div>
-      <div id="heuteEssen"></div>
-    </div>
+    <section class="abschnitt" id="heuteKarteTermine">
+      <div class="abschnitt-kopf">
+        <h2>Termine</h2><span class="zahl" id="heuteTermineZahl"></span>
+      </div>
+      <div class="karte" style="overflow:hidden;">
+        <div id="heuteTermine"></div>
+        <button class="karte-weiter" data-ziel="kalender" type="button">
+          <span>Kalender</span><span class="reihe-pfeil">›</span>
+        </button>
+      </div>
+    </section>
 
-    <div class="card" id="heuteKarteEinkauf">
-      <div class="shop-head"><div class="wk">Einkauf</div></div>
-      <div id="heuteEinkauf"></div>
-    </div>
+    <section class="abschnitt" id="heuteKarteEssen">
+      <div class="abschnitt-kopf"><h2>Was es heute gibt</h2></div>
+      <div class="karte" style="overflow:hidden;">
+        <div id="heuteEssen"></div>
+        <button class="karte-weiter" data-ziel="essen" type="button">
+          <span>Wochenplan</span>
+          <span class="kw-hinweis" id="heuteEssenOffen"></span>
+        </button>
+      </div>
+    </section>
 
-    <div class="card" id="heuteKarteAufgaben">
-      <div class="shop-head"><div class="wk">Aufgaben</div></div>
-      <div id="heuteAufgaben"></div>
-    </div>
+    <section class="abschnitt" id="heuteKarteEinkauf">
+      <div class="abschnitt-kopf">
+        <h2>Einkauf</h2><span class="zahl" id="heuteEinkaufZahl"></span>
+      </div>
+      <div class="karte" style="overflow:hidden;">
+        <div id="heuteEinkauf"></div>
+        <button class="karte-weiter" data-ziel="einkauf" type="button">
+          <span>Ganze Liste</span>
+          <span class="kw-hinweis" id="heuteEinkaufRest"></span>
+        </button>
+      </div>
+    </section>
+
+    <section class="abschnitt" id="heuteKarteAufgaben">
+      <div class="abschnitt-kopf">
+        <h2>Fällige Aufgaben</h2><span class="zahl" id="heuteAufgabenZahl"></span>
+      </div>
+      <div class="karte" style="overflow:hidden;">
+        <div id="heuteAufgaben"></div>
+        <button class="karte-weiter" data-ziel="notizen" type="button">
+          <span>Notizen</span><span class="reihe-pfeil">›</span>
+        </button>
+      </div>
+    </section>
+
+    <p class="ex-hint" id="heuteLeer" style="text-align:center; padding-top:4px;">Mehr steht heute nicht an.</p>
   </section>
 
   <!-- Kalender (B5) — Monat als Standard, Woche umschaltbar (K-2). Termine je
@@ -677,7 +725,7 @@
         </div>
       </section>
 
-      <section class="gruppe">
+      <section class="gruppe" id="gruppeKonto">
         <div class="gruppen-kopf"><h3>Konto</h3></div>
         <div class="karte karte-liste">
           <div class="reihe reihe-block">
