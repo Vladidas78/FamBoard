@@ -307,6 +307,34 @@
   .stepper .val{ font-family:var(--schrift); font-variant-numeric:tabular-nums; font-size:0.86rem; min-width:60px; text-align:center; color:var(--messing-aktion); }
 
   /* ---------- Day track ---------- */
+  /* ---------- Tagesstreifen (B6) ---------- */
+  /* Sieben Kacheln muessen ohne Wischen auf ein Telefon passen - sonst ist
+     der Streifen eine Liste mit Extraschritt statt einer Uebersicht.
+     7 x 44 + 6 x 6 = 344 px, damit bleibt auch auf 360 px Rand. */
+  .tagesstreifen{
+    display:flex; gap:6px; margin:0 0 var(--abstand-l);
+    overflow-x:auto; scrollbar-width:none;
+    padding-bottom:2px;
+  }
+  .tagesstreifen::-webkit-scrollbar{ height:0; }
+  .tag-kachel{
+    flex:1 1 0; min-width:42px; height:64px; padding:0 2px;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px;
+    border:1px solid var(--linie); border-radius:var(--radius-m);
+    background:var(--flaeche-senke); color:var(--text-leise);
+    font-family:var(--schrift); cursor:pointer; transition:.15s;
+  }
+  .tag-kachel:hover{ color:var(--text-haupt); border-color:var(--messing-aktion); }
+  .tag-kachel.vergangen{ opacity:.5; }
+  .tag-kachel.heute{
+    background:var(--messing-aktion); border-color:var(--messing-aktion); color:var(--auf-aktion);
+  }
+  .tk-name{ font-size:11px; font-weight:500; text-transform:uppercase; letter-spacing:.04em; }
+  .tk-zahl{ font-size:16px; font-weight:600; font-variant-numeric:tabular-nums; line-height:1; }
+  .tk-punkt{ width:4px; height:4px; border-radius:50%; background:transparent; }
+  .tk-punkt.an{ background:var(--messing-marke); }
+  .tag-kachel.heute .tk-punkt.an{ background:var(--auf-aktion); }
+
   .day-track{ display:flex; flex-direction:column; gap:12px; }
   .day-col{
     width:100%;
@@ -412,14 +440,65 @@
   .danger-zone{ margin-top:24px; }
 
   /* ---------- Recipes ---------- */
-  .recipe-list{ display:grid; gap:10px; }
-  .recipe-item{ background:var(--flaeche-karte); border:1px solid var(--linie-leise); border-radius:var(--radius-m); overflow:hidden; }
-  .recipe-head{
-    display:flex; align-items:center; gap:12px; width:100%; padding:15px 16px;
-    background:none; border:none; cursor:pointer; text-align:left; color:var(--text-haupt);
-    font-family:var(--schrift-headline); font-weight:600; font-size:1.05rem;
+  /* Kachelraster nach dem Zielentwurf. Zwei Spalten auf dem Telefon, mehr
+     wenn Platz ist. Eine geoeffnete Kachel spannt ueber alle Spalten - so
+     bleibt die aufklappbare Bauform erhalten, ohne dass das Raster springt. */
+  .recipe-list{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; align-items:start; }
+  @media (min-width:700px){ .recipe-list{ grid-template-columns:repeat(3,minmax(0,1fr)); } }
+  @media (min-width:1100px){ .recipe-list{ grid-template-columns:repeat(4,minmax(0,1fr)); } }
+  .recipe-item{
+    position:relative; overflow:hidden;
+    background:var(--flaeche-karte); border:1px solid var(--linie-leise);
+    border-radius:var(--radius-l); box-shadow:var(--schatten-karte);
+    transition:border-color .15s ease;
   }
-  .recipe-head:hover{ background:var(--flaeche-senke); }
+  .recipe-item:hover{ border-color:var(--linie); }
+  .recipe-item.open{ grid-column:1 / -1; }
+  .recipe-head{
+    display:block; width:100%; padding:0;
+    background:none; border:none; cursor:pointer; text-align:left; color:var(--text-haupt);
+  }
+  .kachel-bild{
+    position:relative; display:block; aspect-ratio:4 / 3; overflow:hidden;
+    background:var(--flaeche-senke);
+  }
+  .kachel-bild img{ width:100%; height:100%; object-fit:cover; display:block; transition:transform .3s ease; }
+  .recipe-head:hover .kachel-bild img{ transform:scale(1.03); }
+  .kachel-leer{ position:absolute; inset:0; display:grid; place-items:center; font-size:26px; opacity:.3; }
+  .kachel-laedt{ position:absolute; inset:0; display:grid; place-items:center; font-size:12px; color:var(--text-leise); }
+  .kachel-stern{
+    position:absolute; top:8px; right:8px; width:28px; height:28px;
+    display:grid; place-items:center; border-radius:50%;
+    background:color-mix(in srgb, var(--flaeche-karte) 90%, transparent);
+    color:var(--messing-aktion); font-size:15px; line-height:1;
+  }
+  /* D-7 - Snacks bekommen keine Bildflaeche, auch keinen Platzhalter */
+  .kachel-snack{
+    display:flex; align-items:center; padding:7px 12px;
+    border-bottom:1px solid var(--linie-leise);
+    background:var(--messing-flaeche); color:var(--auf-messing-flaeche);
+    font-size:11px; font-weight:500; letter-spacing:0.06em; text-transform:uppercase;
+  }
+  .kachel-text{ display:block; padding:10px 12px 11px; }
+  .kachel-name{
+    display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+    font-family:var(--schrift-headline); font-weight:600; font-size:14.5px; line-height:1.3;
+    color:var(--text-haupt);
+  }
+  .kachel-meta{ display:block; margin-top:3px; font-size:12px; color:var(--text-leise); font-variant-numeric:tabular-nums; }
+  /* Der Stern steht oben rechts auf dem Bild und ist zugleich der Knopf -
+     ein zweiter, nur anzeigender daneben waere dasselbe zweimal. */
+  .kachel-fav{
+    position:absolute; top:7px; right:7px; z-index:1;
+    display:grid; place-items:center;
+    width:30px; height:30px; border-radius:50%;
+    background:color-mix(in srgb, var(--flaeche-karte) 88%, transparent);
+    font-size:15px; line-height:1;
+  }
+  .kachel-snack + .kachel-fav{ display:none; }
+  .recipe-item.open .kachel-fav{ background:none; }
+  /* Geoeffnet: das grosse Bild steht im Rumpf, die Kachelflaeche waere doppelt */
+  .recipe-item.open .kachel-bild{ display:none; }
   .fav-star{ background:none; border:none; cursor:pointer; font-size:1.15rem; line-height:1; color:var(--text-leise); padding:0 2px; flex:none; }
   .fav-star:hover{ color:var(--messing-aktion); }
   .fav-star.active{ color:var(--messing-aktion); }
@@ -428,6 +507,8 @@
   .chev{ transition:transform .2s ease; color:var(--messing-aktion); flex:none; font-size:0.8rem; }
   .recipe-item.open .chev{ transform:rotate(90deg); }
   .recipe-body{ display:none; padding:0 16px 16px; }
+  .recipe-item.open .kachel-text{ padding:14px 16px 10px; }
+  .recipe-item.open .kachel-name{ font-size:1.05rem; -webkit-line-clamp:unset; }
   .recipe-item.open .recipe-body{ display:block; animation:fade .2s ease; }
   .portion-bar{
     display:flex; align-items:center; justify-content:space-between; gap:10px;
@@ -1342,7 +1423,10 @@
      einen Knopf in die naechste Zeile fallen, als "+ Schnell / anlegen" zu
      stapeln - zweizeilige Knoepfe lassen eine Leiste ungeordnet aussehen. */
   .rec-toolbar{ display:flex; flex-wrap:wrap; gap:var(--abstand-s); }
-  .rec-toolbar .btn{ white-space:nowrap; }
+  .rec-toolbar .btn{ white-space:nowrap; flex:0 1 auto; padding:0 14px; font-size:14px; }
+  /* Der primaere Weg steht vorn und behaelt seine Breite, die uebrigen
+     duerfen schrumpfen (D-5: genau ein primaerer Knopf). */
+  .rec-toolbar #openSchnell{ order:-1; flex:none; }
 
   /* ---------- Login-Gate ---------- */
   body.pre-auth header, body.pre-auth nav, body.pre-auth main{ display:none; }

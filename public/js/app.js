@@ -1333,6 +1333,42 @@ function renderDayTrack(){
     return;
   }
 
+  /* Tagesstreifen: sieben Kacheln, Wochentag ueber Zahl, darunter ein Punkt,
+     wenn etwas geplant ist. Er waehlt keinen Tag aus, sondern springt zu ihm -
+     die Woche bleibt am Stueck sichtbar, weil hier geplant und nicht
+     nachgesehen wird. */
+  const streifen = document.getElementById('tagesstreifen');
+  if(streifen){
+    streifen.innerHTML = DAYS.map((day, i)=>{
+      const d = new Date(currentMonday); d.setDate(d.getDate()+i); d.setHours(0,0,0,0);
+      const belegt = Object.keys(weekPlan[day] || {}).length > 0;
+      const klassen = ['tag-kachel'];
+      if(sameDay(d, today)) klassen.push('heute');
+      if(d.getTime() < today.getTime()) klassen.push('vergangen');
+      return '<button class="'+klassen.join(' ')+'" type="button" data-tagidx="'+i+'" aria-label="'+day+', '+fmtDate(d)+'">' +
+        '<span class="tk-name">'+day.slice(0,2)+'</span>' +
+        '<span class="tk-zahl">'+d.getDate()+'</span>' +
+        '<span class="tk-punkt'+(belegt?' an':'')+'"></span>' +
+      '</button>';
+    }).join('');
+    Array.prototype.forEach.call(streifen.querySelectorAll('.tag-kachel'), b=>{
+      b.addEventListener('click', ()=>{
+        const ziel = track.querySelector('.day-col[data-idx="'+b.dataset.tagidx+'"]');
+        if(!ziel) return;
+        /* Ein eingeklappter vergangener Tag geht beim Anspringen auf -
+         sonst springt man auf eine Zusammenfassung statt auf den Tag. */
+        if(ziel.classList.contains('collapsed')){
+          expandedPastDays[wk+'|'+DAYS[b.dataset.tagidx]] = true;
+          renderDayTrack();
+          const neu = document.getElementById('dayTrack').querySelector('.day-col[data-idx="'+b.dataset.tagidx+'"]');
+          if(neu) neu.scrollIntoView({behavior:'smooth', block:'start'});
+          return;
+        }
+        ziel.scrollIntoView({behavior:'smooth', block:'start'});
+      });
+    });
+  }
+
   DAYS.forEach((day, idx)=>{
     const date = new Date(currentMonday); date.setDate(date.getDate()+idx); date.setHours(0,0,0,0);
     const eintraege = weekPlan[day] || {};
@@ -1594,7 +1630,7 @@ function renderRecipeList(){
   renderTagFilterChips();
 
   if(!state.recipes.length){
-    list.innerHTML='<div class="empty">Noch keine Rezepte. Leg über „+ Neues Rezept“ eins an oder importiere eure Excel.</div>';
+    list.innerHTML='<div class="empty">Noch keine Rezepte. Leg über „Schnell anlegen“ eins an oder importiere eure Excel.</div>';
     return;
   }
 
@@ -1612,12 +1648,27 @@ function renderRecipeList(){
     const shown = viewServings[r.id] || base;
     const f = shown / base;
     return '' +
+    /* Kachel nach dem Zielentwurf: Bildflaeche im Verhaeltnis 4:3, darunter
+       Name und Menge. D-7 - ein Snack bekommt keine Bildflaeche und auch
+       keinen Platzhalter, sondern eine Messingleiste. Wird die Kachel
+       geoeffnet, spannt sie ueber alle Spalten; der Inhalt bleibt derselbe
+       wie vorher, nur die Huelle ist neu. */
     '<div class="recipe-item" data-id="'+r.id+'">' +
-      '<div class="recipe-head" data-toggle="'+r.id+'">' +
-        '<span class="chev">▶</span> '+escapeHtml(r.name) + (istSnack(r)?'<span class="snack-badge">Snack</span>':'') +
-        (r.tags||[]).map(t=>'<span class="tag-badge">'+escapeHtml(t)+'</span>').join('') +
-        (istSnack(r) ? '' : '<button class="fav-star'+(r.fav?' active':'')+'" type="button" data-favid="'+r.id+'" aria-label="'+(r.fav?'Favorit entfernen':'Als Favorit markieren')+'" style="margin-left:auto;">'+(r.fav?'★':'☆')+'</button>') +
-      '</div>' +
+      '<button class="recipe-head" type="button" data-toggle="'+r.id+'">' +
+        (istSnack(r)
+          ? '<span class="kachel-snack">Snack</span>'
+          : '<span class="kachel-bild">' +
+              (imgOf(r) ? '<img src="'+imgOf(r)+'" alt="">'
+                        : (r.hasImage ? '<span class="kachel-laedt">Bild wird geladen …</span>'
+                                      : '<span class="kachel-leer" aria-hidden="true">🍽</span>')) +
+            '</span>') +
+        '<span class="kachel-text">' +
+          '<span class="kachel-name">'+escapeHtml(r.name)+'</span>' +
+          '<span class="kachel-meta">' + (r.servings||4) + ' Pers.' +
+            ((r.tags||[]).length ? ' · ' + escapeHtml(r.tags[0]) : '') + '</span>' +
+        '</span>' +
+      '</button>' +
+      (istSnack(r) ? '' : '<button class="fav-star kachel-fav'+(r.fav?' active':'')+'" type="button" data-favid="'+r.id+'" aria-label="'+(r.fav?'Favorit entfernen':'Als Favorit markieren')+'">'+(r.fav?'★':'☆')+'</button>') +
       '<div class="recipe-body">' +
         (imgOf(r) ? '<img class="recipe-img" src="'+imgOf(r)+'" alt="'+escapeHtml(r.name)+'">' : (r.hasImage ? '<div class="img-loading">Bild wird geladen …</div>' : '')) +
         '<div class="portion-bar">' +
