@@ -96,6 +96,12 @@
     --schatten-karte:0 1px 2px rgb(0 0 0 / 0.32);
   }
   *{box-sizing:border-box;}
+  /* `hidden` ist im Browser nur `display:none` mit der Spezifitaet eines
+     Elementselektors. Jede Klasse, die `display` setzt, sticht es aus - in B6.2
+     blieb dadurch das Figurband auf Heute stehen, obwohl es `hidden` trug:
+     `.figur-band{display:flex}` gewann. Sichtbar war eine leere Messingflaeche.
+     Diese Regel gilt fuer alle Bauteile, auch fuer die, die es noch nicht gibt. */
+  [hidden]{ display:none !important; }
   html,body{margin:0;padding:0;}
   body{
     font-family:var(--schrift);

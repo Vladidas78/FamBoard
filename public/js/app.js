@@ -4494,6 +4494,22 @@ document.getElementById('kopfKonto').addEventListener('click', ()=>{
   else window.scrollTo({ top:0, behavior:'smooth' });
 });
 
+/* Die Fusszeilen der Heute-Karten fuehren in den zugehoerigen Bereich.
+   In B6.2 trugen sie ihr Ziel zwar als `data-ziel`, es hat aber nie jemand
+   zugehoert - vier Knoepfe, die aussahen, als taeten sie etwas. Genau das,
+   was Kapitel 3.3 an anderer Stelle ausdruecklich verwirft. */
+const HEUTE_ZIEL_UNTER = { essen:'plan', einkauf:'shop' };
+Array.prototype.forEach.call(document.querySelectorAll('#heute .karte-weiter'), b=>{
+  b.addEventListener('click', ()=>{
+    const ziel = b.dataset.ziel;
+    if(!ziel) return;
+    zeigeBereich(ziel);
+    const unter = HEUTE_ZIEL_UNTER[ziel];
+    if(unter) zeigeUnter(ziel, unter);
+    window.scrollTo({ top:0, behavior:'smooth' });
+  });
+});
+
 /* ---------- Heute ----------
    Geruest nach Kapitel 3.2. Termine und Aufgaben bleiben leer, bis Kalender (B5)
    und Notizen (B3) existieren - MD-15: ein leeres Feld ist eine Auskunft, keine
