@@ -256,7 +256,11 @@
   main > section.active{ display:block; animation:fade .22s ease; }
   @keyframes fade{ from{opacity:0;transform:translateY(6px);} to{opacity:1;transform:translateY(0);} }
 
-  .card{ background:var(--flaeche-karte); border:1px solid var(--linie-leise); border-radius:var(--radius-m); padding:16px 18px; margin-bottom:16px; }
+  /* Der alte Bauteilsatz (.card, .shop-head, .wk) ist mit B6 abgeloest.
+     Was blieb, ist die Polsterung: Eine `.karte` traegt selbst keine, weil
+     geteilte Zeilen ihre eigene mitbringen. `.karte-block` ist die Karte mit
+     Innenabstand - fuer alles, was am Stueck darin steht. */
+  .karte-block{ padding:16px 18px; margin-bottom:16px; }
   .status{ text-align:center; font-size:0.8rem; color:var(--text-leise); padding:4px; }
 
   /* ---------- Week navigator ---------- */
@@ -499,8 +503,9 @@
   .grid2{ display:grid; grid-template-columns:1fr 150px; gap:8px; }
 
   /* ---------- Shopping list ---------- */
-  .shop-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; gap:10px; flex-wrap:wrap; }
-  .shop-head .wk{ font-family:var(--schrift-headline); font-weight:600; }
+  /* .shop-head und .wk sind mit B6 entfallen - siehe .abschnitt-kopf / .ak-titel.
+     Der Kopf darf umbrechen, wenn rechts Knoepfe stehen und der Titel lang ist. */
+  .abschnitt-kopf{ flex-wrap:wrap; }
   .swipe-hint{ font-size:0.72rem; color:var(--text-leise); margin-bottom:6px; line-height:1.6; }
   .cat-group{ margin-top:16px; }
   .cat-title{
@@ -527,7 +532,22 @@
   }
   .shop-item.checked .name-btn{ text-decoration:line-through; color:var(--text-leise); }
   .shop-item.checked .qty-btn{ color:var(--text-leise); }
-  .shop-inner input[type=checkbox]{ width:20px; height:20px; accent-color:var(--messing-aktion); flex:none; }
+  /* Runder Haken in der Erledigt-Farbe - dieselbe Bauform wie in den Notizen
+     und auf Heute. Ein eckiges Systemkaestchen daneben liesse die Liste wie
+     einen anderen Bereich aussehen (MD-26). `appearance:none` schaltet die
+     Systemdarstellung ab, der Haken kommt aus dem Hintergrundbild. */
+  .shop-inner input[type=checkbox]{
+    appearance:none; -webkit-appearance:none;
+    width:24px; height:24px; flex:none; margin:0; cursor:pointer;
+    border:2px solid var(--linie); border-radius:50%;
+    background:transparent; transition:background-color .12s ease, border-color .12s ease;
+  }
+  .shop-inner input[type=checkbox]:hover{ border-color:var(--messing-aktion); }
+  .shop-inner input[type=checkbox]:checked{
+    border-color:var(--erledigt-farbe); background:var(--erledigt-farbe);
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5'/%3E%3C/svg%3E");
+    background-size:16px 16px; background-position:center; background-repeat:no-repeat;
+  }
   .name-btn{
     flex:1; text-align:left; background:none; border:none; padding:2px 0; cursor:pointer;
     color:var(--text-haupt); font-family:var(--schrift); font-size:0.95rem;
@@ -1053,9 +1073,9 @@
   /* =====================================================================
      Bauteilsatz des Zielentwurfs (B6, MD-26)
      Uebernommen aus `Figma/src/components/ui.tsx`. Notizen (B3) und Kalender
-     (B5) benutzen ihn schon; ab hier ziehen die uebrigen Bereiche nach. Der
-     alte Satz (.card, .shop-head, .wk) steht so lange daneben und faellt erst,
-     wenn ihn kein Bereich mehr braucht.
+     (B5) benutzten ihn schon; mit B6 sind die uebrigen Bereiche nachgezogen.
+     Der alte Satz (.card, .shop-head, .wk) ist damit vollstaendig entfallen -
+     es gibt nur noch diesen einen.
      ===================================================================== */
 
   /* Gruppe: leiser Kopf ueber einer Karte. Der Rang eines Abschnitts soll
@@ -1074,10 +1094,15 @@
   .abschnitt-kopf{
     display:flex; align-items:center; gap:8px; padding:0 4px 10px;
   }
-  .abschnitt-kopf h2{
+  .abschnitt-kopf h2, .abschnitt-kopf .ak-titel{
     margin:0; font-family:var(--schrift-headline); font-weight:600; font-size:16px;
-    line-height:1; color:var(--text-haupt);
+    line-height:1.2; color:var(--text-haupt);
   }
+  /* In einer Karte sitzt der Kopf innen und braucht einen Trenner nach unten */
+  .karte-block > .abschnitt-kopf{
+    padding:0 0 10px; margin-bottom:12px; border-bottom:1px solid var(--linie-leise);
+  }
+  .karte-block > .abschnitt-kopf:only-child{ padding-bottom:0; margin-bottom:0; border-bottom:none; }
   .abschnitt-kopf .zahl{ font-size:13px; line-height:1; color:var(--text-leise); font-variant-numeric:tabular-nums; }
   .abschnitt-kopf .rechts{ margin-left:auto; display:flex; align-items:center; gap:2px; }
 
@@ -1240,6 +1265,84 @@
   .heute-zeile .hz-frist.ueberfaellig{ color:var(--loeschen-farbe); font-weight:500; }
 
   .heute-leer{ margin:0; padding:18px var(--abstand-l); font-size:15px; color:var(--text-leise); }
+
+  /* ---------- Blatt (B6) ----------
+     Ein Blatt statt eines Dialogs in der Mitte: Es kommt von unten, wo der
+     Daumen ist, und laesst den Zusammenhang dahinter stehen. */
+  .blatt-huelle{
+    position:fixed; inset:0; z-index:60; display:flex; align-items:flex-end; justify-content:center;
+    background:rgb(38 34 32 / 0.34); backdrop-filter:blur(2px);
+  }
+  .blatt{
+    width:100%; max-width:520px; max-height:88vh; overflow-y:auto;
+    background:var(--flaeche-karte);
+    border-radius:var(--radius-l) var(--radius-l) 0 0;
+    box-shadow:0 -8px 32px rgb(38 34 32 / 0.12);
+    padding-bottom:calc(var(--abstand-l) + env(safe-area-inset-bottom, 0px));
+    animation:blattAuf .22s cubic-bezier(.22,1,.36,1);
+  }
+  @keyframes blattAuf{ from{ transform:translateY(16px); opacity:0; } to{ transform:none; opacity:1; } }
+  @media (min-width:560px){
+    .blatt-huelle{ align-items:center; }
+    .blatt{ border-radius:var(--radius-l); max-height:82vh; }
+  }
+  .blatt-kopf{
+    position:sticky; top:0; z-index:1;
+    display:flex; align-items:center; justify-content:space-between; gap:12px;
+    padding:14px var(--abstand-l) 12px;
+    background:var(--flaeche-karte); border-bottom:1px solid var(--linie-leise);
+  }
+  .blatt-titel{ margin:0; font-family:var(--schrift-headline); font-weight:600; font-size:19px; color:var(--text-haupt); }
+  .blatt-inhalt{ padding:var(--abstand-l); }
+  .blatt-inhalt .field{ margin-bottom:var(--abstand-l); }
+  .blatt-inhalt textarea{
+    width:100%; min-height:132px; resize:vertical; line-height:1.6;
+    font-family:var(--schrift); font-size:15px; padding:10px 12px;
+    border:1px solid var(--linie); border-radius:var(--radius-m);
+    background:var(--flaeche-feld); color:var(--text-haupt);
+  }
+  .blatt-knoepfe{ display:flex; gap:var(--abstand-s); margin-top:var(--abstand-l); }
+
+  /* ---------- Onboarding (B6) ----------
+     Bildschirmfuellend und schmal: Es ist ein Gespraech, keine Tabelle. */
+  .onboarding{
+    position:fixed; inset:0; z-index:70; overflow-y:auto;
+    display:flex; flex-direction:column; gap:var(--abstand-xl);
+    background:var(--flaeche-seite);
+    padding:calc(var(--abstand-xl) + env(safe-area-inset-top, 0px)) var(--abstand-xl)
+            calc(var(--abstand-xl) + env(safe-area-inset-bottom, 0px));
+  }
+  .ob-inhalt, .ob-fuss{ width:100%; max-width:420px; margin:0 auto; }
+  .ob-inhalt{ flex:1; }
+  .onboarding .figur{ width:112px; height:112px; margin:0 auto var(--abstand-xl); }
+  .ob-titel{
+    margin:0 0 10px; font-family:var(--schrift-headline); font-weight:600;
+    font-size:26px; line-height:1.2; color:var(--text-haupt);
+  }
+  .ob-text{
+    margin:0; font-family:var(--schrift-headline); font-weight:600;
+    font-size:16px; line-height:1.6; color:var(--text-leise);
+  }
+  .ob-feld{ margin-top:var(--abstand-xl); }
+  .ob-feld label{ display:block; margin-bottom:6px; font-size:13px; color:var(--text-leise); }
+  /* D-19 - im bildschirmfuellenden Kasten traegt das Feld die Senkenfarbe */
+  .ob-feld input{
+    width:100%; height:var(--hoehe-control); padding:0 12px;
+    border:1px solid var(--linie); border-radius:var(--radius-m);
+    background:var(--flaeche-senke); color:var(--text-haupt);
+    font-family:var(--schrift); font-size:15px;
+  }
+  #obHinweis{ margin-top:var(--abstand-xl); }
+  .ob-fuss{ display:flex; flex-direction:column; gap:var(--abstand-m); }
+  .ob-punkte{ display:flex; justify-content:center; gap:6px; margin-bottom:2px; }
+  .ob-punkt{ width:6px; height:6px; border-radius:999px; background:var(--linie); transition:width .18s ease, background-color .18s ease; }
+  .ob-punkt.an{ width:20px; background:var(--messing-aktion); }
+
+  /* Knopfbeschriftungen brechen nicht mitten im Wort. Lieber laesst die Reihe
+     einen Knopf in die naechste Zeile fallen, als "+ Schnell / anlegen" zu
+     stapeln - zweizeilige Knoepfe lassen eine Leiste ungeordnet aussehen. */
+  .rec-toolbar{ display:flex; flex-wrap:wrap; gap:var(--abstand-s); }
+  .rec-toolbar .btn{ white-space:nowrap; }
 
   /* ---------- Login-Gate ---------- */
   body.pre-auth header, body.pre-auth nav, body.pre-auth main{ display:none; }

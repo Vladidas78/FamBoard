@@ -249,7 +249,7 @@
     </div>
 
     <div class="karte kal-form" id="terminForm" hidden>
-      <div class="shop-head"><div class="wk" id="terminFormTitel">Neuer Termin</div>
+      <div class="abschnitt-kopf"><span class="ak-titel" id="terminFormTitel">Neuer Termin</span>
         <button class="close-add" id="terminAbbrechen" type="button" aria-label="Schließen">✕</button>
       </div>
       <div class="field">
@@ -281,7 +281,7 @@
     </div>
 
     <div class="karte kal-export">
-      <div class="shop-head"><div class="wk">In anderen Kalender übernehmen</div></div>
+      <div class="abschnitt-kopf"><span class="ak-titel">In anderen Kalender übernehmen</span></div>
       <p class="ex-hint">Ein Abo-Link für den ganzen Haushalt. Apple holt ihn je nach Einstellung alle paar Minuten, Google alle 8 bis 24 Stunden. Einseitig — was ihr dort ändert, kommt nicht zurück (K-10).</p>
       <div id="icsAus"></div>
       <div class="kal-form-knoepfe">
@@ -294,6 +294,12 @@
   <!-- Essen — drei Unterbereiche nach Kapitel 3.2. Die Inhalte sind unveraendert
        aus den frueheren Reitern Wochenplan, Rezepte und Naehrwerte. -->
   <section id="essen">
+    <header class="seiten-kopf">
+      <div class="sk-text">
+        <p class="sk-lage" id="essenLage">Essen</p>
+        <h1 class="sk-titel">Essen</h1>
+      </div>
+    </header>
     <div class="unternav" role="tablist" aria-label="Essen">
       <button class="unter active" data-unter="plan" type="button">Woche</button>
       <button class="unter" data-unter="recipes" type="button">Rezepte</button>
@@ -339,10 +345,11 @@
         <button class="btn btn-soft fav-toggle" id="favOnlyToggle" type="button">★ Favoriten</button>
         <button class="btn btn-soft" id="openIO" type="button">⇄ Excel</button>
         <button class="btn btn-soft" id="openImport" type="button">🤖 Rezept importieren</button>
-        <button class="btn btn-primary" id="openAdd" type="button">+ Neues Rezept</button>
+        <button class="btn btn-primary" id="openSchnell" type="button">+ Schnell anlegen</button>
+        <button class="btn btn-soft" id="openAdd" type="button">Ausführlich</button>
       </div>
 
-      <div class="card io-panel" id="ioPanel" style="display:none;">
+      <div class="karte karte-block io-panel" id="ioPanel" style="display:none;">
         <div class="add-head">
           <h3>Excel-Import &amp; Export</h3>
           <button class="close-add" id="closeIO" type="button" aria-label="Schließen">✕</button>
@@ -375,7 +382,7 @@
         </div>
       </div>
 
-      <div class="card io-panel" id="importPanel" style="display:none;">
+      <div class="karte karte-block io-panel" id="importPanel" style="display:none;">
         <div class="add-head">
           <h3>Rezept importieren</h3>
           <button class="close-add" id="closeImport" type="button" aria-label="Schließen">✕</button>
@@ -412,7 +419,7 @@
         <p class="hint" style="margin-top:8px;">Das Ergebnis landet zur Kontrolle im Formular „Neues Rezept" — geprüft wird vor dem Speichern.</p>
       </div>
 
-      <div class="card add-recipe" id="addPanel" style="display:none;">
+      <div class="karte karte-block add-recipe" id="addPanel" style="display:none;">
         <div class="add-head">
           <h3 id="addPanelTitle">Neues Rezept</h3>
           <button class="close-add" id="closeAdd" type="button" aria-label="Schließen">✕</button>
@@ -479,9 +486,9 @@
       </div>
     </div>
     <div id="nutrition" class="unterpanel">
-      <div class="card">
-        <div class="shop-head">
-          <div class="wk" id="nutriWeekLabel">Nährwerte</div>
+      <div class="karte karte-block">
+        <div class="abschnitt-kopf">
+          <span class="ak-titel" id="nutriWeekLabel">Nährwerte</span>
         </div>
         <p class="ex-hint">Auswertung auf Basis der im Wochenplan eingetragenen Rezepte. „Gesamt“ ist die
           Summe für den ganzen Haushalt an dem Tag. Trag bei „Portionen an diesem Tag“ ein, wie viele Portionen
@@ -489,8 +496,8 @@
           damit. Snacks zählen nicht mit, da für sie keine Nährwerte erfasst werden.</p>
         <div id="nutriDays"></div>
       </div>
-      <div class="card">
-        <div class="shop-head"><div class="wk">Woche gesamt</div></div>
+      <div class="karte karte-block">
+        <div class="abschnitt-kopf"><span class="ak-titel">Woche gesamt</span></div>
         <div id="nutriWeekSum"></div>
       </div>
     </div>
@@ -500,6 +507,12 @@
        Reiter Zutaten, Haushalt & Drogerie und Immer zuhause untereinander; zu
        einer Liste zusammengelegt werden sie in B2 (IA-16). -->
   <section id="einkauf">
+    <header class="seiten-kopf">
+      <div class="sk-text">
+        <p class="sk-lage" id="einkaufLage">Einkauf</p>
+        <h1 class="sk-titel">Einkauf</h1>
+      </div>
+    </header>
     <div class="unternav" role="tablist" aria-label="Einkauf">
       <button class="unter active" data-unter="shop" type="button">Liste</button>
       <button class="unter" data-unter="artikel" type="button">Artikel</button>
@@ -508,7 +521,7 @@
       <!-- IA-7 / IA-16 — Suchfeld ganz oben. Tippen schlaegt bekannte Artikel vor,
            Enter setzt drauf. Steht der Begriff in keinem Katalog, wird er ohne
            Nachfrage als dauerhafter Artikel angelegt. -->
-      <div class="card" style="margin-bottom:16px;">
+      <div class="karte karte-block" style="margin-bottom:16px;">
         <div class="such-zeile">
           <input type="search" id="shopSearch" placeholder="🔍 Artikel suchen oder anlegen" autocomplete="off">
         </div>
@@ -516,9 +529,9 @@
         <p class="ex-hint" style="margin-bottom:0;">Was es noch nicht gibt, wird beim Draufsetzen als Artikel angelegt — beim nächsten Mal steht es als Vorschlag da.</p>
       </div>
 
-      <div class="card">
-        <div class="shop-head">
-          <div class="wk" id="shopWeekLabel">Einkaufsliste</div>
+      <div class="karte karte-block">
+        <div class="abschnitt-kopf">
+          <span class="ak-titel" id="shopWeekLabel">Einkaufsliste</span>
           <div style="display:flex;gap:8px;">
             <button class="btn btn-soft btn-sm" id="shareShop" type="button">📤 Teilen</button>
             <button class="btn btn-ghost btn-sm" id="resetChecks" type="button">Liste zurücksetzen</button>
@@ -537,7 +550,7 @@
          Artikel, frueher "Haushalt & Drogerie", und die Zutaten aus den Rezepten.
          Alles ueber normKey zu je einer Zeile zusammengefuehrt. -->
     <div id="artikel" class="unterpanel">
-      <div class="card" style="margin-bottom:16px;">
+      <div class="karte karte-block" style="margin-bottom:16px;">
         <div class="such-zeile">
           <input type="search" id="artSearch" placeholder="🔍 Artikel suchen oder anlegen" autocomplete="off">
         </div>
@@ -552,17 +565,17 @@
         <div id="artNeu" class="art-neu" hidden></div>
       </div>
 
-      <div class="card">
-        <div class="shop-head">
-          <div class="wk">Artikel <span class="count" id="artCount"></span></div>
+      <div class="karte karte-block">
+        <div class="abschnitt-kopf">
+          <span class="ak-titel">Artikel <span class="count" id="artCount"></span></span>
         </div>
         <p class="ex-hint">Antippen wählt aus, mehrere gehen zusammen auf die Liste. Das (+) setzt einen einzelnen sofort drauf.</p>
         <div id="artikelListe"></div>
         <div id="artikelLeer" class="chips-empty" hidden></div>
       </div>
 
-      <div class="card">
-        <div class="shop-head"><div class="wk">Abteilungen sortieren</div></div>
+      <div class="karte karte-block">
+        <div class="abschnitt-kopf"><span class="ak-titel">Abteilungen sortieren</span></div>
         <p class="ex-hint">Reihenfolge, in der die Abteilungen in der Einkaufsliste erscheinen — passt sie an euren Supermarkt an.</p>
         <ul class="cat-order-list" id="catOrderList"></ul>
       </div>
@@ -779,6 +792,62 @@
       <p class="ex-hint" style="text-align:center; padding-top:8px;">Butley <span class="zahl" id="appVersion">0.9.0</span> · Stufe 1</p>
   </section>
 </main>
+
+<!-- IA-9 - Schnellanlegen. "Ein Haehnchenbrustsandwich ist ein Rezept. Was
+     davon abhaelt, es anzulegen, ist nicht die Sache, sondern das Formular, das
+     nach Arbeit aussieht." Name, Zutaten untereinander, speichern. Alles
+     Weitere ist optional und steht im ausfuehrlichen Formular. -->
+<div class="blatt-huelle" id="schnellHuelle" hidden>
+  <div class="blatt" role="dialog" aria-modal="true" aria-labelledby="schnellTitel">
+    <div class="blatt-kopf">
+      <h2 class="blatt-titel" id="schnellTitel">Rezept anlegen</h2>
+      <button class="sk-werkzeug" id="schnellZu" type="button" aria-label="Schließen">✕</button>
+    </div>
+    <div class="blatt-inhalt">
+      <div class="field">
+        <label>Name</label>
+        <input type="text" id="schnellName" placeholder="Hähnchenbrustsandwich" autocomplete="off">
+        <p class="feld-fehler" data-fehler-fuer="schnellName" hidden></p>
+      </div>
+      <div class="field">
+        <label>Zutaten <span class="hint">— eine pro Zeile</span></label>
+        <textarea id="schnellZutaten" rows="6" placeholder="2 Hähnchenbrustfilet&#10;4 Scheiben Sauerteigbrot&#10;2 EL Mayonnaise"></textarea>
+      </div>
+      <p class="ex-hint">Portionen, Zubereitung, Nährwerte und Bild sind optional. Ohne sie ist das Rezept trotzdem im Wochenplan wählbar, und die Zutaten wandern auf die Einkaufsliste.</p>
+      <div class="blatt-knoepfe">
+        <button class="btn btn-ghost" id="schnellAbbruch" type="button">Abbrechen</button>
+        <button class="btn btn-primary full" id="schnellSpeichern" type="button">Speichern</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Onboarding. Einmalig je Haushalt (Entscheidung vom 07.08.2026), Merker
+     liegt unter data/settings/onboardingFertig. Kapitel 6.7 - Butler-Ton nur
+     hier, im leeren Zustand und bei Ankuendigungen. Duzen ohne Ausnahme,
+     keine Formulierung, die Druck erzeugt (MD-15). P-9 - keine
+     Geschlechtsabfrage. -->
+<div class="onboarding" id="onboarding" hidden>
+  <div class="ob-inhalt">
+    <svg class="figur" id="obFigur" viewBox="0 0 512 512" fill="currentColor" aria-hidden="true"></svg>
+    <h1 class="ob-titel" id="obTitel"></h1>
+    <p class="ob-text" id="obText"></p>
+    <div class="ob-feld" id="obFeld" hidden>
+      <label for="obHaushaltName">Name des Haushalts</label>
+      <input type="text" id="obHaushaltName" placeholder="Mein Haushalt" autocomplete="off">
+      <p class="ex-hint">Lässt sich jederzeit ändern.</p>
+    </div>
+    <div class="hinweis-band" id="obHinweis" hidden>
+      <svg class="hb-symbol" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9a6 6 0 1 1 12 0c0 4 1.5 5.5 1.5 5.5h-15S6 13 6 9Z"/><path d="M10 18a2 2 0 0 0 4 0"/></svg>
+      <p>Ohne Homescreen keine Erinnerungen. Das ist eine Vorgabe von Apple, keine von mir.</p>
+    </div>
+  </div>
+  <div class="ob-fuss">
+    <div class="ob-punkte" id="obPunkte"></div>
+    <button class="btn btn-primary full" id="obWeiter" type="button">Weiter</button>
+    <button class="btn btn-ghost full" id="obUeberspringen" type="button">Überspringen</button>
+  </div>
+</div>
 
 <div class="toast" id="toast"><span id="toastText"></span><button id="toastAction" type="button">Rückgängig</button></div>
 

@@ -100,6 +100,10 @@ const TERMINE = {
        uid:'t1@butley', sequence:0, herkunft:'butley', angelegt:1786000000001 },
   t2:{ titel:'Elternabend', datum:HEUTE_ISO, zeit:'19:00', bis:'20:30', wer:['p1','p2'], ort:'Grundschule',
        uid:'t2@butley', sequence:0, herkunft:'butley', angelegt:1786000000002 },
+  /* Absichtlich lang: prueft, ob Titel umbrechen statt an den Rand zu laufen */
+  t6:{ titel:'Ausflug ins Playmobil-Funpark Land mit Übernachtung', datum:HEUTE_ISO, zeit:'08:00',
+       bis:'18:00', wer:['p2','p3','p4'], ort:'Zirndorf bei Nürnberg',
+       uid:'t6@butley', sequence:0, herkunft:'butley', angelegt:1786000000006 },
   t3:{ titel:'Müllabfuhr', datum:tagPlus(HEUTE_IDX+1), ganztag:true, wer:'haushalt',
        rrule:'FREQ=WEEKLY;BYDAY=' + ['MO','TU','WE','TH','FR','SA','SU'][(HEUTE_IDX+1)%7],
        uid:'t3@butley', sequence:0, herkunft:'butley', angelegt:1786000000003 },
@@ -145,6 +149,10 @@ const DATEN = {
   kalender:{ gemeinsam: TERMINE },
 };
 
+/* Mit ?leer=1 startet der Pruefstand einen frisch angelegten Haushalt -
+   nur so laesst sich das Onboarding ueberhaupt sehen. */
+const LEER = typeof location !== 'undefined' && /[?&]leer=1/.test(location.search);
+
 /* ---- Der Baum ---- */
 const BAUM = {
   users:{ [UID]:{ haushalte:{ [HH]:true } } },
@@ -152,12 +160,21 @@ const BAUM = {
     meta:{ name:'Haushalt Krüger', owner:UID, erstellt:1785000000000 },
     members:{ [UID]:{ rolle:'owner', beigetreten:1785000000000 },
               'zweite-uid':{ rolle:'mitglied', beigetreten:1785500000000 } },
-    data: DATEN,
+    data: LEER ? { settings:{ personen:4, slots:DATEN.settings.slots } } : DATEN,
     images:{},
   } },
   einladungen:{},
   ics:{},
 };
+
+/* Firebase behaelt seinen Bestand ueber ein Neuladen hinweg; ein Modul im
+   Speicher tut das nicht. Ohne diese Bruecke waere jeder Neustart ein neuer
+   Haushalt - und "das Onboarding kommt nur einmal" nicht pruefbar. */
+try{
+  const gemerkt = sessionStorage.getItem('pruefstand.baum');
+  if(gemerkt) Object.assign(BAUM, JSON.parse(gemerkt));
+}catch(e){}
+function sichern(){ try{ sessionStorage.setItem('pruefstand.baum', JSON.stringify(BAUM)); }catch(e){} }
 
 /* ---- API ---- */
 function teile(p){ return String(p).split('/').filter(Boolean); }
@@ -168,6 +185,7 @@ function lies(pfad){
   return k === undefined ? null : k;
 }
 function schreib(pfad, wert){
+  setTimeout(sichern, 0);
   const t = teile(pfad);
   let k = BAUM;
   for(let i=0;i<t.length-1;i++){ if(typeof k[t[i]] !== 'object' || k[t[i]] === null) k[t[i]] = {}; k = k[t[i]]; }

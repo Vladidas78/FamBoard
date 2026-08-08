@@ -1049,6 +1049,7 @@ async function loadState(){
     verbergeFehler();
     setStatus('');
     renderAll();
+    ansichtEinmalWiederherstellen();
   }, err=>{
     zeigeFehler('Kein Zugriff auf die Datenbank (' + err.message + '). Sind die Sicherheitsregeln veröffentlicht?');
     setStatus('');
@@ -1077,6 +1078,20 @@ function renderAll(){
   try{ renderPersonen(); }catch(e){ console.warn('Personen konnten nicht gezeichnet werden:', e); }
   try{ renderNotizen(); }catch(e){ console.warn('Notizen konnten nicht gezeichnet werden:', e); }
   try{ renderKalender(); }catch(e){ console.warn('Kalender konnte nicht gezeichnet werden:', e); }
+  /* Onboarding haengt an den Daten, nicht am Start: Erst mit dem ersten
+     Datensatz ist bekannt, ob dieser Haushalt schon eingerichtet ist. */
+  try{ obPruefen(); }catch(e){ console.warn('Onboarding:', e); }
+}
+
+/* Der Ansichtszustand wird genau einmal je Sitzung wiederhergestellt, nach
+   dem ersten Datensatz - vorher gibt es keine Wochen, in die man springen
+   koennte (IA-11). */
+let ansichtSchonGesetzt = false;
+function ansichtEinmalWiederherstellen(){
+  if(ansichtSchonGesetzt) return;
+  ansichtSchonGesetzt = true;
+  try{ ansichtWiederherstellen(); renderAll(); }
+  catch(e){ console.warn('Ansichtszustand:', e); }
 }
 
 /* =========================================================================
@@ -1090,6 +1105,7 @@ function renderWeekNav(){
   document.getElementById('kwRange').textContent = fmtDate(currentMonday)+' – '+fmtDate(sun);
 }
 function changeWeek(delta){
+  setTimeout(()=>{ try{ ansichtSichern(); }catch(e){} }, 0);
   currentMonday = new Date(currentMonday);
   currentMonday.setDate(currentMonday.getDate()+delta*7);
   renderWeekNav(); renderDayTrack(); renderShop(); renderNutritionReport();
@@ -4408,6 +4424,9 @@ function zeigeBereich(name){
   Array.prototype.forEach.call(document.querySelectorAll('main > section'),
     s=>s.classList.toggle('active', s.id === name));
   updateWakeLock();
+  /* Bei jedem Wechsel sichern, nicht erst beim Weglegen: iOS friert eine PWA
+     auch ein, ohne dass `pagehide` je feuert (IA-11). */
+  try{ ansichtSichern(); }catch(e){}
 }
 
 function zeigeUnter(bereichId, name){
@@ -4423,6 +4442,7 @@ function zeigeUnter(bereichId, name){
   Array.prototype.forEach.call(document.querySelectorAll('nav .nav-unter[data-tab="' + bereichId + '"]'),
     b=>b.classList.toggle('active', b.dataset.unter === name));
   updateWakeLock();
+  try{ ansichtSichern(); }catch(e){}
 }
 
 Array.prototype.forEach.call(document.querySelectorAll('nav .tab'),
@@ -4493,6 +4513,236 @@ document.getElementById('kopfKonto').addEventListener('click', ()=>{
   if(ziel) ziel.scrollIntoView({ behavior:'smooth', block:'start' });
   else window.scrollTo({ top:0, behavior:'smooth' });
 });
+
+/* =========================================================================
+   Schnellanlegen, Ansichtszustand, Onboarding (B6)
+   ========================================================================= */
+
+/* ---------- IA-9: Schnellanlegen ----------
+   "Ein Haehnchenbrustsandwich ist ein Rezept. Es ist ein Abendessen mit vier
+   Zutaten ohne Zubereitungstext. Was davon abhaelt, es anzulegen, ist nicht
+   die Sache, sondern das Formular, das nach Arbeit aussieht." (Kapitel 3.2)
+   Name und Zutaten, sonst nichts. Das ausfuehrliche Formular bleibt daneben. */
+{
+  const huelle = document.getElementById('schnellHuelle');
+  const feldName = document.getElementById('schnellName');
+  const feldZutaten = document.getElementById('schnellZutaten');
+
+  const zu = ()=>{ if(huelle) huelle.hidden = true; };
+  const auf = ()=>{
+    if(!huelle) return;
+    if(feldName){ feldName.value = ''; feldFehlerWeg(feldName); }
+    if(feldZutaten) feldZutaten.value = '';
+    huelle.hidden = false;
+    if(feldName) feldName.focus();
+  };
+
+  const an = (id, ev, fn)=>{ const el = document.getElementById(id); if(el) el.addEventListener(ev, fn); };
+  an('openSchnell', 'click', auf);
+  an('schnellZu', 'click', zu);
+  an('schnellAbbruch', 'click', zu);
+  /* Klick auf den Grund schliesst, Klick im Blatt nicht */
+  if(huelle) huelle.addEventListener('click', e=>{ if(e.target === huelle) zu(); });
+  document.addEventListener('keydown', e=>{ if(e.key === 'Escape' && huelle && !huelle.hidden) zu(); });
+
+  an('schnellSpeichern', 'click', ()=>{
+    const name = (feldName && feldName.value || '').trim();
+    if(!name){
+      feldFehler(feldName, 'Ohne Namen lässt sich das Rezept später nicht wiederfinden.');
+      return;
+    }
+    const zutaten = (feldZutaten && feldZutaten.value || '')
+      .split('\n').map(z=>z.trim()).filter(Boolean)
+      .map(parseIngredient).filter(Boolean);
+
+    /* Snack, wenn es keine Zubereitung gibt und wenig Zutaten - so landet das
+       Sandwich dort, wo es hingehoert, ohne dass jemand danach gefragt wird. */
+    const rezept = {
+      id: randId('r', 12),
+      name: name,
+      type: zutaten.length <= 5 ? 'snack' : 'rezept',
+      servings: (state.settings && state.settings.personen) || 4,
+      ingredients: zutaten,
+      tags: [],
+      fav: false
+    };
+    state.recipes.push(rezept);
+    saveRecipes();
+    zu();
+    renderRecipeList();
+    refreshIngNameDatalist();
+    showToast(name + ' angelegt', ()=>{
+      state.recipes = state.recipes.filter(r=>r.id !== rezept.id);
+      saveRecipes();
+      renderRecipeList();
+      refreshIngNameDatalist();
+    });
+  });
+}
+
+/* ---------- IA-11: Ansichtszustand ----------
+   Betrifft ausschliesslich Ansichtszustaende, nie Daten: welcher Bereich offen
+   ist, welcher Unterbereich, welche Woche der Wochenplan zeigt. Er bleibt
+   innerhalb einer Sitzung erhalten und wird zurueckgesetzt, wenn die App
+   laenger als vier Stunden im Hintergrund war oder das Datum gewechselt hat.
+   Beim Kaltstart landet man auf Heute, der Wochenplan in der laufenden Woche.
+
+   Anwendungsfall aus Kapitel 3.5: KW 34 planen, in den Kalender wechseln um zu
+   sehen, ob man an bestimmten Tagen weg ist, zurueck - und wieder in KW 34
+   stehen, nicht in der laufenden. */
+const ANSICHT_KEY = 'famboard.ansicht';
+const ANSICHT_FRIST = 4 * 60 * 60 * 1000;
+
+function ansichtSichern(){
+  try{
+    const offen = document.querySelector('main > section.active');
+    const unter = {};
+    Array.prototype.forEach.call(document.querySelectorAll('main > section'), s=>{
+      const p = s.querySelector(':scope > .unterpanel.active');
+      if(p) unter[s.id] = p.id;
+    });
+    localStorage.setItem(ANSICHT_KEY, JSON.stringify({
+      bereich: offen ? offen.id : 'heute',
+      unter: unter,
+      montag: currentMonday.getTime(),
+      tag: heuteIso(),
+      zeit: Date.now()
+    }));
+  }catch(e){}
+}
+
+/* Beim Start einmal lesen und festhalten. Wiederhergestellt wird erst nach dem
+   ersten Datensatz - bis dahin hat die App laengst wieder gesichert, und ohne
+   diese Kopie laese `ansichtWiederherstellen` den eigenen Startzustand statt
+   des gemerkten. Genau daran ist es beim ersten Bauen gescheitert. */
+const ANSICHT_BEIM_START = (()=>{
+  try{ return JSON.parse(localStorage.getItem(ANSICHT_KEY) || 'null'); }catch(e){ return null; }
+})();
+
+function ansichtWiederherstellen(){
+  const z = ANSICHT_BEIM_START;
+  if(!z) return;
+  /* Zu alt oder ein anderer Tag: Der Zustand ist dann keine Fortsetzung mehr,
+     sondern ein Fund von gestern. */
+  if(Date.now() - (z.zeit || 0) > ANSICHT_FRIST) return;
+  if(z.tag !== heuteIso()) return;
+
+  if(z.montag){
+    const m = new Date(z.montag);
+    if(!isNaN(m)) currentMonday = m;
+  }
+  Object.keys(z.unter || {}).forEach(bereichId=>{
+    if(document.getElementById(bereichId)) zeigeUnter(bereichId, z.unter[bereichId]);
+  });
+  /* Einstellungen sind kein Bereich - man startet nicht in einem Untermenue */
+  if(z.bereich && z.bereich !== 'settings' && document.getElementById(z.bereich)) zeigeBereich(z.bereich);
+}
+
+/* Beim Weglegen sichern, beim Zurueckkommen pruefen. `pagehide` statt
+   `unload`: Auf iOS wird eine PWA eingefroren statt beendet, `unload` kommt
+   dort nie. */
+window.addEventListener('pagehide', ansichtSichern);
+document.addEventListener('visibilitychange', ()=>{
+  if(document.visibilityState === 'hidden') ansichtSichern();
+});
+
+/* ---------- Onboarding ----------
+   Fuenf Schritte, strikt einmalig je Haushalt (Entscheidung vom 07.08.2026).
+   Der Merker liegt in der Datenbank, nicht auf dem Geraet: Wer den Haushalt
+   auf einem zweiten Telefon oeffnet, hat ihn schon eingerichtet. */
+const OB_SCHRITTE = [
+  { zustand:'begruessend', titel:'Sehr erfreut.',
+    text:'Ich bin Butley. Ich halte zusammen, was in deinem Haushalt anliegt — Termine, Essen, Einkauf und alles, was aufgeschrieben werden will.',
+    weiter:'Fangen wir an' },
+  { zustand:'erklaerend', titel:'Fangen wir mit dem Haushalt an.',
+    text:'Ein Haushalt ist der gemeinsame Ort. Du kannst später in mehreren sein und jederzeit wechseln.',
+    weiter:'Weiter', feld:true },
+  { zustand:'erklaerend', titel:'Wer gehört dazu?',
+    text:'Personen brauchen kein eigenes Konto. Kinder und Gäste bekommen einfach einen Namen und eine Farbe — anlegen kannst du sie jederzeit in den Einstellungen.',
+    weiter:'Weiter' },
+  { zustand:'ankuendigend', titel:'Eine Sache noch, wenn du ein iPhone hast.',
+    text:'Erinnerungen erreichen dich auf dem iPhone nur, wenn Butley auf dem Homescreen liegt. Teilen antippen, „Zum Home-Bildschirm“ wählen — das war es.',
+    weiter:'Verstanden', hinweis:true },
+  { zustand:'bestaetigend', titel:'Alles bereit.',
+    text:'Du landest jetzt auf „Heute“. Dort steht, was ansteht — und wenn nichts ansteht, steht dort nichts.',
+    weiter:'Los' }
+];
+let obIndex = 0;
+
+function obZeichne(){
+  const s = OB_SCHRITTE[obIndex];
+  if(!s) return;
+  zeichneFigur(document.getElementById('obFigur'), s.zustand);
+  const setzen = (id, wert)=>{ const el = document.getElementById(id); if(el) el.textContent = wert; };
+  setzen('obTitel', s.titel);
+  setzen('obText', s.text);
+  setzen('obWeiter', s.weiter);
+  const feld = document.getElementById('obFeld');
+  if(feld) feld.hidden = !s.feld;
+  const hinweis = document.getElementById('obHinweis');
+  if(hinweis) hinweis.hidden = !s.hinweis;
+  const punkte = document.getElementById('obPunkte');
+  if(punkte) punkte.innerHTML = OB_SCHRITTE
+    .map((_, i)=>'<span class="ob-punkt' + (i === obIndex ? ' an' : '') + '"></span>').join('');
+  const nameFeld = document.getElementById('obHaushaltName');
+  if(s.feld && nameFeld && !nameFeld.value){
+    nameFeld.value = (aktivesHaushaltName && aktivesHaushaltName !== HAUSHALT_ID) ? aktivesHaushaltName : '';
+    nameFeld.focus();
+  }
+}
+
+function obBeenden(){
+  const huelle = document.getElementById('onboarding');
+  if(huelle) huelle.hidden = true;
+  /* Der Merker geht in die Datenbank, nicht auf das Geraet - Betriebsregel 7
+     gilt hier nicht, weil nichts migriert wird, aber dieselbe Ueberlegung:
+     erst festhalten, dann handeln. */
+  put('data/settings/onboardingFertig', true);
+  if(!state.settings) state.settings = {};
+  state.settings.onboardingFertig = true;
+  zeigeBereich('heute');
+}
+
+function obPruefen(){
+  const huelle = document.getElementById('onboarding');
+  if(!huelle) return;
+  const fertig = !!(state.settings && state.settings.onboardingFertig);
+  /* Ein Haushalt mit Inhalt hat das Onboarding offensichtlich hinter sich -
+     die sechs Testhaushalte sollen es nicht nachtraeglich vorgesetzt bekommen. */
+  const schonBenutzt = (state.recipes && state.recipes.length)
+    || (state.personen && Object.keys(state.personen).length)
+    || (state.notizen && Object.keys(state.notizen).length);
+  if(fertig || schonBenutzt){
+    if(!fertig && schonBenutzt) put('data/settings/onboardingFertig', true);
+    huelle.hidden = true;
+    return;
+  }
+  if(!huelle.hidden) return;      // laeuft schon
+  obIndex = 0;
+  huelle.hidden = false;
+  obZeichne();
+}
+
+{
+  const an = (id, ev, fn)=>{ const el = document.getElementById(id); if(el) el.addEventListener(ev, fn); };
+  an('obWeiter', 'click', async ()=>{
+    const s = OB_SCHRITTE[obIndex];
+    if(s && s.feld){
+      const wert = (document.getElementById('obHaushaltName') || {}).value || '';
+      const name = wert.trim();
+      if(name && name !== aktivesHaushaltName){
+        try{
+          await set(ref(db, 'haushalte/' + HAUSHALT_ID + '/meta/name'), name);
+          aktivesHaushaltName = name;
+          renderKopfzeile();
+        }catch(e){ /* Der Name laesst sich jederzeit aendern - hier nicht blockieren */ }
+      }
+    }
+    if(obIndex >= OB_SCHRITTE.length - 1) obBeenden();
+    else { obIndex++; obZeichne(); }
+  });
+  an('obUeberspringen', 'click', obBeenden);
+}
 
 /* Die Fusszeilen der Heute-Karten fuehren in den zugehoerigen Bereich.
    In B6.2 trugen sie ihr Ziel zwar als `data-ziel`, es hat aber nie jemand
@@ -4686,16 +4936,36 @@ function schieneEssen(marke, inhaltHtml, menge, rezeptId){
   '</div>';
 }
 
-/* Kommt die App aus dem Hintergrund zurück, springt sie auf die laufende Woche */
+/* Kommt die App aus dem Hintergrund zurück, springt sie auf die laufende Woche —
+   aber erst nach der Frist aus IA-11.
+
+   Bis B6 sprang sie bei jedem Fokuswechsel. Das ist der Fall, den Kapitel 3.5
+   ausdrücklich ausschliesst: "KW 34 planen, in den Kalender wechseln um zu
+   sehen, ob man an bestimmten Tagen weg ist, zurueck — und wieder in KW 34
+   stehen, nicht in der laufenden." Ein Blick in eine andere App genuegte, um
+   die geplante Woche zu verlieren.
+
+   Zurueckgesetzt wird jetzt nur noch, wenn die App laenger als etwa vier
+   Stunden weg war oder das Datum gewechselt hat. */
+let zuletztGesehen = Date.now();
+let zuletztGesehenTag = null;
 function zurueckZurAktuellenWoche(){
   const jetzt = getMondayOf(new Date());
+  const heute = heuteIso();
+  const langeWeg = (Date.now() - zuletztGesehen) > ANSICHT_FRIST;
+  const anderesDatum = zuletztGesehenTag !== null && zuletztGesehenTag !== heute;
+  zuletztGesehen = Date.now();
+  zuletztGesehenTag = heute;
+  if(!langeWeg && !anderesDatum) return;
   if(jetzt.getTime() === currentMonday.getTime()) return;
   currentMonday = jetzt;
   renderWeekNav(); renderDayTrack(); renderShop();
 }
-document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) zurueckZurAktuellenWoche(); });
+document.addEventListener('visibilitychange', ()=>{
+  if(document.hidden){ zuletztGesehen = Date.now(); zuletztGesehenTag = heuteIso(); }
+  else zurueckZurAktuellenWoche();
+});
 window.addEventListener('focus', zurueckZurAktuellenWoche);
-window.addEventListener('pageshow', zurueckZurAktuellenWoche);
 
 /* Einladungslink für weitere Konten/Geräte: legt einen Code unter einladungen/<code>
    an, der auf den aktuellen Haushalt zeigt (siehe database.rules.json + tritteUeberEinladungBei) */
