@@ -2,7 +2,11 @@
 <html lang="de">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- viewport-fit=cover: Ohne diesen Zusatz liefert env(safe-area-inset-*) den
+     Wert 0. Bis v14 standen sechs solche Regeln im Stylesheet und keine hat je
+     gegriffen — der Kopf lag unter der Statusleiste, die Fußleiste am
+     Home-Indikator. Auf Android und am Schreibtisch ändert der Zusatz nichts. -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Butley</title>
 <meta name="description" content="Der Familienplaner: Wochenplan, Rezepte und Einkaufsliste">
 <meta name="theme-color" content="#FAF7F2">

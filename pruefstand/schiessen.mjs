@@ -27,7 +27,18 @@ let bilder = 0;
 const BILDER = [
   { name:'heute',        bereich:'heute' },
   { name:'kalender',     bereich:'kalender' },
+  /* Das Terminformular steht auf `hidden` und kam deshalb in keinem der
+     bisherigen Bilder vor — genau dort lagen am 09.08. auf dem iPhone Datum
+     und Ort übereinander. Ein Formular, das der Prüfstand nie öffnet, ist ein
+     blinder Fleck; `vor` macht ihn sichtbar. */
+  { name:'kalender-termin', bereich:'kalender',
+    vor: () => document.getElementById('terminNeu').click() },
   { name:'essen-woche',  bereich:'essen',   unter:'plan' },
+  /* Der Abschnitt „Mahlzeiten" ist eingeklappt und stand deshalb in keinem
+     Bild. Dort sass bis v14 das zweite eckige Systemkaestchen der App.
+     Merksatz: Der Prüfstand sieht nur, was von selbst offen ist. */
+  { name:'essen-mahlzeiten', bereich:'essen', unter:'plan',
+    vor: () => document.getElementById('mealHead').click() },
   { name:'essen-rezepte',bereich:'essen',   unter:'recipes' },
   { name:'essen-naehr',  bereich:'essen',   unter:'nutrition' },
   { name:'einkauf-liste',bereich:'einkauf', unter:'shop' },
@@ -105,7 +116,11 @@ for (const modus of ['hell', 'dunkel']) {
         else throw new Error(`Unterbereich ${bereich}/${unter} gibt es nicht`);
       }
       window.scrollTo(0, 0);
-    }, b);
+      /* Nur Bereich und Unterbereich hinüberreichen. Das ganze Objekt geht
+         nicht: `vor` ist eine Funktion, und Playwright kann sie nicht in den
+         Seitenkontext serialisieren. */
+    }, { bereich: b.bereich, unter: b.unter });
+    if (b.vor) { await seite.evaluate(b.vor); await seite.waitForTimeout(200); }
     await seite.waitForTimeout(350);
     /* Auf breiten Flächen ohne fullPage: Die Seitenleiste steht fest, und ein
        Vollseitenbild zeichnet feste Elemente nur auf Bildschirmhöhe — die

@@ -116,9 +116,15 @@
      Haushaltsname links, Konto rechts, sonst nichts. Beide Knoepfe fuehren
      vorerst in den Einstellungsbereich; Blaetter statt Vollbild kommen mit B6
      ("Verwaltung aus der Oberflaeche"). */
+  /* Der obere Rand nimmt die Statusleiste auf. `black-translucent` legt sie
+     über die Webansicht; ohne diesen Abstand steht der Haushaltsname darunter.
+     Wirksam wird `env()` erst durch `viewport-fit=cover` in der
+     Viewport-Angabe — bis v14 fehlte das, und alle sechs
+     `safe-area-inset`-Regeln dieses Stylesheets rechneten mit 0 px. */
   header{
     display:flex; align-items:center; justify-content:space-between; gap:12px;
-    max-width:940px; margin:0 auto; padding:10px 16px 4px;
+    max-width:940px; margin:0 auto;
+    padding:calc(10px + env(safe-area-inset-top, 0px)) 16px 4px;
   }
   .kopf-haushalt, .kopf-konto{
     min-height:var(--hoehe-control); border-radius:var(--radius-rund);
@@ -293,7 +299,8 @@
   }
   .mealrow:last-child{ border-bottom:none; }
   .mealrow .sw{ display:flex; align-items:center; gap:9px; flex:1; cursor:pointer; font-size:0.92rem; }
-  .mealrow input[type=checkbox]{ width:19px; height:19px; accent-color:var(--messing-aktion); flex:none; }
+  /* Bauform siehe .shop-inner (MD-26) - bis v14 das zweite eckige
+     Systemkaestchen der App, gefunden von pruefe-stil.py. */
   .mealrow .off{ color:var(--text-leise); }
   .mealrow .stepper{ opacity:1; transition:opacity .15s; }
   .mealrow.is-off .stepper{ opacity:.35; pointer-events:none; }
@@ -377,10 +384,15 @@
     background:color-mix(in srgb, var(--messing-aktion) 12%, transparent); border:1px solid color-mix(in srgb, var(--messing-aktion) 35%, transparent); color:var(--messing-aktion);
     letter-spacing:.4px; font-family:var(--schrift); font-weight:600;
   }
+  /* `min-width:0` gehört zu `width:100%` dazu. `width` sagt, wie breit das
+     Feld sein soll; die intrinsische Mindestbreite sagt, wie schmal es
+     werden darf — und die ist bei Datums- und Zeitfeldern in Safari groß.
+     Ohne diese Zeile drückt ein Feld sein Raster oder seine Flex-Zeile
+     auseinander, obwohl `width:100%` dasteht. */
   select, input, textarea{
     font-family:var(--schrift); font-size:15px;
     min-height:var(--hoehe-control); padding:10px var(--abstand-l);
-    border-radius:var(--radius-s); border:1px solid var(--linie); background:var(--flaeche-feld); color:var(--text-haupt); width:100%;
+    border-radius:var(--radius-s); border:1px solid var(--linie); background:var(--flaeche-feld); color:var(--text-haupt); width:100%; min-width:0;
   }
   /* Fokus: 2px Messing, ueber Inset-Schatten statt Randbreite - kein Umbruch der Umgebung */
   select:focus,input:focus,textarea:focus{ outline:none; border-color:var(--messing-aktion); box-shadow:0 0 0 1px var(--messing-aktion) inset; }
@@ -573,15 +585,25 @@
   .field{ margin-bottom:13px; }
   .field label{ display:block; font-size:0.76rem; color:var(--text-leise); margin-bottom:5px; font-weight:600; letter-spacing:.2px; }
   .field .hint{ font-weight:400; color:var(--text-leise); }
-  .ing-input-row{ display:grid; grid-template-columns:1fr 82px 96px 40px; gap:6px; margin-bottom:6px; align-items:center; }
+  .ing-input-row{ display:grid; grid-template-columns:minmax(0,1fr) 82px 96px 40px; gap:6px; margin-bottom:6px; align-items:center; }
   .ing-input-row input, .ing-input-row select{ padding:0 var(--abstand-s); }
   .ing-input-row .x{ height:40px; background:var(--flaeche-senke); border:1px solid var(--linie); border-radius:var(--radius-s); color:var(--loeschen-farbe); cursor:pointer; font-size:1rem; }
   .ing-input-row .x:hover{ background:var(--loeschen-farbe); color:var(--auf-loeschen); }
-  .grid4{ display:grid; grid-template-columns:repeat(4,1fr); gap:8px; align-items:end; }
+  .grid4{ display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; align-items:end; }
   .grid4 .field{ display:flex; flex-direction:column; justify-content:flex-end; margin-bottom:13px; }
   .grid4 .field label{ hyphens:auto; }
-  @media (max-width:420px){ .grid4{ grid-template-columns:repeat(2,1fr); } }
-  .grid2{ display:grid; grid-template-columns:1fr 150px; gap:8px; }
+  @media (max-width:420px){ .grid4{ grid-template-columns:repeat(2,minmax(0,1fr)); } }
+  /* `minmax(0,1fr)` statt `1fr`. Ein blankes `1fr` ist `minmax(auto,1fr)`, und
+     das `auto` ist eine Untergrenze: Die Spur wird nie schmaler als der
+     min-content-Beitrag ihres Inhalts. `input[type=date]` und `[type=time]`
+     bringen in Safari auf iOS eine große intrinsische Mindestbreite mit — den
+     nativen Auswahltext —, die `width:100%` nicht aufhebt. Die erste Spalte
+     wuchs über ihren Anteil, und Ort beziehungsweise Bis wurden aus der Karte
+     geschoben; auf dem iPhone lagen die Rahmen sichtbar übereinander.
+     Dieselbe Ursache wie beim Papierkorb der Einkaufszeile in v14: eine
+     intrinsische Mindestbreite, die niemand zurückgesetzt hat. Alle Raster
+     dieses Stylesheets stehen deshalb jetzt auf `minmax(0,…)`. */
+  .grid2{ display:grid; grid-template-columns:minmax(0,1fr) 150px; gap:8px; }
 
   /* ---------- Shopping list ---------- */
   /* .shop-head und .wk sind mit B6 entfallen - siehe .abschnitt-kopf / .ak-titel.
@@ -623,18 +645,33 @@
   /* Runder Haken in der Erledigt-Farbe - dieselbe Bauform wie in den Notizen
      und auf Heute. Ein eckiges Systemkaestchen daneben liesse die Liste wie
      einen anderen Bereich aussehen (MD-26). `appearance:none` schaltet die
-     Systemdarstellung ab, der Haken kommt aus dem Hintergrundbild. */
-  .shop-inner input[type=checkbox]{
+     Systemdarstellung ab, der Haken kommt aus dem Hintergrundbild.
+
+     Alle Kaestchen der App stehen hier zusammen, nicht je einmal an ihrem
+     Bauteil. Das Bild des Hakens ist eine lange Datenadresse; dreimal
+     abgeschrieben liefe sie beim naechsten Farbwechsel auseinander - dieselbe
+     Falle wie die Farbwerte, die seit B6 zweimal im Stylesheet stehen.
+     Die Groesse unterscheidet sich bewusst: 24px in der Liste, wo mit halber
+     Aufmerksamkeit im Supermarkt getroffen wird, 22px im Formular und in den
+     Einstellungen. */
+  .shop-inner input[type=checkbox],
+  .kal-ganztag input[type=checkbox],
+  .mealrow input[type=checkbox]{
     appearance:none; -webkit-appearance:none;
-    width:24px; height:24px; flex:none; margin:0; cursor:pointer;
+    width:22px; height:22px; flex:none; margin:0; cursor:pointer;
     border:2px solid var(--linie); border-radius:50%;
     background:transparent; transition:background-color .12s ease, border-color .12s ease;
   }
-  .shop-inner input[type=checkbox]:hover{ border-color:var(--messing-aktion); }
-  .shop-inner input[type=checkbox]:checked{
+  .shop-inner input[type=checkbox]{ width:24px; height:24px; } /* stil-ok: nur Groesse, appearance:none steht in der Regel darueber */
+  .shop-inner input[type=checkbox]:hover,
+  .kal-ganztag input[type=checkbox]:hover,
+  .mealrow input[type=checkbox]:hover{ border-color:var(--messing-aktion); }
+  .shop-inner input[type=checkbox]:checked,
+  .kal-ganztag input[type=checkbox]:checked,
+  .mealrow input[type=checkbox]:checked{
     border-color:var(--erledigt-farbe); background:var(--erledigt-farbe);
     background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5'/%3E%3C/svg%3E");
-    background-size:16px 16px; background-position:center; background-repeat:no-repeat;
+    background-size:15px 15px; background-position:center; background-repeat:no-repeat;
   }
   /* `min-width:0` hebt die Vorgabe `min-width:auto` auf, mit der ein
      Flex-Element nie schmaler wird als sein längstes Wort. Ohne sie schob
@@ -713,7 +750,7 @@
      Mehrfachauswahl mit halber Aufmerksamkeit im Supermarkt funktioniert. */
   .art-liste{ list-style:none; padding:0; margin:0; }
   .art-row{
-    display:grid; grid-template-columns:1fr auto; align-items:center;
+    display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center;
     column-gap:var(--abstand-s); padding:4px 2px 9px;
     border-bottom:1px solid var(--linie-leise);
   }
@@ -1121,11 +1158,11 @@
      an dem Tag ansteht, steht darunter als Liste. */
   .kal-karte{ padding:var(--abstand-m); margin-bottom:var(--abstand-l); }
   .kal-wochentage{
-    display:grid; grid-template-columns:repeat(7,1fr); gap:2px; margin-bottom:6px;
+    display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:2px; margin-bottom:6px;
     font-size:11px; font-weight:600; letter-spacing:.06em; text-transform:uppercase;
     color:var(--text-leise); text-align:center;
   }
-  .kal-raster{ display:grid; grid-template-columns:repeat(7,1fr); gap:2px; }
+  .kal-raster{ display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:2px; }
   .kal-tag{
     display:flex; flex-direction:column; align-items:center; justify-content:flex-start; gap:3px;
     min-height:46px; padding:5px 2px; border:1px solid transparent; border-radius:var(--radius-s);
@@ -1164,7 +1201,8 @@
   .kal-form{ padding:var(--abstand-l); margin-bottom:var(--abstand-l); }
   .kal-form[hidden]{ display:none; }
   .kal-ganztag{ display:flex; align-items:center; gap:8px; font-size:0.88rem; color:var(--text-haupt); margin:0 0 12px; cursor:pointer; }
-  .kal-ganztag input{ width:17px; height:17px; accent-color:var(--messing-aktion); }
+  /* Bauform und Haken stehen einmal oben bei .shop-inner (MD-26). Hier bleibt
+     nur, was diese Stelle eigenstaendig braucht. */
   .kal-form-knoepfe{ display:flex; flex-wrap:wrap; gap:var(--abstand-s); margin-top:var(--abstand-m); }
   .kal-export{ padding:var(--abstand-l); }
   .ics-link{
