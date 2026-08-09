@@ -397,7 +397,7 @@
           <code>400 g Hähnchenbrust; 200 g Reis; 300 g Brokkoli; 2 EL Sojasauce</code></p>
           <p class="hint">Menge und Einheit werden automatisch erkannt (g, kg, ml, l, Stk, EL, TL, Bund, Dose, Zehe …). Steht keine Einheit da, wird „Stk“ angenommen.</p>
           <p class="hint"><em>Portionen</em> sagt, für wie viele Personen die Mengen gelten. Fehlt die Spalte, rechnet die App mit 4.</p>
-          <p class="hint"><em>Typ</em> ist entweder <em>Rezept</em> oder <em>Snack</em>. Snacks brauchen nur Name und Zutaten und erscheinen im Snack-Feld des Wochenplans. Fehlt die Spalte, gilt alles als Rezept.</p>
+          <p class="hint"><em>Typ</em> ist entweder <em>Rezept</em> oder <em>Snack</em>. Snacks brauchen nur Name und Zutaten und erscheinen im Snack-Feld des Wochenplans. Nährwertspalten werden auch bei Snacks übernommen und zählen dann in der Auswertung mit. Fehlt die Spalte, gilt alles als Rezept.</p>
         </div>
       </div>
 
@@ -445,7 +445,7 @@
         </div>
         <div class="type-pick">
           <label><input type="radio" name="rType" value="rezept" checked> Rezept</label>
-          <label><input type="radio" name="rType" value="snack"> Snack <span class="hint">— nur Name und Zutaten</span></label>
+          <label><input type="radio" name="rType" value="snack"> Snack <span class="hint">— ohne Zubereitung und Bild</span></label>
         </div>
         <div class="grid2">
           <div class="field">
@@ -481,10 +481,16 @@
           <div class="add-img-preview" id="addImgPreview"></div>
         </div>
 
-        <div class="nutri-calc-row only-rezept">
+        <!-- Nährwerte gelten auch für Snacks. Sie waren bis 09.08. per
+             .only-rezept ausgeblendet, obwohl der Excel-Import sie für
+             Snack-Zeilen ohnehin schreibt und die Auswertung sie mitrechnet —
+             das Formular war die einzige Stelle, an der man sie nicht setzen
+             konnte. Beschreibung und Bild bleiben ausgeblendet: die sind für
+             eine Brotzeit wirklich Beiwerk. -->
+        <div class="nutri-calc-row">
           <button class="btn btn-soft btn-sm" id="calcNutri" type="button">🧮 Nährwerte aus Zutaten berechnen</button>
         </div>
-        <div class="grid4 only-rezept">
+        <div class="grid4">
           <div class="field"><label>kcal</label><input id="r-kcal" type="number" placeholder="520"></div>
           <div class="field"><label>Eiweiß (g)</label><input id="r-protein-g" type="number"></div>
           <div class="field"><label>KH (g)</label><input id="r-carbs-g" type="number"></div>
@@ -512,7 +518,7 @@
         <p class="ex-hint">Auswertung auf Basis der im Wochenplan eingetragenen Rezepte. „Gesamt“ ist die
           Summe für den ganzen Haushalt an dem Tag. Trag bei „Portionen an diesem Tag“ ein, wie viele Portionen
           du selbst isst — manche Tage sind das zwei, manche nur eine — die Werte „bei deinen Portionen“ rechnen
-          damit. Snacks zählen nicht mit, da für sie keine Nährwerte erfasst werden.</p>
+          damit. Snacks zählen mit, sobald für sie Nährwerte hinterlegt sind — ohne Werte bleiben sie bei null.</p>
         <div id="nutriDays"></div>
       </div>
       <div class="karte karte-block">
