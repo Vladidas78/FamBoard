@@ -606,8 +606,15 @@
   .shop-item::after{ content:'löschen ✕'; right:0; color:var(--loeschen-farbe); }
   .shop-item.hint-right::before{ opacity:1; }
   .shop-item.hint-left::after{ opacity:1; }
+  /* Abstand 8 statt 10 und Innenrand 2 statt 4: Die Bedienelemente belegten
+     fest 202 px. Bei 320 px Gerätebreite blieben dem Namen 56 px, die Zeile
+     lief über, und `overflow:hidden` an .shop-item schnitt den Papierkorb ab.
+     8 px ist die Untergrenze — die Trefferflächen aus D-12 reichen
+     `--abstand-s` (8 px) über die Knopfkante hinaus, also 4 px je Seite. Bei
+     einem kleineren Abstand überlappten sie und nähmen einander die
+     Berührung, genau wie es dort steht. */
   .shop-inner{
-    display:flex; align-items:center; gap:10px; padding:12px 4px;
+    display:flex; align-items:center; gap:8px; padding:12px 2px;
     background:var(--flaeche-karte); position:relative; z-index:1;
     transition:transform .18s ease;
   }
@@ -629,26 +636,35 @@
     background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5'/%3E%3C/svg%3E");
     background-size:16px 16px; background-position:center; background-repeat:no-repeat;
   }
+  /* `min-width:0` hebt die Vorgabe `min-width:auto` auf, mit der ein
+     Flex-Element nie schmaler wird als sein längstes Wort. Ohne sie schob
+     „Spülmaschinentabs" die Knöpfe aus der Zeile. Der Umbruch greift am
+     <span class="nm"> aus app.js, nicht am Knopf selbst — ein anonymes
+     Flex-Element bricht nicht um, der Text liefe stattdessen unter den
+     nächsten Knopf. */
   .name-btn{
-    flex:1; text-align:left; background:none; border:none; padding:2px 0; cursor:pointer;
+    flex:1; min-width:0; text-align:left; background:none; border:none; padding:2px 0; cursor:pointer;
     color:var(--text-haupt); font-family:var(--schrift); font-size:0.95rem;
     display:flex; align-items:center; gap:7px; flex-wrap:wrap;
   }
+  .name-btn .nm{ min-width:0; overflow-wrap:break-word; }
   .name-btn:hover{ color:var(--messing-aktion); }
   .qty-btn{
-    background:none; border:1px dashed transparent; border-radius:6px; padding:3px 6px; cursor:pointer;
-    font-family:var(--schrift); font-variant-numeric:tabular-nums; color:var(--messing-aktion); font-size:0.86rem; white-space:nowrap;
+    background:none; border:1px dashed transparent; border-radius:6px; padding:3px 4px; cursor:pointer;
+    font-family:var(--schrift); font-variant-numeric:tabular-nums; color:var(--messing-aktion); font-size:0.8rem; white-space:nowrap;
   }
   .qty-btn:hover{ border-color:var(--messing-aktion); }
   .qty-btn.edited{ color:var(--messing-aktion); border-color:color-mix(in srgb, var(--messing-aktion) 45%, transparent); }
-  .qty-btn.empty{ color:var(--text-leise); }
+  .qty-btn.ohne-menge{ color:var(--text-leise); }
   .rep-badge, .extra-badge{
     font-size:0.64rem; padding:2px 7px; border-radius:999px; border:1px solid var(--linie);
     background:var(--flaeche-senke); color:var(--text-leise); letter-spacing:.3px;
   }
   .rep-badge{ color:var(--messing-aktion); border-color:color-mix(in srgb, var(--messing-aktion) 35%, transparent); }
+  /* 30 statt 34 px. Die Trefferfläche bleibt bei 44 px Höhe (D-12) — sie
+     hängt am Pseudoelement, nicht an der sichtbaren Größe. */
   .del-item{
-    flex:none; width:34px; height:34px; border-radius:8px; cursor:pointer;
+    flex:none; width:30px; height:30px; border-radius:8px; cursor:pointer;
     background:var(--flaeche-senke); border:1px solid var(--linie); color:var(--loeschen-farbe); font-size:0.95rem;
   }
   .del-item:hover{ background:var(--loeschen-farbe); color:var(--auf-loeschen); border-color:var(--loeschen-farbe); }
@@ -778,7 +794,7 @@
 
   /* „Jede Woche wieder" an der Listenzeile — loest das fruehere Formular ab */
   .rep-btn{
-    flex:none; width:28px; height:28px; border-radius:8px; border:1px solid var(--linie);
+    flex:none; width:26px; height:26px; border-radius:8px; border:1px solid var(--linie);
     background:var(--flaeche-senke); color:var(--text-leise); cursor:pointer; font-size:0.9rem; line-height:1;
   }
   .rep-btn:hover{ color:var(--messing-aktion); border-color:var(--messing-aktion); }
@@ -797,6 +813,13 @@
   .add-img-preview img{ width:100%; max-height:180px; object-fit:cover; border-radius:var(--radius-s); border:1px solid var(--linie-leise); }
 
   .img-loading{ font-size:0.82rem; color:var(--text-leise); font-style:italic; padding:10px 0; }
+  /* Leerzustand einer ganzen Fläche. `empty` war zusätzlich als Modifikator
+     an zwei Bauteilen im Einsatz — an der Mengen-Schaltfläche der
+     Einkaufszeile und an der Nährwert-Tageszeile. Beide erbten damit
+     `padding:34px` und Kursivsatz: Jede Zeile ohne gesetzte Menge war 110 px
+     hoch statt 55, und „Menge" stand kursiv, ohne dass das je entschieden
+     worden wäre. Die Modifikatoren heißen jetzt `ohne-menge` und
+     `ohne-werte`; diese Regel gilt wieder nur für Leerzustände. */
   .empty{ text-align:center; color:var(--text-leise); padding:34px 10px; font-style:italic; }
   /* Hinweis, kein Bedienelement: helle Messingflaeche statt Vollton (D-20).
      Der Vollton bleibt Dingen vorbehalten, die man antippen kann. Der Rand ist
@@ -892,7 +915,7 @@
 
   .nutri-day-row{ display:flex; align-items:center; justify-content:space-between; padding:10px 2px; border-bottom:1px solid var(--linie-leise); flex-wrap:wrap; gap:6px; }
   .nutri-day-row:last-child{ border-bottom:none; }
-  .nutri-day-row.empty{ opacity:.4; }
+  .nutri-day-row.ohne-werte{ opacity:.4; }
   .nutri-day-label{ font-weight:600; min-width:100px; }
   .nutri-day-vals{ display:flex; flex-wrap:wrap; gap:12px; font-size:0.86rem; color:var(--text-leise); }
   .nutri-day-vals span:first-child{ color:var(--text-haupt); font-weight:600; }

@@ -1,16 +1,13 @@
 /* Prueft Onboarding und Schnellanlegen — beides erscheint nur unter
    Bedingungen, die der normale Bilderlauf nicht herstellt. */
 import { chromium } from 'playwright';
-import { createServer } from 'node:http';
-import { readFileSync, existsSync, mkdirSync } from 'node:fs';
-import { join, extname } from 'node:path';
-const PUBLIC='/tmp/b6/public', STUB='/tmp/b6/pruefstand';
-const AUS = process.argv[2] || '/tmp/b6/bilder'; mkdirSync(AUS,{recursive:true});
-const T={'.html':'text/html','.js':'text/javascript','.css':'text/css','.webmanifest':'application/json','.png':'image/png','.woff2':'font/woff2','.ico':'image/x-icon'};
-const s=createServer((q,r)=>{let p=decodeURIComponent(q.url.split('?')[0]); if(p==='/')p='/index.html'; const f=join(PUBLIC,p);
- if(!existsSync(f)){r.writeHead(404);r.end();return;} r.writeHead(200,{'Content-Type':T[extname(f)]||'application/octet-stream'}); r.end(readFileSync(f));});
-await new Promise(r=>s.listen(0,r));
-const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium'});
+import { readFileSync, mkdirSync } from 'node:fs';
+import { join } from 'node:path';
+import { WURZEL, STUB, BROWSER, starteServer, pruefeAufbau } from './pfade.mjs';
+pruefeAufbau();
+const AUS = process.argv[2] || join(WURZEL, 'bilder'); mkdirSync(AUS,{recursive:true});
+const s = await starteServer();
+const b=await chromium.launch(BROWSER);
 const fehler=[];
 async function seite(query='', frisch=true){
   const c=await b.newContext({viewport:{width:402,height:900},deviceScaleFactor:2,locale:'de-DE',timezoneId:'Europe/Berlin'});

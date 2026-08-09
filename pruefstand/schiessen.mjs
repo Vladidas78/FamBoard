@@ -5,32 +5,19 @@
 
 import { chromium } from 'playwright';
 import { readFileSync, mkdirSync, existsSync } from 'node:fs';
-import { createServer } from 'node:http';
-import { join, extname } from 'node:path';
+import { join } from 'node:path';
+import { WURZEL, STUB, BROWSER, starteServer, pruefeAufbau } from './pfade.mjs';
 
-const WURZEL = new URL('..', import.meta.url).pathname;
-const PUBLIC = join(WURZEL, 'public');
-const STUB = join(WURZEL, 'pruefstand');
+pruefeAufbau();
 const AUS = process.argv[2] || join(WURZEL, 'bilder');
 const BREIT = process.argv.includes('--breit');
 mkdirSync(AUS, { recursive: true });
 
-const TYPEN = { '.html':'text/html', '.js':'text/javascript', '.mjs':'text/javascript',
-  '.css':'text/css', '.json':'application/json', '.webmanifest':'application/manifest+json',
-  '.png':'image/png', '.svg':'image/svg+xml', '.ico':'image/x-icon', '.woff2':'font/woff2' };
-
-const server = createServer((req, res) => {
-  let p = decodeURIComponent(req.url.split('?')[0]);
-  if (p === '/') p = '/index.html';
-  const datei = join(PUBLIC, p);
-  if (!existsSync(datei)) { res.writeHead(404); res.end('weg'); return; }
-  res.writeHead(200, { 'Content-Type': TYPEN[extname(datei)] || 'application/octet-stream' });
-  res.end(readFileSync(datei));
-});
-await new Promise(r => server.listen(0, r));
+const server = await starteServer();
 const PORT = server.address().port;
 
-const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
+const browser = await chromium.launch(BROWSER);
+let bilder = 0;
 
 /* Was fotografiert wird. `vor` läuft im Seitenkontext, bevor geschossen wird. */
 /* `unter` sind die echten Panel-IDs aus index.html, nicht die sichtbaren Namen.
@@ -89,6 +76,18 @@ for (const modus of ['hell', 'dunkel']) {
   const angemeldet = await seite.evaluate(() => !document.body.classList.contains('pre-auth'));
   if (!angemeldet) fehler.push(`[${modus}] Login-Gate ist nicht aufgegangen.`);
 
+  /* Ein Vollseitenbild dehnt die Sichtfläche auf die ganze Seitenhöhe.
+     `position:fixed` rechnet dann gegen diese gedehnte Fläche. Der Toast ist
+     im Ruhezustand nicht ausgeblendet, sondern über
+     `transform:translate(-50%,160%)` unter den unteren Rand geschoben — beim
+     Dehnen rutscht er sichtbar ins Bild. In jedem der achtzehn Bilder stand
+     deshalb eine „Rückgängig"-Pille, die kein Nutzer je zu sehen bekommt.
+     Und weil darauf eine .22s-Überblendung läuft, unterschieden sich zwei
+     Läufe desselben Codes im Bild: acht von neun dunklen Ansichten wichen
+     voneinander ab. Ein Bildvergleich zwischen zwei Ständen war damit wertlos.
+     Verborgen wird nur, was ohne `.show` ohnehin verborgen sein soll. */
+  await seite.addStyleTag({ content: '.toast:not(.show){ display:none !important; }' });
+
   /* Umgeschaltet wird über die echten Bedienelemente, nicht über Klassen von
      Hand: Sonst prüft der Prüfstand seine eigene Nachbildung statt der App. */
   for (const b of BILDER) {
@@ -115,6 +114,26 @@ for (const modus of ['hell', 'dunkel']) {
       path: join(AUS, `${b.name}-${modus}${BREIT ? '-breit' : ''}.png`),
       fullPage: !BREIT,
     });
+    bilder++;
+
+    /* Zusätzlich ein Schirmbild vom Seitenende — nur schmal.
+       Das Vollseitenbild taugt für den Inhalt, nicht für die Fußleiste: Sie
+       ist `position:fixed` und landet gegen die gedehnte Sichtfläche mitten
+       im Bild. Ob sie unten Inhalt verdeckt, ist dort nicht zu sehen, und
+       genau das ist die Frage bei einer festen Leiste über einer Liste, die
+       beliebig lang wird. Ans Ende gescrollt, weil oben nichts steht, was
+       nicht auch das Vollseitenbild zeigt.
+       Auf breiten Flächen entfällt es: Dort ist das Bild ohnehin schon
+       schirmgroß, und die Navigation steht als Seitenleiste links. */
+    if (!BREIT) {
+      await seite.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+      await seite.waitForTimeout(250);
+      await seite.screenshot({
+        path: join(AUS, `${b.name}-${modus}-schirm.png`),
+        fullPage: false,
+      });
+      bilder++;
+    }
   }
 
   await ctx.close();
@@ -129,4 +148,5 @@ if (fehler.length) {
 } else {
   console.log('Ohne Fehler gerendert.');
 }
+console.log(bilder + ' Bilder' + (BREIT ? '' : ', davon ' + (bilder / 2) + ' Schirmbilder vom Seitenende'));
 console.log('Bilder in ' + AUS);

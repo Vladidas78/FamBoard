@@ -2433,7 +2433,7 @@ function renderNutritionReport(){
   document.getElementById('nutriDays').innerHTML = rows.map(row=>{
     const hat = row.d.totalKcal > 0;
     const f = row.portionen;
-    return '<div class="nutri-day-row'+(hat?'':' empty')+'">' +
+    return '<div class="nutri-day-row'+(hat?'':' ohne-werte')+'">' +
       '<div class="nutri-day-label">'+row.day+'</div>' +
       '<div class="nutri-day-vals">' +
         '<span>'+Math.round(row.d.totalKcal)+' kcal gesamt</span>' +
@@ -2541,7 +2541,12 @@ function renderShop(){
     '<li class="shop-item '+(it.checked?'checked':'')+'" data-key="'+escapeHtml(it.key)+'">' +
       '<div class="shop-inner">' +
         '<input type="checkbox" '+(it.checked?'checked':'')+' aria-label="'+escapeHtml(it.name)+' abhaken">' +
-        '<button class="name-btn" type="button">'+escapeHtml(it.name)+
+        /* Der Name steht in einem eigenen <span>. Ohne das ist er ein anonymes
+           Flex-Element in .name-btn, und ein solches bricht nicht um: Bei einem
+           langen Namen lief die Zeile über, li.shop-item schnitt den Papierkorb
+           ab (bei 360 px ganz), und der Text lief unter den ↻-Knopf. Erst mit
+           eigenem Kasten greift der Umbruch aus styles.css. */
+        '<button class="name-btn" type="button"><span class="nm">'+escapeHtml(it.name)+'</span>'+
           (it.kind==='extra' && it.recurring ? '<span class="rep-badge">jede Woche</span>' : '')+
           (it.market ? '<span class="market-badge">🏬 '+escapeHtml(it.market)+'</span>' : '')+
         '</button>' +
@@ -2550,7 +2555,7 @@ function renderShop(){
         (it.kind==='extra'
           ? '<button class="rep-btn'+(it.recurring?' an':'')+'" type="button" aria-pressed="'+(it.recurring?'true':'false')+'" title="Jede Woche wieder auf die Liste" aria-label="'+escapeHtml(it.name)+' jede Woche wieder">↻</button>'
           : '') +
-        '<button class="qty-btn '+(it.edited?'edited':'')+' '+(it.qty?'':'empty')+'" type="button">'+escapeHtml(it.qty || 'Menge')+'</button>' +
+        '<button class="qty-btn '+(it.edited?'edited':'')+' '+(it.qty?'':'ohne-menge')+'" type="button">'+escapeHtml(it.qty || 'Menge')+'</button>' +
         '<button class="del-item" type="button" title="Löschen" aria-label="'+escapeHtml(it.name)+' löschen">🗑</button>' +
       '</div>' +
       '<div class="cat-picker">' +
