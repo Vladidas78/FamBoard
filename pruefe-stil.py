@@ -77,6 +77,17 @@ def pruefe_safe_area(css, html):
     return [(treffer, inhalt or "<meta name=\"viewport\"> fehlt")]
 
 
+def pruefe_datumsfelder(css):
+    """Datums- und Zeitfelder ohne appearance:none behalten in Safari eine
+    Mindestbreite, gegen die width:100% nicht ankommt. Der Fehler faellt nur
+    auf dem iPhone auf - Chromium setzt diese Felder schmal."""
+    treffer = re.search(
+        r"input\[type=date\][^{}]*\{([^{}]*)\}", css)
+    if treffer and "appearance" in treffer.group(1):
+        return []
+    return [treffer is not None]
+
+
 def pruefe_kaestchen(css):
     """Kaestchen, die Groesse setzen, aber die Systemdarstellung behalten."""
     befunde = []
@@ -115,6 +126,11 @@ def main():
     raster = pruefe_raster(css)
     safe = pruefe_safe_area(css, html)
     kaestchen = pruefe_kaestchen(css)
+    # Im HTML steht type="date" mit Anfuehrungszeichen, im Stylesheet
+    # [type=date] ohne. Der erste Anlauf pruefte auf die CSS-Schreibweise und
+    # lief deshalb nie an - gefunden nur durch die Gegenprobe.
+    benutzt_datumsfeld = re.search(r'type\s*=\s*["\']?(date|time)["\']?', html)
+    datum = pruefe_datumsfelder(css) if benutzt_datumsfeld else []
 
     anzahl_raster = sum(1 for _, z in zeilen_mit(css) if "grid-template-columns" in z)
     anzahl_safe = sum(1 for _, z in zeilen_mit(css) if "env(safe-area-inset-" in z)
@@ -143,10 +159,19 @@ def main():
         print("  Ohne `appearance:none` erscheint es eckig in Systemfarbe.")
         print(f"  Absicht? Dann `/* {VERMERK}: <Grund> */` in die Regel schreiben.")
 
-    if raster or safe or kaestchen:
+    if datum:
+        print("\nDATUMS- ODER ZEITFELD MIT SYSTEMDARSTELLUNG:")
+        print("  index.html benutzt input[type=date], styles.css schaltet die")
+        print("  Systemdarstellung nicht ab. In Safari behaelt so ein Feld eine")
+        print("  Mindestbreite, gegen die width:100% nicht ankommt - es wird")
+        print("  breiter als seine Spalte und schiebt sich unter das Nachbarfeld.")
+        print("  `input[type=date], input[type=time]{ appearance:none; }` ergaenzen.")
+
+    if raster or safe or kaestchen or datum:
         return 1
 
-    print("In Ordnung: keine offenen Rasterspuren, safe-area wirksam, kein Systemkaestchen.")
+    print("In Ordnung: keine offenen Rasterspuren, safe-area wirksam,"
+          " kein Systemkaestchen, Datumsfelder gezaehmt.")
     return 0
 
 

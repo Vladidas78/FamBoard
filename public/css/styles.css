@@ -405,6 +405,33 @@
   .feld-fehler[hidden]{ display:none; }
   /* Im Raster spannt die Meldung ueber alle Spalten, sonst landet sie in der Nachbarspalte */
   .ing-input-row .feld-fehler, .grid2 .feld-fehler, .grid4 .feld-fehler{ grid-column:1 / -1; margin:0; }
+  /* .grid2 ist seit v16 eine Flex-Zeile — dort spannt nicht `grid-column`,
+     sondern eine Grundbreite von 100 %. Ohne diese Zeile stünde die Meldung
+     neben dem Feld statt darunter. */
+  .grid2 .feld-fehler{ flex:1 1 100%; }
+  /* Datums- und Zeitfelder: Systemdarstellung abschalten.
+
+     Safari auf iOS setzt sie als Systembauteil mit eigener Mindestbreite.
+     Weder `width:100%` noch `min-width:0` kommen dagegen an — das Feld wird
+     breiter als seine Rasterspur und schiebt sich unter das Nachbarfeld. In
+     v15 lagen Datum und Ort deshalb weiter uebereinander, obwohl das Raster
+     schon auf `minmax(0,…)` stand: Nicht die Spur wuchs, das Feld schrumpfte
+     nicht. Erkennbar am zentrierten Wert — Systemdarstellung zentriert,
+     Textfelder nicht.
+
+     `appearance:none` nimmt die Darstellung, nicht die Funktion: Der native
+     Auswaehler oeffnet weiter beim Antippen, der Wert wird nur wie normaler
+     Text gesetzt. Der zweite Waehler ist Safaris Textkasten im Schattenbaum —
+     ohne ihn bleibt der Wert zentriert und traegt seine Mindestbreite weiter.
+     In Chromium und Firefox aendert die Regel nichts Sichtbares. */
+  input[type=date], input[type=time]{
+    appearance:none; -webkit-appearance:none;
+    text-align:left;
+  }
+  input[type=date]::-webkit-date-and-time-value,
+  input[type=time]::-webkit-date-and-time-value{
+    text-align:left; min-width:0; margin:0;
+  }
   textarea{ resize:vertical; min-height:64px; line-height:1.5; padding:12px var(--abstand-l); }
   input[type=checkbox], input[type=radio]{ min-height:0; padding:0; width:auto; }
 
@@ -593,17 +620,26 @@
   .grid4 .field{ display:flex; flex-direction:column; justify-content:flex-end; margin-bottom:13px; }
   .grid4 .field label{ hyphens:auto; }
   @media (max-width:420px){ .grid4{ grid-template-columns:repeat(2,minmax(0,1fr)); } }
-  /* `minmax(0,1fr)` statt `1fr`. Ein blankes `1fr` ist `minmax(auto,1fr)`, und
-     das `auto` ist eine Untergrenze: Die Spur wird nie schmaler als der
-     min-content-Beitrag ihres Inhalts. `input[type=date]` und `[type=time]`
-     bringen in Safari auf iOS eine große intrinsische Mindestbreite mit — den
-     nativen Auswahltext —, die `width:100%` nicht aufhebt. Die erste Spalte
-     wuchs über ihren Anteil, und Ort beziehungsweise Bis wurden aus der Karte
-     geschoben; auf dem iPhone lagen die Rahmen sichtbar übereinander.
-     Dieselbe Ursache wie beim Papierkorb der Einkaufszeile in v14: eine
-     intrinsische Mindestbreite, die niemand zurückgesetzt hat. Alle Raster
-     dieses Stylesheets stehen deshalb jetzt auf `minmax(0,…)`. */
-  .grid2{ display:grid; grid-template-columns:minmax(0,1fr) 150px; gap:8px; }
+  /* Zwei Felder nebeneinander — als Flex-Zeile mit Umbruch, nicht als Raster.
+
+     Der Unterschied ist keine Geschmacksfrage. In einem Raster stehen die
+     Spuren fest: Ein Feld, das breiter wird als seine Spur, läuft in die
+     Nachbarspur hinein und legt sich über das Nachbarfeld. Genau das war auf
+     dem iPhone zu sehen — auch noch in v15 mit `minmax(0,1fr)`. Die Spur war
+     da schon richtig; das Feld schrumpfte nicht, weil Safari Datums- und
+     Zeitfeldern als Systembauteil eine eigene Mindestbreite gibt.
+
+     In einer Flex-Zeile mit Umbruch kann sich nichts überlagern: Was nicht in
+     die Zeile passt, rutscht in die nächste. Der schlimmste Fall heißt damit
+     „Ort steht unter Datum" statt „Ort liegt auf Datum". Das ist der
+     eigentliche Fortschritt — nicht dass es jetzt passt, sondern dass es
+     nicht mehr übereinanderliegen kann, egal was eine Engine mit ihren
+     Formularfeldern anstellt.
+
+     Beide Felder teilen sich den Platz gleichmäßig, statt eines flexibel und
+     eines auf 150px. Ein Ortsname braucht nicht weniger Raum als ein Datum. */
+  .grid2{ display:flex; flex-wrap:wrap; gap:8px; }
+  .grid2 > .field{ flex:1 1 150px; min-width:0; }
 
   /* ---------- Shopping list ---------- */
   /* .shop-head und .wk sind mit B6 entfallen - siehe .abschnitt-kopf / .ak-titel.
