@@ -74,6 +74,35 @@ export async function starteServer(port = 8788) {
   return s;
 }
 
+/* Feste Uhrzeit für jeden Lauf.
+
+   Ohne sie zeigen zwei Läufe desselben Codes verschiedene Bilder: Die
+   Begrüßung auf Heute wechselt mit der Tageszeit ("Guten Morgen" wurde am
+   09.08. um 10:56 zu "Guten Tag"), das Datum steht in der Kopfzeile, und
+   "überfällig" hängt am heutigen Tag. Ein Bildvergleich zwischen zwei
+   Ständen war damit über Nacht wertlos — dieselbe Art Beweglichkeit wie der
+   zufällige Port und die verblassende Toast-Pille, nur langsamer und
+   deshalb schwerer zu bemerken.
+
+   Sonntag, 9. August 2026, 09:00 Uhr Berliner Zeit. Der Tag ist bewusst
+   derselbe, an dem die Bilder zuletzt entstanden sind; so bleiben die
+   vorhandenen Vergleichsbilder gültig. Die Testdaten im Ersatzmodul rechnen
+   sich aus derselben Uhr, bleiben also stimmig.
+
+   `setFixedTime`, nicht `install`: Letzteres friert auch die Zeitgeber ein,
+   und die App braucht sie — der Toast blendet über `setTimeout` aus. Hier
+   steht nur die Uhr still.
+
+   Ein Nebeneffekt, den man kennen muss: Zeitspannen messen sich damit immer
+   als null. Die Vier-Stunden-Frist des Ansichtszustands (IA-11) ist im
+   Prüfstand also immer offen — dass sie nach vier Stunden schließt, kann er
+   nicht zeigen. */
+export const ZEITPUNKT = new Date('2026-08-09T09:00:00+02:00');
+
+export async function haltDieUhrAn(kontext) {
+  await kontext.clock.setFixedTime(ZEITPUNKT);
+}
+
 /* Früh und laut scheitern, statt den Browser auf ein leeres Verzeichnis zu
    schicken. Ohne diese Prüfung kommt der Fehler erst als Browsermeldung an
    und liest sich wie ein Anwendungsfehler. */

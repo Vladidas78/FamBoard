@@ -6,7 +6,7 @@
 import { chromium } from 'playwright';
 import { readFileSync, mkdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { WURZEL, STUB, BROWSER, starteServer, pruefeAufbau } from './pfade.mjs';
+import { WURZEL, STUB, BROWSER, starteServer, pruefeAufbau, haltDieUhrAn } from './pfade.mjs';
 
 pruefeAufbau();
 const AUS = process.argv[2] || join(WURZEL, 'bilder');
@@ -57,6 +57,7 @@ for (const modus of ['hell', 'dunkel']) {
     locale: 'de-DE',
     timezoneId: 'Europe/Berlin',
   });
+  await haltDieUhrAn(ctx);
 
   const seite = await ctx.newPage();
 

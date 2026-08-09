@@ -3,11 +3,12 @@
 import { chromium } from 'playwright';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { STUB, BROWSER, starteServer, pruefeAufbau } from './pfade.mjs';
+import { STUB, BROWSER, starteServer, pruefeAufbau, haltDieUhrAn } from './pfade.mjs';
 pruefeAufbau();
 const s = await starteServer();
 const b=await chromium.launch(BROWSER);
 const c=await b.newContext({viewport:{width:402,height:900},locale:'de-DE',timezoneId:'Europe/Berlin'});
+await haltDieUhrAn(c);
 const p=await c.newPage();
 await p.route('https://www.gstatic.com/firebasejs/**',ro=>ro.fulfill({status:200,contentType:'text/javascript',body:readFileSync(join(STUB,ro.request().url().split('/').pop()),'utf8')}));
 await p.route('https://cdnjs.cloudflare.com/**',ro=>ro.fulfill({status:200,contentType:'text/javascript',body:'window.XLSX={utils:{},write:()=>{},read:()=>{}};'}));

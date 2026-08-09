@@ -3,7 +3,7 @@
 import { chromium } from 'playwright';
 import { readFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { WURZEL, STUB, BROWSER, starteServer, pruefeAufbau } from './pfade.mjs';
+import { WURZEL, STUB, BROWSER, starteServer, pruefeAufbau, haltDieUhrAn } from './pfade.mjs';
 pruefeAufbau();
 const AUS = process.argv[2] || join(WURZEL, 'bilder'); mkdirSync(AUS,{recursive:true});
 const s = await starteServer();
@@ -11,6 +11,7 @@ const b=await chromium.launch(BROWSER);
 const fehler=[];
 async function seite(query='', frisch=true){
   const c=await b.newContext({viewport:{width:402,height:900},deviceScaleFactor:2,locale:'de-DE',timezoneId:'Europe/Berlin'});
+  await haltDieUhrAn(c);
   const p=await c.newPage();
   await p.route('https://www.gstatic.com/firebasejs/**',ro=>ro.fulfill({status:200,contentType:'text/javascript',body:readFileSync(join(STUB,ro.request().url().split('/').pop()),'utf8')}));
   await p.route('https://cdnjs.cloudflare.com/**',ro=>ro.fulfill({status:200,contentType:'text/javascript',body:'window.XLSX={utils:{},write:()=>{},read:()=>{}};'}));
