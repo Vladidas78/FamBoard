@@ -33,6 +33,26 @@ const BILDER = [
      blinder Fleck; `vor` macht ihn sichtbar. */
   { name:'kalender-termin', bereich:'kalender',
     vor: () => document.getElementById('terminNeu').click() },
+  /* O-25 — eine **Ausgabe einer Reihe** im Bearbeiten-Formular. Ein neuer
+     Termin zeigt die Wahl „Änderung gilt für" nicht, ein einzelner Termin auch
+     nicht; ohne dieses Bild wäre die ganze Neuerung wieder unsichtbar — genau
+     der blinde Fleck aus Betriebsregel 12, nur eine Ebene tiefer.
+     Angesteuert wird der übernächste Montag: die dritte Ausgabe der
+     Müllabfuhr-Reihe, hinter der ausgenommenen Woche. */
+  { name:'kalender-serie', bereich:'kalender',
+    vor: () => {
+      /* Die Reihe beginnt in den Testdaten immer am Tag nach „heute"
+         (`tagPlus(HEUTE_IDX+1)` ist Montag-der-Woche + heute-Index + 1).
+         Die dritte Ausgabe liegt damit 15 Tage nach heute. */
+      const d = new Date(); d.setDate(d.getDate() + 15);
+      const iso = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+      const tag = document.querySelector('.kal-tag[data-tag="'+iso+'"]');
+      if(!tag) throw new Error('Tag '+iso+' steht nicht im Raster');
+      tag.click();
+      const zeile = document.querySelector('#kalTag .kal-zeile-btn');
+      if(!zeile) throw new Error('Am '+iso+' steht keine Ausgabe der Reihe — Testdaten prüfen');
+      zeile.click();
+    } },
   { name:'essen-woche',  bereich:'essen',   unter:'plan' },
   /* Der Abschnitt „Mahlzeiten" ist eingeklappt und stand deshalb in keinem
      Bild. Dort sass bis v14 das zweite eckige Systemkaestchen der App.

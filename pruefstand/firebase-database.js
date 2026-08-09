@@ -30,37 +30,37 @@ const TAGE = ['Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag','S
 
 /* ---- Rezepte ---- */
 const REZEPTE = [
-  { id:'r1', name:'Ofengemüse mit Feta', type:'rezept', servings:4, fav:true, tags:['Ofen','Vegetarisch'],
+  { id:'r1', name:'Ofengemüse mit Feta', type:'rezept', servings:4, fav:true, kcal:520, prot:22, carbs:28, fat:34, tags:['Ofen','Vegetarisch'],
     steps:'Gemüse würfeln, mit Öl und Gewürzen mischen, 35 Minuten bei 200 °C backen. Feta darüber bröseln.',
-    ingredients:[{name:'Zucchini',qty:2,unit:'stk'},{name:'Paprika',qty:2,unit:'stk'},{name:'Kirschtomaten',qty:250,unit:'g'},
-                 {name:'Feta',qty:200,unit:'g'},{name:'Olivenöl',qty:3,unit:'el'},{name:'Rosmarin',qty:1,unit:'tl'}] },
-  { id:'r2', name:'Spaghetti Bolognese', type:'rezept', servings:4, fav:true, tags:['Schnell'],
+    ingredients:[{name:'Zucchini',amount:2,unit:'stk'},{name:'Paprika',amount:2,unit:'stk'},{name:'Kirschtomaten',amount:250,unit:'g'},
+                 {name:'Feta',amount:200,unit:'g'},{name:'Olivenöl',amount:3,unit:'el'},{name:'Rosmarin',amount:1,unit:'tl'}] },
+  { id:'r2', name:'Spaghetti Bolognese', type:'rezept', servings:4, fav:true, kcal:680, prot:34, carbs:78, fat:24, tags:['Schnell'],
     steps:'Zwiebeln anschwitzen, Hackfleisch anbraten, Tomaten dazu, 30 Minuten köcheln.',
-    ingredients:[{name:'Spaghetti',qty:500,unit:'g'},{name:'Rinderhackfleisch',qty:500,unit:'g'},
-                 {name:'Passierte Tomaten',qty:700,unit:'g'},{name:'Zwiebeln',qty:2,unit:'stk'},{name:'Knoblauch',qty:2,unit:'stk'}] },
-  { id:'r3', name:'Linsensuppe', type:'rezept', servings:4, fav:false, tags:['Vegetarisch'],
+    ingredients:[{name:'Spaghetti',amount:500,unit:'g'},{name:'Rinderhackfleisch',amount:500,unit:'g'},
+                 {name:'Passierte Tomaten',amount:700,unit:'g'},{name:'Zwiebeln',amount:2,unit:'stk'},{name:'Knoblauch',amount:2,unit:'stk'}] },
+  { id:'r3', name:'Linsensuppe', type:'rezept', servings:4, fav:false, kcal:390, prot:21, carbs:52, fat:8, tags:['Vegetarisch'],
     steps:'Alles in einen Topf, 40 Minuten köcheln lassen.',
-    ingredients:[{name:'Rote Linsen',qty:300,unit:'g'},{name:'Karotten',qty:3,unit:'stk'},
-                 {name:'Sellerie',qty:1,unit:'stk'},{name:'Gemüsebrühe',qty:1,unit:'l'}] },
-  { id:'r4', name:'Hähnchenbrustsandwich', type:'snack', servings:2, fav:false, tags:['Schnell','Snack'],
+    ingredients:[{name:'Rote Linsen',amount:300,unit:'g'},{name:'Karotten',amount:3,unit:'stk'},
+                 {name:'Sellerie',amount:1,unit:'stk'},{name:'Gemüsebrühe',amount:1,unit:'l'}] },
+  { id:'r4', name:'Hähnchenbrustsandwich', type:'snack', servings:2, fav:false, kcal:560, prot:42, carbs:46, fat:22, tags:['Schnell','Snack'],
     steps:'',
-    ingredients:[{name:'Hähnchenbrustfilet',qty:2,unit:'stk'},{name:'Sauerteigbrot',qty:4,unit:'stk'},
-                 {name:'Mayonnaise',qty:2,unit:'el'},{name:'Salat',qty:1,unit:'stk'}] },
-  { id:'r5', name:'Kaiserschmarrn', type:'rezept', servings:4, fav:false, tags:['Süß'],
+    ingredients:[{name:'Hähnchenbrustfilet',amount:2,unit:'stk'},{name:'Sauerteigbrot',amount:4,unit:'stk'},
+                 {name:'Mayonnaise',amount:2,unit:'el'},{name:'Salat',amount:1,unit:'stk'}] },
+  { id:'r5', name:'Kaiserschmarrn', type:'rezept', servings:4, fav:false, kcal:610, prot:17, carbs:72, fat:27, tags:['Süß'],
     steps:'Teig anrühren, in der Pfanne stocken lassen, zerreißen, mit Puderzucker bestäuben.',
-    ingredients:[{name:'Mehl',qty:250,unit:'g'},{name:'Milch',qty:400,unit:'ml'},{name:'Eier',qty:4,unit:'stk'},
-                 {name:'Butter',qty:50,unit:'g'},{name:'Puderzucker',qty:2,unit:'el'}] },
-  { id:'r6', name:'Griechischer Salat', type:'rezept', servings:2, fav:false, tags:['Schnell','Vegetarisch'],
+    ingredients:[{name:'Mehl',amount:250,unit:'g'},{name:'Milch',amount:400,unit:'ml'},{name:'Eier',amount:4,unit:'stk'},
+                 {name:'Butter',amount:50,unit:'g'},{name:'Puderzucker',amount:2,unit:'el'}] },
+  { id:'r6', name:'Griechischer Salat', type:'rezept', servings:2, fav:false, kcal:340, prot:12, carbs:14, fat:26, tags:['Schnell','Vegetarisch'],
     steps:'Alles würfeln, mit Öl und Oregano anmachen.',
-    ingredients:[{name:'Tomaten',qty:4,unit:'stk'},{name:'Gurke',qty:1,unit:'stk'},{name:'Feta',qty:150,unit:'g'},
-                 {name:'Oliven',qty:100,unit:'g'},{name:'Rote Zwiebel',qty:1,unit:'stk'}] },
-  { id:'r7', name:'Porridge mit Beeren', type:'rezept', servings:2, fav:false, tags:['Schnell'],
+    ingredients:[{name:'Tomaten',amount:4,unit:'stk'},{name:'Gurke',amount:1,unit:'stk'},{name:'Feta',amount:150,unit:'g'},
+                 {name:'Oliven',amount:100,unit:'g'},{name:'Rote Zwiebel',amount:1,unit:'stk'}] },
+  { id:'r7', name:'Porridge mit Beeren', type:'rezept', servings:2, fav:false, kcal:320, prot:14, carbs:45, fat:9, tags:['Schnell'],
     steps:'Haferflocken mit Milch aufkochen, Beeren darauf.',
-    ingredients:[{name:'Haferflocken',qty:100,unit:'g'},{name:'Milch',qty:400,unit:'ml'},{name:'Heidelbeeren',qty:150,unit:'g'}] },
-  { id:'r8', name:'Pizza Margherita', type:'rezept', servings:4, fav:true, tags:['Ofen'],
+    ingredients:[{name:'Haferflocken',amount:100,unit:'g'},{name:'Milch',amount:400,unit:'ml'},{name:'Heidelbeeren',amount:150,unit:'g'}] },
+  { id:'r8', name:'Pizza Margherita', type:'rezept', servings:4, fav:true, kcal:720, prot:28, carbs:88, fat:28, tags:['Ofen'],
     steps:'Teig ausrollen, belegen, 12 Minuten bei 250 °C.',
-    ingredients:[{name:'Pizzateig',qty:2,unit:'stk'},{name:'Mozzarella',qty:250,unit:'g'},
-                 {name:'Passierte Tomaten',qty:200,unit:'g'},{name:'Basilikum',qty:1,unit:'stk'}] },
+    ingredients:[{name:'Pizzateig',amount:2,unit:'stk'},{name:'Mozzarella',amount:250,unit:'g'},
+                 {name:'Passierte Tomaten',amount:200,unit:'g'},{name:'Basilikum',amount:1,unit:'stk'}] },
 ];
 
 /* ---- Wochenplan: laufende Woche, gemischt aus Rezept, Reste und auswärts ---- */
@@ -104,9 +104,23 @@ const TERMINE = {
   t6:{ titel:'Ausflug ins Playmobil-Funpark Land mit Übernachtung', datum:HEUTE_ISO, zeit:'08:00',
        bis:'18:00', wer:['p2','p3','p4'], ort:'Zirndorf bei Nürnberg',
        uid:'t6@butley', sequence:0, herkunft:'butley', angelegt:1786000000006 },
+  /* Bis zum 09.08. stand hier `FREQ=WEEKLY;BYDAY=<Tag>`. Diese Zeichenkette
+     kommt in keiner der vier Abfragen von `terminAmTag` vor - die Serie
+     erschien nur an ihrem Starttag, und `wdhLabel` zeigte die Rohzeichenkette
+     sichtbar in der Terminzeile. Ueber Serien konnte der Pruefstand damit
+     nichts sagen, ausgerechnet bei O-25. Testdaten duerfen nur Werte
+     enthalten, die die App selbst erzeugt - `WIEDERHOLUNGEN` in app.js ist die
+     Liste dieser Werte. */
   t3:{ titel:'Müllabfuhr', datum:tagPlus(HEUTE_IDX+1), ganztag:true, wer:'haushalt',
-       rrule:'FREQ=WEEKLY;BYDAY=' + ['MO','TU','WE','TH','FR','SA','SU'][(HEUTE_IDX+1)%7],
-       uid:'t3@butley', sequence:0, herkunft:'butley', angelegt:1786000000003 },
+       rrule:'FREQ=WEEKLY',
+       /* O-25 - eine Woche faellt aus. Der Ersatztermin steht als t7 daneben. */
+       exdate:[tagPlus(HEUTE_IDX+8)],
+       uid:'t3@butley', sequence:1, herkunft:'butley', angelegt:1786000000003 },
+  /* Die herausgeloeste Ausgabe: dieselbe uid wie die Reihe, `recurrenceId` auf
+     dem Tag, den sie ersetzt, eigenes Datum einen Tag spaeter. */
+  t7:{ titel:'Müllabfuhr', datum:tagPlus(HEUTE_IDX+9), ganztag:true, wer:'haushalt',
+       uid:'t3@butley', recurrenceId:tagPlus(HEUTE_IDX+8),
+       sequence:0, herkunft:'butley', angelegt:1786000000007 },
   t4:{ titel:'Sport', datum:tagPlus(HEUTE_IDX+2), zeit:'18:00', bis:'19:30', wer:['p1'],
        uid:'t4@butley', sequence:0, herkunft:'butley', angelegt:1786000000004 },
   t5:{ titel:'Geburtstag Jonas', datum:tagPlus(HEUTE_IDX+4), ganztag:true, wer:'haushalt',

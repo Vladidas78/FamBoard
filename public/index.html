@@ -274,9 +274,21 @@
         <label>Wer</label>
         <div class="wer-wahl" id="terminWerWahl"></div>
       </div>
-      <div class="field">
+      <div class="field" id="terminWdhFeld">
         <label>Wiederholung</label>
         <div class="filter-row" id="terminWdhRow"></div>
+      </div>
+      <!-- O-25 - die Wahl zwischen einer Ausgabe und der ganzen Reihe. Sie steht
+           unmittelbar vor den Knoepfen, weil sie die Handlung naeher bestimmt,
+           die dort ausgeloest wird - Speichern wie Loeschen.
+           Die drei Elemente stehen fest im HTML und werden nur ein- und
+           ausgeblendet (Betriebsregel 10): Was `app.js` anspricht, muss
+           `pruefe-verweise.py` finden koennen, und eine zur Laufzeit erzeugte
+           ID findet es nicht. -->
+      <div class="field" id="terminUmfangFeld" hidden>
+        <label>Änderung gilt für</label>
+        <div class="filter-row" id="terminUmfangRow"></div>
+        <p class="ex-hint" id="terminUmfangHinweis"></p>
       </div>
       <div class="kal-form-knoepfe">
         <button class="btn btn-primary" id="terminSpeichern" type="button">Speichern</button>

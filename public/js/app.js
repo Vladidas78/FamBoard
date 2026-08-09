@@ -292,8 +292,13 @@ async function aktiviereHaushalt(hhId){
     meineRolle = snap.exists() ? snap.val() : null;
   }catch(e){ meineRolle = null; }
   setOnline(istOnline);
-  renderMemberList();
-  renderSettingsTab();
+  /* Kapitel 2.6, Regeln 1 und 2: Beide zeichnen nur. Wirft eine von ihnen,
+     bricht sonst die Anmeldung ab und die App bleibt im Login-Gate stehen,
+     obwohl die Daten laengst da waeren — dieselbe Kette wie am 07.08.2026,
+     nur eine Ebene frueher. Aufgefallen im Pruefstand: ein Konto ohne
+     providerData liess renderSettingsTab werfen, und die App kam nie hoch. */
+  try{ renderMemberList(); }catch(e){ console.warn('Mitgliederliste konnte nicht gezeichnet werden:', e); }
+  try{ renderSettingsTab(); }catch(e){ console.warn('Einstellungen konnten nicht gezeichnet werden:', e); }
 }
 
 function renderHhSwitch(ids){
@@ -3946,6 +3951,11 @@ function wochentagIndex(iso){ const d = datumVon(iso); return (d.getDay() + 6) %
    Regel an genau einer Stelle. */
 function terminAmTag(t, iso){
   if(!t || !t.datum) return false;
+  /* O-25 — Ausnahmen zuerst, vor jeder anderen Abfrage. Stünde die Prüfung
+     weiter unten, liesse sich ausgerechnet der Serienbeginn nicht ausnehmen:
+     `t.datum === iso` gibt vorher schon `true` zurück. Und genau das probiert
+     ein Nutzer als Erstes — die erste Ausgabe einer Reihe absagen. */
+  if(t.exdate && t.exdate.indexOf(iso) >= 0) return false;
   if(t.datum === iso) return true;
   if(!t.rrule || iso < t.datum) return false;
   const start = datumVon(t.datum), tag = datumVon(iso);
@@ -3956,7 +3966,29 @@ function terminAmTag(t, iso){
   if(t.rrule === 'FREQ=WEEKLY') return tage % 7 === 0;
   if(t.rrule === 'FREQ=WEEKLY;INTERVAL=2') return tage % 14 === 0;
   if(t.rrule === 'FREQ=MONTHLY') return start.getDate() === tag.getDate();
+  /* Unbekannte RRULE. Vor dem 09.08. endete das hier stumm mit `false`: Die
+     Serie verschwand aus dem Kalender und stand weiter im ICS-Feed. Der
+     Rückgabewert bleibt `false` — mehr lässt sich ohne vollen RRULE-Leser
+     nicht sagen —, aber er wird einmal je Sitzung benannt. */
+  meldeUnbekannteRrule(t.rrule);
   return false;
+}
+
+/* Damit eine Regel, die niemand kennt, nicht als „nichts" durchgeht. Einmal je
+   Zeichenkette und Sitzung, nicht je Tag und Zeichnung — sonst steht die
+   Konsole nach einer Monatsansicht 42-mal voll. */
+const rruleGemeldet = {};
+function meldeUnbekannteRrule(rrule){
+  if(!rrule || rruleGemeldet[rrule]) return;
+  rruleGemeldet[rrule] = true;
+  console.warn('Butley: unbekannte RRULE „' + rrule + '" — die Serie wird im Kalender nur an ihrem Starttag gezeigt, steht im ICS-Feed aber vollständig.');
+}
+
+/* Die geänderten Einzelausgaben einer Reihe. Sie tragen dieselbe `uid` und ein
+   `recurrenceId` mit dem Tag, den sie ersetzen (iCalendar-Form, K-3a/K-10). */
+function ausnahmenVon(serie){
+  if(!serie || !serie.uid) return [];
+  return termine().filter(x => x.recurrenceId && x.uid === serie.uid && x.id !== serie.id);
 }
 function termine(){
   const k = (state.kalender && state.kalender.gemeinsam) || {};
@@ -3989,6 +4021,8 @@ let kalAnsicht = 'monat';     // 'monat' | 'woche'
 let kalAnker = null;          // JJJJ-MM-TT im angezeigten Zeitraum
 let kalGewaehlt = null;       // ausgewählter Tag
 let terminBearbeitet = null;  // id des Termins im Formular, null = neuer
+let terminAusgabe = null;     // O-25: der angeklickte Tag einer Reihe, JJJJ-MM-TT
+let terminUmfang = 'einzeln'; // O-25: 'einzeln' | 'reihe'
 
 function kalInit(){
   if(!kalAnker){ kalAnker = heuteIso(); kalGewaehlt = heuteIso(); }
@@ -4058,7 +4092,7 @@ function renderKalTag(){
     return;
   }
   box.innerHTML = '<div class="notiz-block">'+kopf+'<div class="karte"><ul class="kal-liste">' +
-    dran.map(t=>'<li class="kal-zeile" data-id="'+escapeHtml(t.id)+'">' +
+    dran.map(t=>'<li class="kal-zeile" data-id="'+escapeHtml(t.id)+'" data-ausgabe="'+escapeHtml(iso)+'">' +
       '<button class="kal-zeile-btn" type="button">' +
         '<span class="kal-zeit zahl">'+(t.ganztag ? 'ganztägig' : escapeHtml(t.zeit||'') + (t.bis ? '–'+escapeHtml(t.bis) : ''))+'</span>' +
         '<span class="kal-text">' +
@@ -4066,13 +4100,20 @@ function renderKalTag(){
           '<span class="kal-meta">'+werPunkte(t)+' '+escapeHtml(werText(t)) +
             (t.ort ? ' · '+escapeHtml(t.ort) : '') +
             (t.rrule ? ' · '+escapeHtml(wdhLabel(t.rrule)) : '') +
+            (t.recurrenceId ? ' · einzeln geändert' : '') +
           '</span>' +
         '</span>' +
       '</button>' +
     '</li>').join('') + '</ul></div></div>';
 
+  /* O-25 — die angeklickte **Ausgabe** wird mitgegeben, nicht nur die Serie.
+     Bis v16 stand hier allein die Serien-ID, und das Formular füllte sein
+     Datumsfeld aus `t.datum`, also dem Serienbeginn: Wer die Ausgabe vom 17.
+     anklickte, sah ein Formular mit dem 10. Ohne diese Zeile kann es ein
+     „nur dieser Termin" gar nicht geben — es fehlte schlicht das „dieser". */
   Array.prototype.forEach.call(box.querySelectorAll('.kal-zeile-btn'), b=>b.addEventListener('click', e=>{
-    oeffneTerminForm(e.currentTarget.closest('.kal-zeile').dataset.id);
+    const li = e.currentTarget.closest('.kal-zeile');
+    oeffneTerminForm(li.dataset.id, li.dataset.ausgabe);
   }));
 }
 
@@ -4109,20 +4150,71 @@ function gewaehlteWdh(){
   return an ? an.dataset.rrule : '';
 }
 
+/* ---------- O-25: „Nur dieser Termin" oder „Ganze Reihe" ---------- */
+/* Der Umfang steht in `terminUmfang` und nicht allein in der aktiven Pille:
+   Beim Speichern soll nicht das Aussehen des Formulars entscheiden, sondern
+   ein Wert. Sonst hängt die Datenwirkung an einer CSS-Klasse. */
+const UMFAENGE = [
+  {id:'einzeln', label:'Nur dieser Termin'},
+  {id:'reihe',   label:'Ganze Reihe'}
+];
+function renderTerminUmfang(serie){
+  const feld = document.getElementById('terminUmfangFeld');
+  const row  = document.getElementById('terminUmfangRow');
+  const hint = document.getElementById('terminUmfangHinweis');
+  const wdh  = document.getElementById('terminWdhFeld');
+  if(!feld || !row || !hint) return;
+
+  /* Die Wahl gibt es nur beim Bearbeiten einer Reihe. Ein neuer Termin und ein
+     einzelner Termin haben nichts zu wählen — dort wäre die Zeile Beiwerk. */
+  feld.hidden = !serie;
+  if(!serie){
+    if(wdh) wdh.hidden = false;
+    return;
+  }
+  row.innerHTML = UMFAENGE.map(u=>'<button class="filter-pill'+(terminUmfang===u.id?' active':'')+'" type="button" data-umfang="'+u.id+'">'+u.label+'</button>').join('');
+  Array.prototype.forEach.call(row.querySelectorAll('.filter-pill'), b=>b.addEventListener('click', e=>{
+    terminUmfang = e.currentTarget.dataset.umfang;
+    renderTerminUmfang(serie);
+  }));
+
+  const einzeln = terminUmfang === 'einzeln';
+  /* Eine einzelne Ausgabe hat keine Wiederholung — sie ist ja gerade das, was
+     aus der Reihe herausgelöst wird. Das Feld stehen zu lassen hiesse, eine
+     Angabe anzubieten, die beim Speichern verworfen wird. */
+  if(wdh) wdh.hidden = einzeln;
+  hint.textContent = einzeln
+    ? 'Die Reihe bleibt, wie sie ist — ' + wdhLabel(serie.rrule).toLowerCase() + ' ab ' + fmtTag(serie.datum) + '. Nur dieser eine Termin wird herausgelöst.'
+    : 'Ändert alle Termine der Reihe, auch die vergangenen. Das Datum verschiebt den Beginn.';
+
+  /* Das Datumsfeld folgt der Wahl: „nur dieser" meint den angeklickten Tag,
+     „ganze Reihe" den Beginn. Ohne das stünde bei „ganze Reihe" ein Datum, das
+     die Reihe unbeabsichtigt verschiebt. */
+  const feldDatum = document.getElementById('terminDatum');
+  if(feldDatum) feldDatum.value = einzeln ? (terminAusgabe || serie.datum) : serie.datum;
+}
+
 function zeitZeileZeigen(){
   const zeile = document.getElementById('terminZeitZeile');
   const ganz = document.getElementById('terminGanztag');
   if(zeile && ganz) zeile.style.display = ganz.checked ? 'none' : '';
 }
 
-function oeffneTerminForm(id){
+function oeffneTerminForm(id, ausgabe){
   const form = document.getElementById('terminForm');
   if(!form) return;
   terminBearbeitet = id || null;
   const t = id ? termine().filter(x=>x.id === id)[0] : null;
+  /* O-25 — der angeklickte Tag. Fehlt er (etwa beim Aufruf von anderswo),
+     bleibt der Serienbeginn: das alte Verhalten, aber jetzt als benannter
+     Rückfall und nicht als einzige Möglichkeit. */
+  terminAusgabe = ausgabe || (t ? t.datum : null);
+  const serie = (t && t.rrule) ? t : null;
+  terminUmfang = 'einzeln';   // die enge, umkehrbare Wahl ist die Vorgabe
+
   document.getElementById('terminFormTitel').textContent = t ? 'Termin bearbeiten' : 'Neuer Termin';
   document.getElementById('terminTitel').value  = t ? (t.titel||'') : '';
-  document.getElementById('terminDatum').value  = t ? (t.datum||'') : (kalGewaehlt || heuteIso());
+  document.getElementById('terminDatum').value  = t ? (terminAusgabe || t.datum || '') : (kalGewaehlt || heuteIso());
   document.getElementById('terminOrt').value    = t ? (t.ort||'') : '';
   document.getElementById('terminGanztag').checked = !!(t && t.ganztag);
   document.getElementById('terminZeit').value   = t ? (t.zeit||'') : '18:00';
@@ -4130,6 +4222,7 @@ function oeffneTerminForm(id){
   terminWer = (t && Array.isArray(t.wer)) ? t.wer.slice() : [];
   renderTerminWer();
   renderTerminWdh(t ? t.rrule : '');
+  renderTerminUmfang(serie);
   zeitZeileZeigen();
   document.getElementById('terminLoeschen').hidden = !t;
   form.hidden = false;
@@ -4140,6 +4233,8 @@ function schliesseTerminForm(){
   const form = document.getElementById('terminForm');
   if(form) form.hidden = true;
   terminBearbeitet = null;
+  terminAusgabe = null;
+  terminUmfang = 'einzeln';
 }
 
 function speichereTermin(){
@@ -4156,6 +4251,17 @@ function speichereTermin(){
   const rrule = gewaehlteWdh();
 
   const alt = terminBearbeitet ? termine().filter(x=>x.id === terminBearbeitet)[0] : null;
+
+  /* O-25 — eine einzelne Ausgabe aus der Reihe lösen: Die Reihe bekommt den Tag
+     in ihr `exdate`, und daneben entsteht ein eigener Termin mit derselben
+     `uid` und einem `recurrenceId`. Das ist die iCalendar-Form aus K-3a: Der
+     Feed bleibt dadurch ohne Übersetzung gültig, und kein abonnierender
+     Kalender sieht eine Löschung mit Neuanlage. */
+  if(alt && alt.rrule && terminUmfang === 'einzeln'){
+    loeseAusgabeHeraus(alt, {datum:datum, titel:titel, ganztag:ganztag, zeit:zeit, bis:bis, ort:ort});
+    return;
+  }
+
   const id = terminBearbeitet || neueId('t');
 
   /* K-10 — uid, sequence und herkunft stehen ab der ersten Zeile. `uid` bleibt
@@ -4176,6 +4282,12 @@ function speichereTermin(){
   if(bis)  termin.bis = bis;
   if(ort)  termin.ort = ort;
   if(rrule) termin.rrule = rrule;
+  /* Beides gehört zum Termin und steht in keinem Formularfeld. Ohne diese zwei
+     Zeilen verlöre „Ganze Reihe speichern" jede herausgelöste Ausgabe, und das
+     Bearbeiten einer Ausnahme machte sie zu einem gewöhnlichen Termin — beides
+     still, beides nicht rückgängig zu machen. */
+  if(alt && alt.exdate && alt.exdate.length) termin.exdate = alt.exdate.slice();
+  if(alt && alt.recurrenceId) termin.recurrenceId = alt.recurrenceId;
 
   state.kalender = state.kalender || {gemeinsam:{}};
   state.kalender.gemeinsam = state.kalender.gemeinsam || {};
@@ -4189,19 +4301,105 @@ function speichereTermin(){
   showToast(alt ? 'Termin geändert' : 'Termin angelegt');
 }
 
+/* O-25 — eine Ausgabe aus der Reihe lösen. Zwei gezielte Schreibvorgänge nach
+   Betriebsregel 3, kein Sammelschreiben: erst die Reihe mit dem neuen `exdate`,
+   dann die herausgelöste Ausgabe als eigener Termin. */
+function loeseAusgabeHeraus(serie, felder){
+  const tag = terminAusgabe || serie.datum;
+  const exdate = (serie.exdate || []).slice();
+  if(exdate.indexOf(tag) < 0) exdate.push(tag);
+  exdate.sort();
+
+  const reiheNeu = Object.assign({}, serie, {exdate:exdate, sequence:(serie.sequence||0)+1});
+  delete reiheNeu.id;
+
+  const id = neueId('t');
+  const ausgabe = {
+    uid: serie.uid || (serie.id + '@butley'),
+    sequence: 0,
+    herkunft: serie.herkunft || 'butley',
+    recurrenceId: tag,
+    datum: felder.datum,
+    titel: felder.titel,
+    wer: terminWer.length ? terminWer.slice() : 'haushalt',
+    angelegt: Date.now()
+  };
+  if(felder.ganztag) ausgabe.ganztag = true;
+  if(felder.zeit) ausgabe.zeit = felder.zeit;
+  if(felder.bis)  ausgabe.bis  = felder.bis;
+  if(felder.ort)  ausgabe.ort  = felder.ort;
+
+  state.kalender = state.kalender || {gemeinsam:{}};
+  state.kalender.gemeinsam = state.kalender.gemeinsam || {};
+  state.kalender.gemeinsam[serie.id] = reiheNeu;
+  state.kalender.gemeinsam[id] = ausgabe;
+  saveTermin(serie.id, reiheNeu);
+  saveTermin(id, ausgabe);
+
+  kalGewaehlt = felder.datum;
+  kalAnker = felder.datum;
+  schliesseTerminForm();
+  renderKalender();
+  schreibeIcs();
+
+  const zurueck = Object.assign({}, serie); delete zurueck.id;
+  showToast('Nur dieser Termin geändert', ()=>{
+    state.kalender.gemeinsam[serie.id] = zurueck;
+    delete state.kalender.gemeinsam[id];
+    saveTermin(serie.id, zurueck);
+    saveTermin(id, null);
+    renderKalender();
+    schreibeIcs();
+  });
+}
+
 function loescheTermin(){
   const id = terminBearbeitet;
   if(!id) return;
   const sicherung = ((state.kalender||{}).gemeinsam||{})[id];
   if(!sicherung) return;
+
+  /* O-25 — bei einer Reihe entscheidet dieselbe Wahl wie beim Speichern.
+     „Nur dieser Termin" löscht nichts, sondern nimmt einen Tag aus: Die Reihe
+     bleibt vollständig erhalten, und das Rückgängig ist eine Zeile. */
+  if(sicherung.rrule && terminUmfang === 'einzeln'){
+    const tag = terminAusgabe || sicherung.datum;
+    const exdate = (sicherung.exdate || []).slice();
+    if(exdate.indexOf(tag) < 0) exdate.push(tag);
+    exdate.sort();
+    const reiheNeu = Object.assign({}, sicherung, {exdate:exdate, sequence:(sicherung.sequence||0)+1});
+    state.kalender.gemeinsam[id] = reiheNeu;
+    saveTermin(id, reiheNeu);
+    schliesseTerminForm();
+    renderKalender();
+    schreibeIcs();
+    showToast('„'+(sicherung.titel||'')+'" am '+fmtTag(tag)+' abgesagt', ()=>{
+      state.kalender.gemeinsam[id] = sicherung;
+      saveTermin(id, sicherung);
+      renderKalender();
+      schreibeIcs();
+    });
+    return;
+  }
+
+  /* Die ganze Reihe. Die herausgelösten Ausgaben müssen mit — sonst bleiben
+     Termine stehen, die auf eine Reihe zeigen, die es nicht mehr gibt. Sie
+     kommen beim Rückgängig vollständig zurück. */
+  const ausnahmen = sicherung.rrule ? ausnahmenVon(Object.assign({id:id}, sicherung)) : [];
   delete state.kalender.gemeinsam[id];
   saveTermin(id, null);
+  ausnahmen.forEach(a=>{ delete state.kalender.gemeinsam[a.id]; saveTermin(a.id, null); });
   schliesseTerminForm();
   renderKalender();
   schreibeIcs();
-  showToast('„'+(sicherung.titel||'')+'" gelöscht', ()=>{
+  showToast('„'+(sicherung.titel||'')+'" gelöscht'+(ausnahmen.length ? ' (mit '+ausnahmen.length+' geänderten Terminen)' : ''), ()=>{
     state.kalender.gemeinsam[id] = sicherung;
     saveTermin(id, sicherung);
+    ausnahmen.forEach(a=>{
+      const zurueck = Object.assign({}, a); delete zurueck.id;
+      state.kalender.gemeinsam[a.id] = zurueck;
+      saveTermin(a.id, zurueck);
+    });
     renderKalender();
     schreibeIcs();
   });
@@ -4302,6 +4500,28 @@ function baueIcs(){
       if(t.bis) zeilen.push('DTEND;TZID=Europe/Berlin:' + tag + 'T' + t.bis.replace(':','') + '00');
     }
     if(t.rrule) zeilen.push('RRULE:' + t.rrule);
+    /* O-25 — die ausgenommenen Tage. Der Werttyp muss dem von DTSTART
+       entsprechen: ganztägig als DATE, sonst mit derselben Uhrzeit und
+       derselben TZID wie der Serienbeginn. Ein EXDATE, dessen Form von DTSTART
+       abweicht, wird von Apple und Google stillschweigend übergangen — die
+       abgesagte Ausgabe stünde dann im Abo-Kalender weiter drin, während sie in
+       Butley fehlt. */
+    if(t.exdate && t.exdate.length){
+      t.exdate.slice().sort().forEach(tg=>{
+        const d = String(tg).replace(/-/g,'');
+        if(!d) return;
+        if(t.ganztag || !t.zeit) zeilen.push('EXDATE;VALUE=DATE:' + d);
+        else zeilen.push('EXDATE;TZID=Europe/Berlin:' + d + 'T' + t.zeit.replace(':','') + '00');
+      });
+    }
+    /* Und die herausgelöste Ausgabe: gleiche UID, dazu der Tag, den sie
+       ersetzt. Ohne RECURRENCE-ID wäre sie für den abonnierenden Kalender ein
+       zweiter, unabhängiger Termin — der Nutzer sähe beides. */
+    if(t.recurrenceId){
+      const d = String(t.recurrenceId).replace(/-/g,'');
+      if(t.ganztag || !t.zeit) zeilen.push('RECURRENCE-ID;VALUE=DATE:' + d);
+      else zeilen.push('RECURRENCE-ID;TZID=Europe/Berlin:' + d + 'T' + t.zeit.replace(':','') + '00');
+    }
     zeilen.push(icsZeile('SUMMARY:' + icsText(t.titel)));
     if(t.ort) zeilen.push(icsZeile('LOCATION:' + icsText(t.ort)));
     zeilen.push(icsZeile('DESCRIPTION:' + icsText(werText(t))));
