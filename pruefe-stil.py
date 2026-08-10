@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-Prueft das Stylesheet auf vier Fehlerarten, die weder pruefe-verweise.py noch
+Prueft das Stylesheet auf fuenf Fehlerarten, die weder pruefe-verweise.py noch
 der Pruefstand finden koennen - weil nichts abstuerzt, nichts fehlt und der
 Prueflauf in Chromium laeuft, der Fehler aber in Safari auf dem iPhone sitzt.
 
-Alle vier sind echte Vorfaelle aus diesem Projekt, keine erfundenen Regeln:
+Alle fuenf sind echte Vorfaelle aus diesem Projekt, keine erfundenen Regeln:
 
 1. Intrinsische Mindestbreite in Rasterspuren (v15, 09.08.2026)
    `.grid2` stand auf `grid-template-columns:1fr 150px`. Ein blankes `1fr` ist
@@ -33,6 +33,15 @@ Alle vier sind echte Vorfaelle aus diesem Projekt, keine erfundenen Regeln:
    mitten im Bild ueber der Tastatur - auf dem Formular, das gerade ausgefuellt
    wurde. Sechs Deklarationen standen auf 15px. Chromium kennt die Schwelle
    nicht, der Pruefstand konnte den Fehler also nie zeigen.
+
+5. Datums- und Zeitfeld ohne appearance:none (v16, 09.08.2026)
+   Safari gibt `input[type=date]` und `input[type=time]` eine eigene
+   intrinsische Breite und zentriert den Wert. Auf dem iPhone stand das Datum
+   deshalb mittig im Feld und schob sich in den Nachbarn. Diese Regel war seit
+   v16 im Code, stand aber bis zum 10.08.2026 in keinem der vier Punkte hier
+   oben - der Kopf zaehlte vier, die Datei prueft fuenf. Beispiel dafuer, dass
+   auch eine Pruefdatei ihre eigene Liste gegen den Stand halten muss
+   (Betriebsregel 19).
 
 Aufruf:
 

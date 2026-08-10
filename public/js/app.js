@@ -5534,9 +5534,23 @@ function renderSettingsTab(){
 
   /* Loeschen steht nur dem Eigentuemer offen (Kapitel 3.1). O-C - der Knopf
      bleibt sichtbar und wird ausgegraut, nicht ausgeblendet: Er steht damit
-     immer an derselben Stelle. */
+     immer an derselben Stelle.
+
+     D-23: Ausgrauen darf nur dort stehen bleiben, wo der Grund lesbar ist.
+     Beim Umbenennen daneben steht er in `hhNameHint`; hier stand er nirgends.
+     Ein `title` hilft nicht - `button:disabled` traegt `pointer-events:none`,
+     und auf dem Telefon gibt es ohnehin kein Schweben. Also als Text unter
+     den Knopf. Nur setzen, wenn der Grund gilt: Beim Eigentuemer gehoert die
+     Zeile dem Loeschvorgang, und der schreibt dort seine eigenen Meldungen. */
   const loesch = document.getElementById('hhLoeschen');
-  if(loesch) loesch.disabled = meineRolle !== 'owner';
+  if(loesch){
+    const binIchOwnerHh = meineRolle === 'owner';
+    loesch.disabled = !binIchOwnerHh;
+    const loeschOut = document.getElementById('hhLoeschenOut');
+    if(loeschOut && !binIchOwnerHh){
+      loeschOut.textContent = 'Nur der Eigentümer dieses Haushalts kann ihn löschen.';
+    }
+  }
 
   const emailEl = document.getElementById('acctEmail');
   if(emailEl && auth.currentUser) emailEl.textContent = auth.currentUser.email || ('Konto ' + auth.currentUser.uid.slice(0,6));
