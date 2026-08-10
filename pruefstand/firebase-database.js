@@ -125,6 +125,15 @@ const TERMINE = {
        uid:'t4@butley', sequence:0, herkunft:'butley', angelegt:1786000000004 },
   t5:{ titel:'Geburtstag Jonas', datum:tagPlus(HEUTE_IDX+4), ganztag:true, wer:'haushalt',
        uid:'t5@butley', sequence:0, herkunft:'butley', angelegt:1786000000005 },
+  /* O-27 - eine Regel, die die App nicht kennt. Das ist die eine erlaubte
+     Ausnahme von Betriebsregel 15: Der Wert steht hier nicht aus Versehen,
+     sondern weil genau dieser Fall geprueft werden soll. Es ist derselbe
+     String, der bis zum 09.08. unbeabsichtigt in den Testdaten stand und
+     sichtbar in der Terminzeile landete. Er gehoert an einen eigenen Termin -
+     stuende er an t3, koennte der Serienlauf ueber O-25 nichts mehr sagen. */
+  t9:{ titel:'Sperrmüll', datum:tagPlus(HEUTE_IDX+3), ganztag:true, wer:['p2'],
+       rrule:'FREQ=WEEKLY;BYDAY=MO',
+       uid:'t9@butley', sequence:0, herkunft:'butley', angelegt:1786000000009 },
 };
 
 /* ---- Artikelstamm und Einkaufsliste (B2) ---- */

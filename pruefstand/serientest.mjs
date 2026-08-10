@@ -49,9 +49,15 @@ const ausDb = () => p.evaluate(() => {
   return JSON.parse(JSON.stringify((((hh.data || {}).kalender || {}).gemeinsam) || {}));
 });
 
+/* Spiegelt WIEDERHOLUNGEN aus app.js. Seit die Testdaten fuer O-27 auch eine
+   Regel enthalten, die die App **nicht** kennt, reicht "irgendein Termin mit
+   rrule" nicht mehr: Der O-25-Teil braucht eine Reihe, die sich wirklich
+   wiederholt, der O-27-Teil genau die andere. */
+const BEKANNTE_WDH = ['FREQ=DAILY', 'FREQ=WEEKLY', 'FREQ=WEEKLY;INTERVAL=2', 'FREQ=MONTHLY'];
+
 const reihe = await (async () => {
   const alle = await ausDb();
-  const id = Object.keys(alle).find(k => alle[k].rrule);
+  const id = Object.keys(alle).find(k => BEKANNTE_WDH.includes(alle[k].rrule));
   return id ? Object.assign({ id }, alle[id]) : null;
 })();
 if (!reihe) {
@@ -197,6 +203,120 @@ if (feed === null) {
   sag('Reihe und herausgeloeste Ausgabe teilen sich eine uid',
       uids.filter(u => u === reihe.uid).length >= 2,
       uids.join(' '));
+}
+
+/* 6 — O-27: eine Regel, die die App nicht kennt, darf weder als Rohtext in der
+       Oberflaeche stehen noch beim Speichern verlorengehen. */
+const fremd = await (async () => {
+  const alle = await ausDb();
+  const id = Object.keys(alle).find(k => alle[k].rrule && !BEKANNTE_WDH.includes(alle[k].rrule));
+  return id ? Object.assign({ id }, alle[id]) : null;
+})();
+if (!fremd) {
+  sag('Testdaten enthalten eine unbekannte RRULE fuer O-27', false);
+} else {
+  console.log('Unbekannte Regel:', fremd.id, fremd.titel, fremd.rrule, 'am', fremd.datum);
+  await p.click('nav .tab[data-tab="kalender"]');
+  await p.waitForTimeout(200);
+  await p.evaluate(t => { const k = document.querySelector(`.kal-tag[data-tag="${t}"]`); if (k) k.click(); }, fremd.datum);
+  await p.waitForTimeout(300);
+
+  const zeile = await p.evaluate(id => {
+    const li = document.querySelector(`.kal-zeile[data-id="${id}"]`);
+    return li ? { text: li.textContent.replace(/\s+/g, ' ').trim(), html: li.innerHTML } : null;
+  }, fremd.id);
+  if (!zeile) {
+    sag('Termin mit unbekannter Regel erscheint an seinem Starttag', false, fremd.datum);
+  } else {
+    sag('Termin mit unbekannter Regel erscheint an seinem Starttag', true);
+    sag('Die Rohzeichenkette steht NICHT in der Zeile', !zeile.text.includes('FREQ='), zeile.text);
+    sag('Stattdessen steht dort ein Name', zeile.text.includes('Eigene Wiederholung'));
+    sag('Der Rohwert bleibt im Titel nachlesbar', zeile.html.includes(fremd.rrule));
+
+    /* Der eigentliche Schaden: oeffnen, „Ganze Reihe", speichern — und die
+       Wiederholung ist weg. Genau das darf nicht mehr passieren. */
+    await p.evaluate(id => {
+      const li = document.querySelector(`.kal-zeile[data-id="${id}"]`);
+      if (li) li.querySelector('.kal-zeile-btn').click();
+    }, fremd.id);
+    await p.waitForTimeout(300);
+    const pille = await p.evaluate(() => {
+      const an = document.querySelector('#terminWdhRow .filter-pill.active');
+      return an ? { rrule: an.dataset.rrule, text: an.textContent.trim() } : null;
+    });
+    sag('Im Formular ist eine Wiederholungspille aktiv', !!pille, JSON.stringify(pille));
+    if (pille) sag('Sie traegt den Rohwert weiter', pille.rrule === fremd.rrule, pille.rrule);
+
+    await p.evaluate(() => {
+      const b2 = [...document.querySelectorAll('#terminUmfangRow .filter-pill')].find(x => x.dataset.umfang === 'reihe');
+      if (b2) b2.click();
+    });
+    await p.waitForTimeout(200);
+    await p.click('#terminSpeichern');
+    await p.waitForTimeout(700);
+    const nachher = (await ausDb())[fremd.id] || {};
+    sag('Nach „Ganze Reihe" speichern lebt die unbekannte Regel noch',
+        nachher.rrule === fremd.rrule, String(nachher.rrule));
+  }
+}
+
+/* 7 — O-26: der Feed traegt Personennamen. Wird eine Person umbenannt, muss er
+       nachziehen, ohne dass jemand einen Termin anfasst. */
+const feedVon = () => p.evaluate(() => {
+  const P = globalThis.__pruefstand || {};
+  const zweig = (P.BAUM || {}).ics || {};
+  const token = Object.keys(zweig)[0];
+  return token ? (zweig[token].text || '') : null;
+});
+const vorher = await feedVon();
+if (vorher === null) {
+  sag('Feed steht fuer die Personenprobe bereit', false);
+} else {
+  const person = await p.evaluate(() => {
+    const P = globalThis.__pruefstand || {};
+    const hh = (((P.BAUM || {}).haushalte || {})[P.HH] || {});
+    const alle = (hh.data || {}).personen || {};
+    const termine = (((hh.data || {}).kalender || {}).gemeinsam) || {};
+    /* Nur eine Person, die auch wirklich an einem Termin haengt — sonst steht
+       ihr Name in keiner DESCRIPTION und die Probe beweist nichts. */
+    const benutzt = new Set();
+    Object.values(termine).forEach(t => { if (Array.isArray(t.wer)) t.wer.forEach(x => benutzt.add(x)); });
+    const id = Object.keys(alle).find(k => benutzt.has(k));
+    return id ? { id, name: alle[id].name } : null;
+  });
+  if (!person) {
+    sag('Eine Person haengt an einem Termin', false);
+  } else {
+    sag('Alter Name steht im Feed', vorher.includes(person.name), person.name);
+    /* Bewusst ein Name, der den alten **nicht** enthaelt. Mit "Vladi-neu"
+       waere die Gegenprobe "alter Name ist weg" nie fehlgeschlagen, weil
+       "Vladi" darin steckt — eine Pruefung, die nie anschlaegt (Regel 13). */
+    const neu = 'Umbenannt';
+    await p.click('nav .tab[data-tab="heute"]');
+    await p.waitForTimeout(150);
+    await p.click('#kopfKonto');
+    await p.waitForTimeout(300);
+    const gesetzt = await p.evaluate(({ id, neu }) => {
+      const zeile = document.querySelector(`.person-zeile[data-id="${id}"]`);
+      if (!zeile) return false;
+      const kopf = zeile.querySelector('button');
+      if (kopf) kopf.click();
+      const feld = zeile.querySelector('.person-name-feld');
+      if (!feld) return false;
+      feld.value = neu;
+      feld.dispatchEvent(new Event('change', { bubbles: true }));
+      return true;
+    }, { id: person.id, neu });
+    await p.waitForTimeout(700);
+    if (!gesetzt) {
+      sag('Personenname liess sich aendern', false);
+    } else {
+      const nachher = await feedVon();
+      sag('Der Feed traegt den neuen Namen — ohne dass ein Termin angefasst wurde',
+          nachher.includes(neu), neu);
+      sag('Der alte Name steht nicht mehr drin', !nachher.includes(person.name), person.name);
+    }
+  }
 }
 
 await b.close(); s.close();

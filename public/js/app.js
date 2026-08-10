@@ -3668,8 +3668,23 @@ const PERSON_FARBEN = [
   {id:'taupe',      wert:'#7A6459'}
 ];
 
-const savePerson     = (pid, wert)       => put('data/personen/'+pid, wert);
-const savePersonFeld = (pid, feld, wert) => put('data/personen/'+pid+'/'+feld, wert);
+/* O-26 — der ausgelieferte Feed trägt die Personennamen in der `DESCRIPTION`
+   jedes Termins (`werText`). Bis v18 wurde er nur beim Anfassen eines Termins
+   neu geschrieben: Wer eine Person umbenannte oder entfernte, hatte im Abo
+   danach beliebig lange den alten Namen stehen — bis zufällig irgendwann ein
+   Termin geändert wurde. Das Nachziehen gehört deshalb hierher, an die eine
+   Stelle, an der Personen geschrieben werden, und nicht an die zehn Aufrufer.
+
+   Nur was auch im Feed steht, löst es aus: der **Name** und das Anlegen,
+   Löschen oder Wiederherstellen einer Person. Farbe, Geburtstag, `uid` und
+   `ehemalig` erscheinen in keinem Feed — dafür wird nichts geschrieben.
+   `schreibeIcs` prüft selbst, ob überhaupt ein Abo-Link besteht. */
+const savePerson     = (pid, wert)       => { const p = put('data/personen/'+pid, wert); schreibeIcs(); return p; };
+const savePersonFeld = (pid, feld, wert) => {
+  const p = put('data/personen/'+pid+'/'+feld, wert);
+  if(feld === 'name') schreibeIcs();
+  return p;
+};
 
 function personen(nurAktive){
   const p = state.personen || {};
@@ -3926,9 +3941,22 @@ const WIEDERHOLUNGEN = [
   {id:'FREQ=WEEKLY;INTERVAL=2',  label:'Alle 2 Wochen'},
   {id:'FREQ=MONTHLY',            label:'Monatlich'}
 ];
+/* O-27 — eine Regel, die die App nicht kennt, ist trotzdem eine Wiederholung.
+   Bis v18 gab `wdhLabel` sie roh zurück: In der Terminzeile stand sichtbar
+   `FREQ=WEEKLY;BYDAY=MO`. Das ist kein Text für einen Nutzer, sondern ein
+   Blick in die Datenbank. Sie bekommt jetzt einen Namen; der Rohwert bleibt
+   über `wdhRoh` erreichbar, damit ihn ein Titel-Attribut zeigen kann, statt
+   ihn in die Zeile zu schreiben. */
+const WDH_UNBEKANNT = 'Eigene Wiederholung';
+function istBekannteWdh(rrule){
+  return WIEDERHOLUNGEN.some(w => w.id === (rrule || ''));
+}
 function wdhLabel(rrule){
   const t = WIEDERHOLUNGEN.filter(w=>w.id === (rrule||''))[0];
-  return t ? t.label : rrule;
+  return t ? t.label : WDH_UNBEKANNT;
+}
+function wdhRoh(rrule){
+  return istBekannteWdh(rrule) ? '' : String(rrule || '');
 }
 
 const saveTermin = (tid, wert) => put(KAL_ZWEIG+'/'+tid, wert);
@@ -4099,7 +4127,10 @@ function renderKalTag(){
           '<span class="kal-titel">'+escapeHtml(t.titel||'')+'</span>' +
           '<span class="kal-meta">'+werPunkte(t)+' '+escapeHtml(werText(t)) +
             (t.ort ? ' · '+escapeHtml(t.ort) : '') +
-            (t.rrule ? ' · '+escapeHtml(wdhLabel(t.rrule)) : '') +
+            /* O-27 — der Rohwert steht im Titel, nicht in der Zeile. Bei einer
+               unbekannten Regel zeigt der Kalender nur den Starttag; das gehört
+               dorthin, wo jemand nachsieht, und nicht in jede Zeile. */
+            (t.rrule ? ' · <span'+(wdhRoh(t.rrule) ? ' title="'+escapeHtml(wdhRoh(t.rrule))+' — diese Regel kennt Butley nicht; im Kalender steht nur der Starttag, im Abo-Feed die vollständige Reihe."' : '')+'>'+escapeHtml(wdhLabel(t.rrule))+'</span>' : '') +
             (t.recurrenceId ? ' · einzeln geändert' : '') +
           '</span>' +
         '</span>' +
@@ -4140,7 +4171,18 @@ function renderTerminWer(){
 function renderTerminWdh(gewaehlt){
   const box = document.getElementById('terminWdhRow');
   if(!box) return;
-  box.innerHTML = WIEDERHOLUNGEN.map(w=>'<button class="filter-pill'+((gewaehlt||'')===w.id?' active':'')+'" type="button" data-rrule="'+escapeHtml(w.id)+'">'+w.label+'</button>').join('');
+  /* O-27 — trägt der Termin eine Regel, die nicht in WIEDERHOLUNGEN steht, war
+     bis v18 **keine** Pille aktiv. `gewaehlteWdh()` lieferte dann `''`, und
+     einmal Öffnen und Speichern mit „Ganze Reihe" löschte die Wiederholung —
+     ohne Meldung, ohne Rückweg. Deshalb bekommt eine unbekannte Regel eine
+     eigene Pille, die ihren Rohwert trägt: Die App kann sie nicht deuten, aber
+     sie darf sie nicht wegwerfen. Angeboten wird sie nie — sie erscheint nur,
+     solange der Termin sie schon hat. */
+  const liste = WIEDERHOLUNGEN.slice();
+  if(gewaehlt && !istBekannteWdh(gewaehlt)){
+    liste.push({id: gewaehlt, label: WDH_UNBEKANNT, roh: gewaehlt});
+  }
+  box.innerHTML = liste.map(w=>'<button class="filter-pill'+((gewaehlt||'')===w.id?' active':'')+'" type="button" data-rrule="'+escapeHtml(w.id)+'"'+(w.roh ? ' title="'+escapeHtml(w.roh)+' — bleibt erhalten, solange sie ausgewählt ist"' : '')+'>'+w.label+'</button>').join('');
   Array.prototype.forEach.call(box.querySelectorAll('.filter-pill'), b=>b.addEventListener('click', e=>{
     Array.prototype.forEach.call(box.querySelectorAll('.filter-pill'), x=>x.classList.toggle('active', x===e.currentTarget));
   }));
