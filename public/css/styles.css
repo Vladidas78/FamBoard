@@ -390,7 +390,7 @@
      Ohne diese Zeile drückt ein Feld sein Raster oder seine Flex-Zeile
      auseinander, obwohl `width:100%` dasteht. */
   select, input, textarea{
-    font-family:var(--schrift); font-size:15px;
+    font-family:var(--schrift); font-size:16px;
     min-height:var(--hoehe-control); padding:10px var(--abstand-l);
     border-radius:var(--radius-s); border:1px solid var(--linie); background:var(--flaeche-feld); color:var(--text-haupt); width:100%; min-width:0;
   }
@@ -1063,7 +1063,7 @@
   .ne-plus{ flex:none; color:var(--messing-aktion); font-weight:700; }
   .notiz-eingabe-zeile input{
     flex:1; min-width:0; border:none; background:none; padding:0;
-    font:inherit; font-size:15px; color:var(--text-haupt); outline:none;
+    font:inherit; font-size:16px; color:var(--text-haupt); outline:none;
   }
 
   .notiz-block{ margin-bottom:var(--abstand-xl); }
@@ -1112,7 +1112,7 @@
   .nz-datum-input{
     height:var(--hoehe-control); padding:0 var(--abstand-m);
     border:1px solid var(--linie); border-radius:var(--radius-s);
-    background:var(--flaeche-feld); color:var(--text-haupt); font:inherit; font-size:15px;
+    background:var(--flaeche-feld); color:var(--text-haupt); font:inherit; font-size:16px;
   }
   .nz-datum-weg{
     min-height:var(--hoehe-control); padding:0 var(--abstand-s); border:none; background:none;
@@ -1163,7 +1163,7 @@
   .person-feld input{
     height:var(--hoehe-control); padding:0 var(--abstand-m);
     border:1px solid var(--linie); border-radius:var(--radius-s);
-    background:var(--flaeche-feld); color:var(--text-haupt); font:inherit; font-size:15px;
+    background:var(--flaeche-feld); color:var(--text-haupt); font:inherit; font-size:16px;
   }
   .person-knoepfe{ display:flex; flex-wrap:wrap; gap:var(--abstand-s); }
   .person-ich.an{ background:var(--messing-flaeche); color:var(--auf-messing-flaeche); border-color:var(--messing-aktion); }
@@ -1475,7 +1475,7 @@
   .blatt-inhalt .field{ margin-bottom:var(--abstand-l); }
   .blatt-inhalt textarea{
     width:100%; min-height:132px; resize:vertical; line-height:1.6;
-    font-family:var(--schrift); font-size:15px; padding:10px 12px;
+    font-family:var(--schrift); font-size:16px; padding:10px 12px;
     border:1px solid var(--linie); border-radius:var(--radius-m);
     background:var(--flaeche-feld); color:var(--text-haupt);
   }
@@ -1508,7 +1508,7 @@
     width:100%; height:var(--hoehe-control); padding:0 12px;
     border:1px solid var(--linie); border-radius:var(--radius-m);
     background:var(--flaeche-senke); color:var(--text-haupt);
-    font-family:var(--schrift); font-size:15px;
+    font-family:var(--schrift); font-size:16px;
   }
   #obHinweis{ margin-top:var(--abstand-xl); }
   .ob-fuss{ display:flex; flex-direction:column; gap:var(--abstand-m); }
@@ -1598,7 +1598,7 @@
      Bildschirm - mit der Kartenfarbe stuende das Feld weiss auf weiss. */
   .auth-box input[type=email], .auth-box input[type=password], .auth-box input[type=text]{
     width:100%; min-height:var(--hoehe-control); padding:10px var(--abstand-l); border-radius:var(--radius-s); border:1px solid var(--linie);
-    background:var(--flaeche-senke); color:var(--text-haupt); font-family:var(--schrift); font-size:15px; margin-bottom:2px;
+    background:var(--flaeche-senke); color:var(--text-haupt); font-family:var(--schrift); font-size:16px; margin-bottom:2px;
   }
   .auth-box input:focus{ outline:none; border-color:var(--messing-aktion); box-shadow:0 0 0 1px var(--messing-aktion) inset; }
   .auth-error{ color:var(--loeschen-farbe); background:color-mix(in srgb, var(--loeschen-farbe) 12%, transparent); border:1px solid color-mix(in srgb, var(--loeschen-farbe) 45%, transparent); border-radius:var(--radius-s); font-size:0.82rem; line-height:1.5; padding:10px 12px; margin:0 0 14px; display:none; }

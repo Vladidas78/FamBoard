@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-Prueft das Stylesheet auf drei Fehlerarten, die weder pruefe-verweise.py noch
+Prueft das Stylesheet auf vier Fehlerarten, die weder pruefe-verweise.py noch
 der Pruefstand finden koennen - weil nichts abstuerzt, nichts fehlt und der
 Prueflauf in Chromium laeuft, der Fehler aber in Safari auf dem iPhone sitzt.
 
-Alle drei sind echte Vorfaelle aus diesem Projekt, keine erfundenen Regeln:
+Alle vier sind echte Vorfaelle aus diesem Projekt, keine erfundenen Regeln:
 
 1. Intrinsische Mindestbreite in Rasterspuren (v15, 09.08.2026)
    `.grid2` stand auf `grid-template-columns:1fr 150px`. Ein blankes `1fr` ist
@@ -25,6 +25,14 @@ Alle drei sind echte Vorfaelle aus diesem Projekt, keine erfundenen Regeln:
    Ein Kaestchen ohne `appearance:none` erscheint eckig in Systemfarbe und
    laesst den Bereich aussehen, als gehoere er nicht zur App. In v14 war das
    Ganztaegig-Kaestchen im Terminformular das letzte seiner Art.
+
+4. Eingabefeld unter 16px (10.08.2026)
+   iOS Safari zoomt beim Antippen in jedes fokussierte Feld unter 16px hinein.
+   Sichtbar wurde das erst in einer Bildschirmaufnahme vom Geraet: Die Seite
+   rutschte seitlich weg, rechts war abgeschnitten, und die untere Leiste stand
+   mitten im Bild ueber der Tastatur - auf dem Formular, das gerade ausgefuellt
+   wurde. Sechs Deklarationen standen auf 15px. Chromium kennt die Schwelle
+   nicht, der Pruefstand konnte den Fehler also nie zeigen.
 
 Aufruf:
 
@@ -88,6 +96,36 @@ def pruefe_datumsfelder(css):
     return [treffer is not None]
 
 
+def pruefe_feldschrift(css):
+    """Eingabefelder unter 16px lassen iOS Safari beim Antippen hineinzoomen.
+
+    Der Zoom sieht nicht wie ein Zoom aus, sondern wie ein kaputtes Layout: Die
+    Seite rutscht seitlich weg, rechts wird abgeschnitten, und die untere
+    Navigationsleiste steht auf einmal mitten im Bild ueber der Tastatur - genau
+    auf dem Formular, das man gerade ausfuellt. Gefunden am 10.08.2026 in einer
+    Bildschirmaufnahme vom iPhone; sechs Deklarationen standen auf 15px.
+
+    Chromium kennt diese Schwelle nicht. Der Pruefstand kann den Fehler also
+    nicht zeigen, egal wie viele Bilder er macht - deshalb steht er hier."""
+    befunde = []
+    alle = css.split("\n")
+    for b in re.finditer(r"([^\n{}]*(?:input|textarea|select)[^\n{}]*)\{([^{}]*)\}", css):
+        wahl, koerper = b.group(1).strip(), b.group(2)
+        von = css[: b.start()].count("\n")
+        bis = css[: b.end()].count("\n")
+        if VERMERK in "\n".join(alle[von: bis + 1]):
+            continue
+        # Kaestchen und Schalter tragen keinen Text - dort ist die Schrift egal.
+        if re.search(r"\[type=(checkbox|radio|file|range)\]", wahl):
+            continue
+        treffer = re.search(r"font-size\s*:\s*(\d+(?:\.\d+)?)px", koerper)
+        if not treffer:
+            continue
+        if float(treffer.group(1)) < 16:
+            befunde.append((von + 1, wahl, treffer.group(1)))
+    return befunde
+
+
 def pruefe_kaestchen(css):
     """Kaestchen, die Groesse setzen, aber die Systemdarstellung behalten."""
     befunde = []
@@ -126,6 +164,7 @@ def main():
     raster = pruefe_raster(css)
     safe = pruefe_safe_area(css, html)
     kaestchen = pruefe_kaestchen(css)
+    feldschrift = pruefe_feldschrift(css)
     # Im HTML steht type="date" mit Anfuehrungszeichen, im Stylesheet
     # [type=date] ohne. Der erste Anlauf pruefte auf die CSS-Schreibweise und
     # lief deshalb nie an - gefunden nur durch die Gegenprobe.
@@ -134,7 +173,10 @@ def main():
 
     anzahl_raster = sum(1 for _, z in zeilen_mit(css) if "grid-template-columns" in z)
     anzahl_safe = sum(1 for _, z in zeilen_mit(css) if "env(safe-area-inset-" in z)
-    print(f"{anzahl_raster} Rasterangaben, {anzahl_safe} safe-area-Regeln geprueft.")
+    anzahl_felder = sum(1 for _, z in zeilen_mit(css)
+                        if re.search(r"font-size\s*:\s*\d", z))
+    print(f"{anzahl_raster} Rasterangaben, {anzahl_safe} safe-area-Regeln,"
+          f" {anzahl_felder} Schriftgroessen geprueft.")
 
     if raster:
         print("\nBLANKES 1fr IN EINER RASTERSPUR:")
@@ -167,11 +209,22 @@ def main():
         print("  breiter als seine Spalte und schiebt sich unter das Nachbarfeld.")
         print("  `input[type=date], input[type=time]{ appearance:none; }` ergaenzen.")
 
-    if raster or safe or kaestchen or datum:
+    if feldschrift:
+        print("\nEINGABEFELD MIT SCHRIFT UNTER 16 PX:")
+        for nr, wahl, groesse in feldschrift:
+            print(f"  styles.css Zeile {nr}: {wahl[:80]}  ({groesse}px)")
+        print("  iOS Safari zoomt beim Antippen in jedes Feld unter 16px hinein.")
+        print("  Das sieht aus wie ein Layoutfehler: Die Seite rutscht seitlich weg,")
+        print("  rechts wird abgeschnitten, und die untere Leiste steht mitten im")
+        print("  Bild ueber der Tastatur. Chromium kennt die Schwelle nicht - der")
+        print("  Pruefstand kann das nicht zeigen. Auf 16px setzen; wenn ein Feld")
+        print(f"  wirklich kleiner sein muss: `/* {VERMERK}: <Grund> */` in die Regel.")
+
+    if raster or safe or kaestchen or datum or feldschrift:
         return 1
 
     print("In Ordnung: keine offenen Rasterspuren, safe-area wirksam,"
-          " kein Systemkaestchen, Datumsfelder gezaehmt.")
+          " kein Systemkaestchen, Datumsfelder gezaehmt, Feldschrift ab 16px.")
     return 0
 
 
