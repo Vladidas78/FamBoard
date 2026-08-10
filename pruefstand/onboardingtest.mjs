@@ -29,7 +29,14 @@ let p = await seite('?leer=1');
 const offen = await p.evaluate(()=>{const o=document.getElementById('onboarding'); return o && !o.hidden;});
 console.log('Onboarding erscheint im leeren Haushalt:', offen ? 'ok' : 'FEHLGESCHLAGEN');
 if(!offen) fehler.push('Onboarding erscheint nicht');
-for(let i=0;i<5;i++){
+/* Die Zahl der Schritte steht in app.js, nicht hier. Eine verdrahtete 5 haette
+   beim sechsten Schritt (O-20, 10.08.2026) nicht gemeldet "es gibt jetzt sechs",
+   sondern "das Onboarding schliesst nicht" - ein Fehler, den es nicht gibt.
+   Dieselbe Lehre wie der verdrahtete Testtag im Serienlauf, Betriebsregel 16. */
+const anzahl = await p.evaluate(()=>document.querySelectorAll('#obPunkte .ob-punkt').length);
+console.log('Schritte laut App:', anzahl);
+if(!anzahl) fehler.push('Onboarding zeigt keine Schrittpunkte');
+for(let i=0;i<anzahl;i++){
   const t = await p.evaluate(()=>document.getElementById('obTitel').textContent);
   await p.screenshot({path: join(AUS, `onboarding-${i+1}.png`)});
   console.log(`  Schritt ${i+1}: ${t}`);
@@ -37,7 +44,7 @@ for(let i=0;i<5;i++){
   await p.click('#obWeiter'); await p.waitForTimeout(260);
 }
 const zu = await p.evaluate(()=>document.getElementById('onboarding').hidden);
-console.log('Nach fuenf Schritten geschlossen:', zu ? 'ok' : 'FEHLGESCHLAGEN');
+console.log(`Nach ${anzahl} Schritten geschlossen:`, zu ? 'ok' : 'FEHLGESCHLAGEN');
 if(!zu) fehler.push('Onboarding schliesst nicht');
 const nochmal = await p.reload({waitUntil:'networkidle'}).then(()=>p.waitForTimeout(900)).then(()=>
   p.evaluate(()=>document.getElementById('onboarding').hidden));

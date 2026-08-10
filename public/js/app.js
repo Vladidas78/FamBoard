@@ -1635,7 +1635,11 @@ function renderRecipeList(){
   renderTagFilterChips();
 
   if(!state.recipes.length){
-    list.innerHTML='<div class="empty">Noch keine Rezepte. Leg über „Schnell anlegen“ eins an oder importiere eure Excel.</div>';
+    /* O-20, Variante A — der Leerzustand nannte nur den Excel-Weg. Der
+       KI-Import ist der Weg, mit dem eine Notion-Seite oder eine
+       Rezept-Webseite in Sekunden hereinkommt; ihn hier zu verschweigen war
+       der teuerste Teil von O-20, und er kostet eine Zeile. */
+    list.innerHTML='<div class="empty">Noch keine Rezepte. Leg über „Schnell anlegen“ eins an, lies eure Excel ein — oder gib mir über „Rezept importieren“ einen Link, einen Text oder ein Foto.</div>';
     return;
   }
 
@@ -4965,7 +4969,7 @@ document.addEventListener('visibilitychange', ()=>{
 });
 
 /* ---------- Onboarding ----------
-   Fuenf Schritte, strikt einmalig je Haushalt (Entscheidung vom 07.08.2026).
+   Sechs Schritte, strikt einmalig je Haushalt (Entscheidung vom 07.08.2026).
    Der Merker liegt in der Datenbank, nicht auf dem Geraet: Wer den Haushalt
    auf einem zweiten Telefon oeffnet, hat ihn schon eingerichtet. */
 const OB_SCHRITTE = [
@@ -4978,6 +4982,14 @@ const OB_SCHRITTE = [
   { zustand:'erklaerend', titel:'Wer gehört dazu?',
     text:'Personen brauchen kein eigenes Konto. Kinder und Gäste bekommen einfach einen Namen und eine Farbe — anlegen kannst du sie jederzeit in den Einstellungen.',
     weiter:'Weiter' },
+  /* O-20, Variante A (10.08.2026) — der Schritt baut nichts, er zeigt nur, was
+     es schon gibt. Beide Importwege waren fertig und im Onboarding kam keiner
+     von beiden vor; wer nicht zufaellig nach Essen navigiert, tippt ab. Er
+     steht **vor** dem iPhone-Hinweis: Mitbringen gehoert zum Einrichten, der
+     Hinweis zum Abschluss. */
+  { zustand:'erklaerend', titel:'Bring mit, was du schon hast.',
+    text:'Rezepte musst du nicht abtippen. Unter Essen lese ich eure Excel-Tabelle ein — oder du gibst mir einen Link, einen Text oder ein Foto, und ich hole das Rezept selbst heraus. Einkaufsartikel entstehen von allein, sobald du sie das erste Mal in die Liste tippst.',
+    weiter:'Gut zu wissen' },
   { zustand:'ankuendigend', titel:'Eine Sache noch, wenn du ein iPhone hast.',
     text:'Erinnerungen erreichen dich auf dem iPhone nur, wenn Butley auf dem Homescreen liegt. Teilen antippen, „Zum Home-Bildschirm“ wählen — das war es.',
     weiter:'Verstanden', hinweis:true },
