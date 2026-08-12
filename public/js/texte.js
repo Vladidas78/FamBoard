@@ -496,10 +496,14 @@ export const TEXTE = {
 
     /* --- Benachrichtigungen (C2) --- */
     'push.auf_diesem_geraet': 'Auf diesem Gerät',
+    'push.aufgabe_titel': 'Für {name}',
     'push.ausgeschaltet': 'Aus. Es geht nichts verloren — es steht alles in der App.',
     'push.benachrichtigungen': 'Benachrichtigungen',
     'push.browser_kann_das_nicht': 'Dieser Browser kann keine Benachrichtigungen anzeigen.',
     'push.eingeschaltet': 'An. Sobald es etwas zu melden gibt, kommt es hier an.',
+    'push.einkauf_eine': 'Ein Artikel ist dazugekommen.',
+    'push.einkauf_mehrere': '{n} Artikel sind dazugekommen.',
+    'push.einkauf_titel': 'Einkaufsliste',
     'push.erlaubnis_verweigert': 'Du hast Benachrichtigungen für Butley abgelehnt. Das lässt sich nur in den Einstellungen deines Browsers zurücknehmen.',
     'push.erneuert': 'Die Anmeldung war abgelaufen und ist erneuert.',
     'push.ging_nicht': 'Das hat nicht geklappt. Versuch es später noch einmal.',

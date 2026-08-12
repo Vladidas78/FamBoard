@@ -3212,6 +3212,9 @@ function uebernehmeSuchbegriff(name){
   if(feld){ feld.value = ''; feld.focus(); }
   renderShopVorschlaege();
   showToast(n ? sauber+' steht auf der Liste' : sauber+txt('einkauf.steht_schon_auf_der_liste'));
+  /* Nur was wirklich neu auf die Liste kommt, meldet (C3). Ein zweites Antippen
+     desselben Artikels aendert nichts und soll auch nichts melden. */
+  if(n) meldeEinkauf();
 }
 
 (function(){
@@ -3481,8 +3484,19 @@ function renderNotizDetail(){
     const eintrag = (liste.eintraege||{})[eid];
     if(!eintrag) return;
     const wer = e.currentTarget.dataset.wer || '';
+    const vorher = eintrag.wer || '';
     if(wer) eintrag.wer = wer; else delete eintrag.wer;
     saveNotizFeld(lid, eid, 'wer', wer || null);
+    /* Nur eine echte Zuweisung meldet, kein Entfernen und kein zweiter Klick
+       auf dieselbe Person. Und nur, wenn die Person ueberhaupt ein Konto hat —
+       ein Kind ohne Login kann keine Nachricht bekommen (P-1, K-13). */
+    if(wer && wer !== vorher){
+      const pe = (state.personen||{})[wer];
+      if(pe && pe.uid && pe.uid !== auth.currentUser.uid){
+        melde(txtf('push.aufgabe_titel', {name: pe.name || ''}),
+              eintrag.text || '', 'notizen', 'aufgabe');
+      }
+    }
     renderNotizen();
   }));
 
@@ -5770,6 +5784,49 @@ async function pushAusschalten(){
     }
   });
 })();
+
+/* Eine Meldung an die anderen im Haushalt schicken (C3).
+
+   Bewusst ohne await bei den Aufrufern und mit eigenem catch: Eine
+   Benachrichtigung ist eine Nebensache. Faellt sie aus, darf die Aenderung,
+   die sie ausgeloest hat, trotzdem gespeichert sein — Betriebsregel 14 in der
+   Fassung fuer den Schreibweg. Wer senden darf, entscheidet Firebase anhand
+   des mitgeschickten Anmeldenachweises; der Worker prueft nichts selbst. */
+async function melde(titel, text, bereich, tag){
+  try{
+    if(!auth.currentUser || !HAUSHALT_ID) return;
+    if(!state.push || Object.keys(state.push).length < 2) return;   // nur wir selbst
+    const token = await auth.currentUser.getIdToken();
+    await fetch('/api/push', {
+      method:'POST',
+      headers:{'content-type':'application/json'},
+      body: JSON.stringify({
+        token, haushalt: HAUSHALT_ID, absender: auth.currentUser.uid,
+        titel, text: text||'', bereich: bereich||'heute', tag: tag||'butley'
+      })
+    });
+  }catch(e){ console.warn('[push] nicht gemeldet:', e); }
+}
+
+/* Die Einkaufsliste meldet gesammelt, nicht bei jeder Zeile.
+
+   Wer im Supermarkt zwanzig Posten abhakt, loest sonst zwanzig Meldungen aus —
+   und schaltet danach alle Benachrichtigungen ab, nicht nur diese. Gesammelt
+   wird deshalb 90 Sekunden lang; gemeldet wird einmal, mit derselben Kennung,
+   damit eine zweite Meldung die erste ersetzt statt sich danebenzulegen. */
+let einkaufSammler = null;
+let einkaufZaehler = 0;
+function meldeEinkauf(){
+  einkaufZaehler++;
+  if(einkaufSammler) return;
+  einkaufSammler = setTimeout(()=>{
+    const n = einkaufZaehler;
+    einkaufSammler = null; einkaufZaehler = 0;
+    melde(txt('push.einkauf_titel'),
+          n === 1 ? txt('push.einkauf_eine') : txtf('push.einkauf_mehrere', {n}),
+          'einkauf', 'einkauf');
+  }, 90000);
+}
 
 /* Nach dem Laden pruefen, ob das gespeicherte Abo noch gilt.
 

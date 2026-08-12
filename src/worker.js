@@ -9,6 +9,7 @@
 // dann weder Umgebungsvariablen noch KV-Bindings zu.
 
 import { handleImportRecipe } from './import-recipe.js';
+import { handlePush } from './push-route.js';
 
 export default {
   async fetch(request, env, ctx) {
@@ -16,6 +17,12 @@ export default {
 
     if (url.pathname === '/api/import-recipe') {
       return handleImportRecipe(request, env);
+    }
+
+    // Push weiterreichen (C3). Wer senden darf, entscheidet Firebase, nicht
+    // dieser Worker — Einzelheiten in push-route.js.
+    if (url.pathname === '/api/push') {
+      return handlePush(request, env);
     }
 
     // ICS-Feed (K-10). Der Pfad traegt ein langes, zufaelliges Token; darin liegt
