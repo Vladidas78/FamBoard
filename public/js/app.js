@@ -8,7 +8,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-auth.js";
 import { getDatabase, ref, set, remove, get, onValue } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-database.js";
 import { FIGUR, FIGUR_VIEWBOX } from "./figur.js";
-import { t, tf, uebersetzeSeite } from "./texte.js";
+import { txt, txtf, uebersetzeSeite } from "./texte.js";
 
 /* Die ausgezeichneten Stellen im HTML einmal aus dem Katalog schreiben.
 
@@ -21,7 +21,7 @@ import { t, tf, uebersetzeSeite } from "./texte.js";
    was nur zeichnet, darf ihn blockieren. Ohne die Schirmung würde ein
    einziger fehlerhafter Selektor die App im Login-Gate stehen lassen,
    obwohl in der Datenbank alles liegt. */
-try { uebersetzeSeite(); } catch(e){ console.warn('[texte] Seite nicht übersetzt:', e); }
+try { uebersetzeSeite(); } catch(e){ console.warn(txt('anmeldung.texte_seite_nicht_uebersetzt'), e); }
 
 const DAYS = ["Montag","Dienstag","Mittwoch","Donnerstag","Freitag","Samstag","Sonntag"];
 
@@ -85,7 +85,7 @@ function setOnline(v){
   const n = document.getElementById('netnote');
   if(n){
     n.style.display = v ? 'none' : 'block';
-    n.textContent = 'Offline — Änderungen werden nachgereicht, sobald ihr wieder Netz habt';
+    n.textContent = txt('anmeldung.offline_aenderungen_werden_nachgereicht_sobald');
   }
   const el = document.getElementById('storageNote');
   if(el) el.textContent = (v ? 'Verbunden' : 'Offline') + (aktivesHaushaltName ? ' · ' + aktivesHaushaltName : '');
@@ -178,31 +178,31 @@ document.getElementById('authTabLogin').addEventListener('click', ()=>authSetMod
 document.getElementById('authTabRegister').addEventListener('click', ()=>authSetMode('register'));
 if(pendingInvite){
   authSetMode('register');
-  authShowInfo('Ihr folgt einem Einladungslink — meldet euch an oder erstellt ein Konto, um dem Haushalt beizutreten.');
+  authShowInfo(txt('anmeldung.ihr_folgt_einem_einladungslink_meldet'));
 }
 
 const AUTH_ERR_DE = {
-  'auth/invalid-email': 'Ungültige E-Mail-Adresse.',
-  'auth/missing-password': 'Bitte ein Passwort eingeben.',
-  'auth/weak-password': 'Das Passwort muss mindestens 6 Zeichen haben.',
-  'auth/email-already-in-use': 'Für diese E-Mail gibt es schon ein Konto — oben auf „Anmelden“ wechseln.',
-  'auth/invalid-credential': 'E-Mail oder Passwort stimmt nicht.',
-  'auth/wrong-password': 'E-Mail oder Passwort stimmt nicht.',
-  'auth/user-not-found': 'Kein Konto mit dieser E-Mail gefunden.',
-  'auth/too-many-requests': 'Zu viele Versuche — kurz warten und nochmal probieren.',
-  'auth/network-request-failed': 'Keine Verbindung. Netz prüfen und nochmal versuchen.',
-  'auth/popup-closed-by-user': 'Anmeldung abgebrochen.',
-  'auth/operation-not-allowed': 'Diese Anmeldeart ist in Firebase noch nicht aktiviert.'
+  'auth/invalid-email': txt('anmeldung.ungueltige_e_mail_adresse'),
+  'auth/missing-password': txt('anmeldung.bitte_ein_passwort_eingeben'),
+  'auth/weak-password': txt('anmeldung.das_passwort_muss_mindestens_6'),
+  'auth/email-already-in-use': txt('anmeldung.fuer_diese_e_mail_gibt'),
+  'auth/invalid-credential': txt('anmeldung.e_mail_oder_passwort_stimmt'),
+  'auth/wrong-password': txt('anmeldung.e_mail_oder_passwort_stimmt'),
+  'auth/user-not-found': txt('anmeldung.kein_konto_mit_dieser_e'),
+  'auth/too-many-requests': txt('anmeldung.zu_viele_versuche_kurz_warten'),
+  'auth/network-request-failed': txt('anmeldung.keine_verbindung_netz_pruefen_und'),
+  'auth/popup-closed-by-user': txt('anmeldung.anmeldung_abgebrochen'),
+  'auth/operation-not-allowed': txt('anmeldung.diese_anmeldeart_ist_in_firebase')
 };
 function authErrText(err){
-  return AUTH_ERR_DE[err.code] || ('Anmeldung fehlgeschlagen (' + (err.code || err.message) + ').');
+  return AUTH_ERR_DE[err.code] || (txt('anmeldung.anmeldung_fehlgeschlagen') + (err.code || err.message) + ').');
 }
 
 document.getElementById('authSubmit').addEventListener('click', async ()=>{
   authHideMessages();
   const email = document.getElementById('authEmail').value.trim();
   const pw = document.getElementById('authPassword').value;
-  if(!email || !pw){ authShowError('Bitte E-Mail und Passwort eingeben.'); return; }
+  if(!email || !pw){ authShowError(txt('anmeldung.bitte_e_mail_und_passwort')); return; }
   document.getElementById('authBox').classList.add('auth-busy');
   try{
     if(authMode === 'register'){
@@ -221,10 +221,10 @@ document.getElementById('authSubmit').addEventListener('click', async ()=>{
 document.getElementById('authForgot').addEventListener('click', async ()=>{
   authHideMessages();
   const email = document.getElementById('authEmail').value.trim();
-  if(!email){ authShowError('E-Mail-Adresse oben eintragen, dann nochmal klicken.'); return; }
+  if(!email){ authShowError(txt('anmeldung.e_mail_adresse_oben_eintragen')); return; }
   try{
     await sendPasswordResetEmail(auth, email);
-    authShowInfo('Link zum Passwort-Zurücksetzen ist unterwegs — E-Mail-Postfach prüfen.');
+    authShowInfo(txt('anmeldung.link_zum_passwort_zuruecksetzen_ist'));
   }catch(err){
     authShowError(authErrText(err));
   }
@@ -249,7 +249,7 @@ document.getElementById('authGoogle').addEventListener('click', async ()=>{
 });
 
 document.getElementById('acctSignOut').addEventListener('click', async ()=>{
-  if(!confirm('Auf diesem Gerät abmelden?')) return;
+  if(!confirm(txt('anmeldung.auf_diesem_geraet_abmelden'))) return;
   try{ await signOut(auth); location.reload(); }catch(e){}
 });
 
@@ -264,7 +264,7 @@ async function ladeMitgliedschaften(uid){
 async function versucheClaim(hhId, uid){
   try{
     await set(ref(db, 'haushalte/' + hhId + '/members/' + uid), { rolle:'owner', beigetreten: Date.now() });
-    await set(ref(db, 'haushalte/' + hhId + '/meta'), { name:'Mein Haushalt', owner:uid, erstellt: Date.now() });
+    await set(ref(db, 'haushalte/' + hhId + '/meta'), { name:txt('anmeldung.mein_haushalt'), owner:uid, erstellt: Date.now() });
     await set(ref(db, 'users/' + uid + '/haushalte/' + hhId), true);
     return true;
   }catch(e){ return false; }
@@ -272,7 +272,7 @@ async function versucheClaim(hhId, uid){
 
 async function tritteUeberEinladungBei(code, uid){
   const snap = await get(ref(db, 'einladungen/' + code));
-  if(!snap.exists()) throw { message: 'Einladungslink ist ungültig oder schon abgelaufen.' };
+  if(!snap.exists()) throw { message: txt('anmeldung.einladungslink_ist_ungueltig_oder_schon') };
   const hhId = snap.val().haushalt;
   await set(ref(db, 'haushalte/' + hhId + '/members/' + uid), { rolle:'mitglied', beigetreten: Date.now(), viaCode: code });
   await set(ref(db, 'users/' + uid + '/haushalte/' + hhId), true);
@@ -282,7 +282,7 @@ async function tritteUeberEinladungBei(code, uid){
 async function erzeugeNeuenHaushalt(uid, name){
   const hhId = randId('hh-', 20);
   await set(ref(db, 'haushalte/' + hhId + '/members/' + uid), { rolle:'owner', beigetreten: Date.now() });
-  await set(ref(db, 'haushalte/' + hhId + '/meta'), { name: name || 'Mein Haushalt', owner:uid, erstellt: Date.now() });
+  await set(ref(db, 'haushalte/' + hhId + '/meta'), { name: name || txt('anmeldung.mein_haushalt'), owner:uid, erstellt: Date.now() });
   await set(ref(db, 'users/' + uid + '/haushalte/' + hhId), true);
   return hhId;
 }
@@ -311,8 +311,8 @@ async function aktiviereHaushalt(hhId){
      obwohl die Daten laengst da waeren — dieselbe Kette wie am 07.08.2026,
      nur eine Ebene frueher. Aufgefallen im Pruefstand: ein Konto ohne
      providerData liess renderSettingsTab werfen, und die App kam nie hoch. */
-  try{ renderMemberList(); }catch(e){ console.warn('Mitgliederliste konnte nicht gezeichnet werden:', e); }
-  try{ renderSettingsTab(); }catch(e){ console.warn('Einstellungen konnten nicht gezeichnet werden:', e); }
+  try{ renderMemberList(); }catch(e){ console.warn(txt('anmeldung.mitgliederliste_konnte_nicht_gezeichnet_werden'), e); }
+  try{ renderSettingsTab(); }catch(e){ console.warn(txt('anmeldung.einstellungen_konnten_nicht_gezeichnet_werden'), e); }
 }
 
 function renderHhSwitch(ids){
@@ -350,7 +350,7 @@ async function loesePfadNachLogin(user){
       renderHhSwitch(mitgliedschaften);
       return;
     }catch(err){
-      zeigeFehler(err.message || 'Einladung konnte nicht eingelöst werden.');
+      zeigeFehler(err.message || txt('anmeldung.einladung_konnte_nicht_eingeloest_werden'));
       // fällt durch zu den übrigen Fällen, Konto ist ja schon angelegt
     }
   }
@@ -383,7 +383,7 @@ async function loesePfadNachLogin(user){
       renderHhSwitch([manuelleId]);
       return;
     }
-    zeigeFehler('Die Haushalts-ID „' + manuelleId + '“ gehört schon zu einem Konto. Bittet stattdessen um einen Einladungslink.');
+    zeigeFehler(txt('anmeldung.die_haushalts_id') + manuelleId + txt('anmeldung.gehoert_schon_zu_einem_konto'));
   }
 
   // 4) Kandidat aus dem localStorage dieses Geräts (z. B. alter #h=-Link)
@@ -414,7 +414,7 @@ onAuthStateChanged(auth, async (user)=>{
     document.body.classList.remove('pre-auth');
     if(!appGestartet){ appGestartet = true; loadState(); }
   }catch(err){
-    authShowError('Haushalt konnte nicht geladen werden (' + (err.code || err.message) + ').');
+    authShowError(txt('anmeldung.haushalt_konnte_nicht_geladen_werden') + (err.code || err.message) + ').');
   }
 });
 getRedirectResult(auth).catch(err=>{ if(err && err.code) authShowError(authErrText(err)); });
@@ -452,7 +452,7 @@ const SEED_RECIPES = [
 ];
 
 const SLOTS = [
-  {id:'fruehstueck', label:'Frühstück',   def:4, an:false},
+  {id:'fruehstueck', label:txt('allgemein.fruehstueck'),   def:4, an:false},
   {id:'mittag',      label:'Mittagessen', def:4, an:false},
   {id:'abend',       label:'Abendessen',  def:4, an:true },
   {id:'snack',       label:'Snack',       def:1, an:true }
@@ -550,14 +550,14 @@ function normKey(name){
    4. Supermarkt-Abteilungen
    ========================================================================= */
 const CATS = [
-  {id:'obst',      label:'Obst & Gemüse',         icon:'🥕'},
+  {id:'obst',      label:txt('einkauf.obst_gemuese'),         icon:'🥕'},
   {id:'fleisch',   label:'Fleisch & Fisch',       icon:'🥩'},
-  {id:'kuehl',     label:'Kühlregal',             icon:'🧀'},
+  {id:'kuehl',     label:txt('einkauf.kuehlregal'),             icon:'🧀'},
   {id:'trocken',   label:'Trockenwaren & Backen', icon:'🌾'},
-  {id:'gewuerze',  label:'Gewürze',               icon:'🧂'},
+  {id:'gewuerze',  label:txt('einkauf.gewuerze'),               icon:'🧂'},
   {id:'konserven', label:'Konserven & Saucen',    icon:'🥫'},
-  {id:'tk',        label:'Tiefkühl',              icon:'🧊'},
-  {id:'getraenke', label:'Getränke',              icon:'🧃'},
+  {id:'tk',        label:txt('einkauf.tiefkuehl'),              icon:'🧊'},
+  {id:'getraenke', label:txt('einkauf.getraenke'),              icon:'🧃'},
   {id:'haushalt',  label:'Haushalt & Drogerie',   icon:'🧻'},
   {id:'sonstiges', label:'Sonstiges',             icon:'🛒'}
 ];
@@ -710,6 +710,10 @@ function gramsFor(ing){
   if(u && UNIT_GRAMS[u] !== undefined) return amt * UNIT_GRAMS[u];
   const nutri = guessNutrition(ing.name);
   if((u === '' || u === 'stk' || u === 'stück' || u === 'stueck') && nutri && nutri.gStk){
+    /* texte-ok: Datenwert | Die vier Schreibweisen sind das, was in ing.unit stehen
+       kann - gespeicherte Daten, keine Anzeige. Uebersetzt wuerde der Vergleich in
+       jeder anderen Sprache fehlschlagen, und die Stueckgewichte fielen still auf
+       die 100-g-Annahme zurueck (Betriebsregel 13: ein Fehler, der nie meldet). */
     return amt * nutri.gStk;
   }
   return amt * 100;   // unbekannte Stückgröße — grobe Annahme 100 g/Stück
@@ -943,8 +947,8 @@ function put(path, value){
   const p = (value === null || value === undefined) ? remove(r) : set(r, value);
   p.catch(err=>{
     zeigeFehler(err.code === 'PERMISSION_DENIED'
-      ? 'Speichern nicht erlaubt. Entweder ist die anonyme Anmeldung in Firebase noch aus, oder die Sicherheitsregeln passen nicht.'
-      : 'Speichern fehlgeschlagen: ' + err.message);
+      ? txt('allgemein.speichern_nicht_erlaubt_entweder_ist')
+      : txt('allgemein.speichern_fehlgeschlagen') + err.message);
   });
   return p;
 }
@@ -956,8 +960,8 @@ function putWurzel(pfad, wert){
   const pr = (wert === null || wert === undefined) ? remove(r) : set(r, wert);
   pr.catch(err=>{
     zeigeFehler(err.code === 'PERMISSION_DENIED'
-      ? 'Der Abo-Link konnte nicht geschrieben werden. Sind die Sicherheitsregeln veroeffentlicht?'
-      : 'Speichern fehlgeschlagen: ' + err.message);
+      ? txt('allgemein.der_abo_link_konnte_nicht')
+      : txt('allgemein.speichern_fehlgeschlagen') + err.message);
   });
   return pr;
 }
@@ -1070,7 +1074,7 @@ async function loadState(){
     renderAll();
     ansichtEinmalWiederherstellen();
   }, err=>{
-    zeigeFehler('Kein Zugriff auf die Datenbank (' + err.message + '). Sind die Sicherheitsregeln veröffentlicht?');
+    zeigeFehler(txt('allgemein.kein_zugriff_auf_die_datenbank') + err.message + txt('allgemein.sind_die_sicherheitsregeln_veroeffentlicht'));
     setStatus('');
     renderAll();
   });
@@ -1094,9 +1098,9 @@ function renderAll(){
   renderRecipeList(); renderShop(); renderCatOrder();
   renderNutritionReport(); refreshIngNameDatalist();
   /* Zusatzansichten abgeschirmt: keine von ihnen darf die Kernbereiche mitreissen (Kapitel 2.6, Regel 2) */
-  try{ renderPersonen(); }catch(e){ console.warn('Personen konnten nicht gezeichnet werden:', e); }
-  try{ renderNotizen(); }catch(e){ console.warn('Notizen konnten nicht gezeichnet werden:', e); }
-  try{ renderKalender(); }catch(e){ console.warn('Kalender konnte nicht gezeichnet werden:', e); }
+  try{ renderPersonen(); }catch(e){ console.warn(txt('allgemein.personen_konnten_nicht_gezeichnet_werden'), e); }
+  try{ renderNotizen(); }catch(e){ console.warn(txt('allgemein.notizen_konnten_nicht_gezeichnet_werden'), e); }
+  try{ renderKalender(); }catch(e){ console.warn(txt('allgemein.kalender_konnte_nicht_gezeichnet_werden'), e); }
   /* Onboarding haengt an den Daten, nicht am Start: Erst mit dem ersten
      Datensatz ist bekannt, ob dieser Haushalt schon eingerichtet ist. */
   try{ obPruefen(); }catch(e){ console.warn('Onboarding:', e); }
@@ -1152,13 +1156,13 @@ document.getElementById('fillWeek').addEventListener('click', ()=>{
   DAYS.forEach((day, idx)=>{
     activeSlots().forEach(sl=>{
       const cur = ((state.plan[wk] || {})[day] || {})[sl.id];
-      if(cur) return;   // Tag/Mahlzeit ist schon belegt — auch "auswärts" und Reste bleiben stehen
+      if(cur) return;   // Tag/Mahlzeit ist schon belegt — auch txt('essen.auswaerts') und Reste bleiben stehen
       const id = suggestFor(idx, sl.id);
       if(id){ setPlanSlot(wk, day, sl.id, id); anzahl++; }
     });
   });
   renderDayTrack(); renderShop();
-  setStatus(anzahl ? anzahl+' Mahlzeiten ergänzt ✓' : 'Nichts zu ergänzen — schon alles geplant oder noch keine Rezepte vorhanden.');
+  setStatus(anzahl ? anzahl+' Mahlzeiten ergänzt ✓' : txt('essen.nichts_zu_ergaenzen_schon_alles'));
   setTimeout(()=>setStatus(''), 2500);
 });
 
@@ -1441,12 +1445,12 @@ function renderDayTrack(){
     const wkNow = weekKeyOf(currentMonday);
     const backup = JSON.parse(JSON.stringify((state.plan[wkNow]||{})[day] || {}));
     if(!Object.keys(backup).length) return;
-    if(!confirm('„'+day+'“ komplett zurücksetzen? Rezepte selbst bleiben erhalten.')) return;
+    if(!confirm('„'+day+txt('essen.komplett_zuruecksetzen_rezepte_selbst_bleiben'))) return;
     state.plan[wkNow] = state.plan[wkNow] || {};
     state.plan[wkNow][day] = {};
     put('data/weeks/'+wkNow+'/plan/'+day, null);
     renderDayTrack(); renderShop(); renderNutritionReport();
-    showToast(day+' zurückgesetzt', ()=>{
+    showToast(day+txt('essen.zurueckgesetzt'), ()=>{
       state.plan[wkNow][day] = backup;
       put('data/weeks/'+wkNow+'/plan/'+day, backup);
       renderDayTrack(); renderShop(); renderNutritionReport();
@@ -1469,8 +1473,8 @@ function renderDayTrack(){
       const id = suggestFor(idx, el.dataset.slot);
       if(!id){
         setStatus(el.dataset.slot === 'snack'
-          ? 'Noch keine Snacks angelegt — im Reiter Rezepte unter „+ Neues Rezept“ auf Snack umstellen.'
-          : 'Noch keine Rezepte vorhanden.');
+          ? txt('essen.noch_keine_snacks_angelegt_im')
+          : txt('essen.noch_keine_rezepte_vorhanden'));
         setTimeout(()=>setStatus(''), 3500);
         return;
       }
@@ -1498,7 +1502,7 @@ function renderDayTrack(){
   /* Heute zeigt das Essen des Tages - mitziehen, sobald der Plan sich aendert.
      Abgeschirmt: Heute ist eine Zusatzansicht und darf den Wochenplan nicht
      mitreissen, wenn dort etwas schiefgeht. */
-  try{ renderHeute(); }catch(e){ console.warn('Heute konnte nicht gezeichnet werden:', e); }
+  try{ renderHeute(); }catch(e){ console.warn(txt('essen.heute_konnte_nicht_gezeichnet_werden'), e); }
 }
 
 /* ---------- Rezept-Suche fürs Auswählen im Wochenplan (statt/zusätzlich zum Dropdown) ---------- */
@@ -1568,7 +1572,7 @@ function renderSlotSearchResults(){
     const r = state.recipes.filter(x=>x.id===id)[0];
     closeSlotSearch();
     renderDayTrack(); renderShop();
-    showToast((r?r.name:'Eintrag')+' für '+target.day+' eingetragen');
+    showToast((r?r.name:'Eintrag')+txt('essen.fuer')+target.day+' eingetragen');
   }));
 }
 
@@ -1662,7 +1666,7 @@ function renderRecipeList(){
 
   const gefiltert = state.recipes.filter(r=>matchesSearch(r, recipeQuery) && matchesTag(r, activeTagFilter) && (!favOnly || r.fav));
   if(!gefiltert.length){
-    list.innerHTML='<div class="empty">Keine Rezepte gefunden'+(recipeQuery?' für „'+escapeHtml(recipeQuery)+'“':'')+(activeTagFilter?' mit Tag „'+escapeHtml(activeTagFilter)+'“':'')+(favOnly?' bei den Favoriten':'')+'.</div>';
+    list.innerHTML='<div class="empty">Keine Rezepte gefunden'+(recipeQuery?txt('essen.fuer_2')+escapeHtml(recipeQuery)+'“':'')+(activeTagFilter?txt('essen.mit_tag')+escapeHtml(activeTagFilter)+'“':'')+(favOnly?' bei den Favoriten':'')+'.</div>';
     return;
   }
 
@@ -1691,7 +1695,7 @@ function renderRecipeList(){
             ((r.tags||[]).length ? ' · ' + escapeHtml(r.tags[0]) : '') + '</span>' +
         '</span>' +
       '</button>' +
-      (istSnack(r) ? '' : '<button class="fav-star kachel-fav'+(r.fav?' active':'')+'" type="button" data-favid="'+r.id+'" aria-label="'+(r.fav?'Favorit entfernen':'Als Favorit markieren')+'">'+(r.fav?'★':'☆')+'</button>') +
+      (istSnack(r) ? '' : '<button class="fav-star kachel-fav'+(r.fav?' active':'')+'" type="button" data-favid="'+r.id+'" aria-label="'+(r.fav?'Favorit entfernen':txt('essen.als_favorit_markieren'))+'">'+(r.fav?'★':'☆')+'</button>') +
       '<div class="recipe-body">' +
         (imgOf(r) ? '<img class="recipe-img" src="'+imgOf(r)+'" alt="'+escapeHtml(r.name)+'">' : (r.hasImage ? '<div class="img-loading">Bild wird geladen …</div>' : '')) +
         '<div class="portion-bar">' +
@@ -1715,7 +1719,7 @@ function renderRecipeList(){
               '<div class="desc-body">'+escapeHtml(r.description)+'</div>' +
             '</div>' : '') +
         (istSnack(r) ? '' : '<div class="img-controls">' +
-          '<label class="btn btn-soft btn-sm" for="imgup-'+r.id+'" style="cursor:pointer;">📷 '+(r.hasImage?'Bild ändern':'Bild hochladen')+'</label>' +
+          '<label class="btn btn-soft btn-sm" for="imgup-'+r.id+'" style="cursor:pointer;">📷 '+(r.hasImage?'Bild ändern':txt('essen.bild_hochladen'))+'</label>' +
           '<input type="file" id="imgup-'+r.id+'" accept="image/*" data-imgfor="'+r.id+'" style="display:none;">' +
           (r.hasImage?'<button class="btn btn-ghost btn-loeschen btn-sm rm-img" data-id="'+r.id+'" type="button">Bild entfernen</button>':'') +
         '</div>') +
@@ -1874,8 +1878,8 @@ function recipesToRows(list){
   }));
 }
 function downloadWorkbook(rows, filename){
-  if(typeof XLSX === 'undefined'){ setIoResult('Die Excel-Bibliothek fehlt. Lade die Seite neu, dann klappt es.','err'); return; }
-  const ws = XLSX.utils.json_to_sheet(rows, {header:['Name','Zutaten','Beschreibung','Typ','Portionen','kcal','Eiweiß','Kohlenhydrate','Fett']});
+  if(typeof XLSX === 'undefined'){ setIoResult(txt('essen.die_excel_bibliothek_fehlt_lade'),'err'); return; }
+  const ws = XLSX.utils.json_to_sheet(rows, {header:['Name','Zutaten','Beschreibung','Typ','Portionen','kcal',txt('essen.eiweiss'),'Kohlenhydrate','Fett']});
   ws['!cols'] = [{wch:32},{wch:60},{wch:50},{wch:9},{wch:10},{wch:8},{wch:9},{wch:15},{wch:8}];
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Rezepte');
@@ -1884,36 +1888,36 @@ function downloadWorkbook(rows, filename){
 
 document.getElementById('btnTemplate').addEventListener('click', ()=>{
   const example = [{
-    id:'x', name:'Beispiel: Hähnchen mit Reis', type:'rezept', servings:4,
-    ingredients:[{name:'Hähnchenbrust',amount:400,unit:'g'},{name:'Reis',amount:200,unit:'g'},{name:'Brokkoli',amount:300,unit:'g'},{name:'Sojasauce',amount:2,unit:'EL'}],
-    description:'Reis kochen, Hähnchen anbraten, Brokkoli dämpfen, alles vermengen.',
+    id:'x', name:txt('essen.beispiel_haehnchen_mit_reis'), type:'rezept', servings:4,
+    ingredients:[{name:txt('essen.haehnchenbrust'),amount:400,unit:'g'},{name:'Reis',amount:200,unit:'g'},{name:'Brokkoli',amount:300,unit:'g'},{name:'Sojasauce',amount:2,unit:'EL'}],
+    description:txt('essen.reis_kochen_haehnchen_anbraten_brokkoli'),
     kcal:520, prot:38, carbs:52, fat:14
   },{
     id:'y', name:'Beispiel: Kindergarten-Brotzeit', type:'snack', servings:1,
-    ingredients:[{name:'Apfel',amount:1,unit:'Stk'},{name:'Vollkornbrot',amount:2,unit:'Scheibe'},{name:'Frischkäse',amount:20,unit:'g'}],
+    ingredients:[{name:'Apfel',amount:1,unit:'Stk'},{name:'Vollkornbrot',amount:2,unit:'Scheibe'},{name:txt('essen.frischkaese'),amount:20,unit:'g'}],
     description:'', kcal:0, prot:0, carbs:0, fat:0
   }];
   downloadWorkbook(recipesToRows(example), 'Rezepte-Vorlage.xlsx');
-  setIoResult('Vorlage heruntergeladen.','ok');
+  setIoResult(txt('essen.vorlage_heruntergeladen'),'ok');
 });
 document.getElementById('btnExport').addEventListener('click', ()=>{
-  if(!state.recipes.length){ setIoResult('Es gibt noch keine Rezepte zum Exportieren.','err'); return; }
+  if(!state.recipes.length){ setIoResult(txt('essen.es_gibt_noch_keine_rezepte'),'err'); return; }
   const d=new Date(), stamp=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
   downloadWorkbook(recipesToRows(state.recipes), 'Rezepte-'+stamp+'.xlsx');
-  setIoResult(state.recipes.length+' Rezepte exportiert.','ok');
+  setIoResult(state.recipes.length+txt('essen.rezepte_exportiert'),'ok');
 });
 
 document.getElementById('fileInput').addEventListener('change', async (e)=>{
   const file = e.target.files[0];
   if(!file) return;
-  if(typeof XLSX === 'undefined'){ setIoResult('Die Excel-Bibliothek fehlt. Lade die Seite neu, dann klappt es.','err'); return; }
-  setIoResult('Datei wird gelesen …','');
+  if(typeof XLSX === 'undefined'){ setIoResult(txt('essen.die_excel_bibliothek_fehlt_lade'),'err'); return; }
+  setIoResult(txt('essen.datei_wird_gelesen'),'');
   try{
     const buf = await file.arrayBuffer();
     const wb = XLSX.read(buf, {type:'array'});
     const sheet = wb.Sheets[wb.SheetNames[0]];
     const raw = XLSX.utils.sheet_to_json(sheet, {defval:''});
-    if(!raw.length){ setIoResult('Die Datei enthält keine Zeilen.','err'); e.target.value=''; return; }
+    if(!raw.length){ setIoResult(txt('essen.die_datei_enthaelt_keine_zeilen'),'err'); e.target.value=''; return; }
 
     const imported = [];
     raw.forEach(row=>{
@@ -1940,7 +1944,7 @@ document.getElementById('fileInput').addEventListener('change', async (e)=>{
     });
 
     if(!imported.length){
-      setIoResult('Keine gültigen Rezepte gefunden. Prüfe, ob es eine Spalte „Name“ gibt.','err');
+      setIoResult(txt('essen.keine_gueltigen_rezepte_gefunden_pruefe'),'err');
       e.target.value=''; return;
     }
 
@@ -1965,13 +1969,13 @@ document.getElementById('fileInput').addEventListener('change', async (e)=>{
     renderAll();
     setIoResult(
       mode==='replace'
-        ? imported.length+' Rezepte importiert, die alten sind ersetzt.'
-        : added+' neu hinzugefügt, '+updated+' aktualisiert.',
+        ? imported.length+txt('essen.rezepte_importiert_die_alten_sind')
+        : added+txt('essen.neu_hinzugefuegt')+updated+' aktualisiert.',
       'ok'
     );
     document.getElementById('recSectionHead').closest('.collapse-section').classList.remove('collapsed');
   }catch(err){
-    setIoResult('Die Datei ließ sich nicht lesen: '+err.message,'err');
+    setIoResult(txt('essen.die_datei_liess_sich_nicht')+err.message,'err');
   }
   e.target.value='';
 });
@@ -1991,8 +1995,8 @@ function resetAddForm(){
   document.getElementById('ingRows').innerHTML=''; addIngRow();
   pendingImage=null; document.getElementById('addImgPreview').innerHTML='';
   syncTypFelder();
-  document.getElementById('addPanelTitle').textContent = 'Neues Rezept';
-  document.getElementById('saveRecipe').textContent = 'Rezept speichern';
+  document.getElementById('addPanelTitle').textContent = txt('essen.neues_rezept');
+  document.getElementById('saveRecipe').textContent = txt('essen.rezept_speichern');
 }
 async function openEditRecipe(id){
   const r = state.recipes.filter(x=>x.id===id)[0];
@@ -2015,8 +2019,8 @@ async function openEditRecipe(id){
   pendingImage = null;
   if(r.hasImage && imageCache[id] === undefined){ await loadImage(id); }
   document.getElementById('addImgPreview').innerHTML = (r.hasImage && imgOf(r)) ? '<img src="'+imgOf(r)+'" alt="Vorschau">' : '';
-  document.getElementById('addPanelTitle').textContent = 'Rezept bearbeiten';
-  document.getElementById('saveRecipe').textContent = 'Änderungen speichern';
+  document.getElementById('addPanelTitle').textContent = txt('essen.rezept_bearbeiten');
+  document.getElementById('saveRecipe').textContent = txt('essen.aenderungen_speichern');
   openAddPanel();
 }
 document.getElementById('openAdd').addEventListener('click', ()=>{ addPanel.style.display==='none' ? openAddPanel() : closeAddPanel(); });
@@ -2054,19 +2058,19 @@ function syncTypFelder(){
     el.style.display = snack ? 'none' : '';
   });
   document.getElementById('r-name').placeholder = snack
-    ? 'z. B. Kindergarten-Brotzeit' : 'z. B. Ofengemüse mit Feta';
+    ? 'z. B. Kindergarten-Brotzeit' : txt('essen.z_b_ofengemuese_mit_feta');
   document.getElementById('r-servings').value = snack ? '1' : '4';
 }
 Array.prototype.forEach.call(document.querySelectorAll('input[name=rType]'), el=>
   el.addEventListener('change', syncTypFelder));
 document.getElementById('r-image-input').addEventListener('change', async e=>{
   const file=e.target.files[0]; if(!file) return;
-  setStatus('Bild wird verarbeitet …');
+  setStatus(txt('essen.bild_wird_verarbeitet'));
   try{
     pendingImage=await fileToResizedDataURL(file);
     document.getElementById('addImgPreview').innerHTML='<img src="'+pendingImage+'" alt="Vorschau">';
     setStatus('');
-  }catch(err){ setStatus('Das Bild ließ sich nicht laden. Versuch ein anderes Format.'); setTimeout(()=>setStatus(''),2500); }
+  }catch(err){ setStatus(txt('essen.das_bild_liess_sich_nicht')); setTimeout(()=>setStatus(''),2500); }
 });
 function refreshIngNameDatalist(){
   const dl = document.getElementById('ingNames');
@@ -2099,18 +2103,18 @@ function ingRowsToIngredients(){
 }
 document.getElementById('calcNutri').addEventListener('click', ()=>{
   const ingredients = ingRowsToIngredients();
-  if(!ingredients.length){ showToast('Erst Zutaten eintragen, dann berechnen.'); return; }
+  if(!ingredients.length){ showToast(txt('essen.erst_zutaten_eintragen_dann_berechnen')); return; }
   const n = computeRecipeNutrition(ingredients);
   document.getElementById('r-kcal').value = n.kcal;
   document.getElementById('r-protein-g').value = n.prot;
   document.getElementById('r-carbs-g').value = n.carbs;
   document.getElementById('r-fat-g').value = n.fat;
-  showToast(n.unbekannt ? 'Berechnet — '+n.unbekannt+' Zutat(en) nicht erkannt, Werte ggf. unvollständig' : 'Nährwerte berechnet ✓');
+  showToast(n.unbekannt ? 'Berechnet — '+n.unbekannt+' Zutat(en) nicht erkannt, Werte ggf. unvollständig' : txt('essen.naehrwerte_berechnet'));
 });
 
 document.getElementById('saveRecipe').addEventListener('click', async ()=>{
   const name=document.getElementById('r-name').value.trim();
-  if(!name){ feldFehler(document.getElementById('r-name'), 'Ohne Namen lässt sich das Rezept später nicht wiederfinden.'); return; }
+  if(!name){ feldFehler(document.getElementById('r-name'), txt('essen.ohne_namen_laesst_sich_das')); return; }
   const ingredients = ingRowsToIngredients();
   const serv = parseInt(document.getElementById('r-servings').value,10);
   const typ = aktuellerTyp();
@@ -2148,7 +2152,7 @@ document.getElementById('saveRecipe').addEventListener('click', async ()=>{
   closeAddPanel();
   document.getElementById('recSectionHead').closest('.collapse-section').classList.remove('collapsed');
   renderAll();
-  setStatus(warBearbeitung ? 'Änderungen gespeichert ✓' : 'Rezept gespeichert ✓'); setTimeout(()=>setStatus(''),1500);
+  setStatus(warBearbeitung ? 'Änderungen gespeichert ✓' : txt('essen.rezept_gespeichert')); setTimeout(()=>setStatus(''),1500);
 });
 
 /* =========================================================================
@@ -2180,7 +2184,7 @@ Array.prototype.forEach.call(document.querySelectorAll('input[name=impSrc]'), el
   }));
 document.getElementById('imp-image-input').addEventListener('change', async e=>{
   const file=e.target.files[0]; if(!file) return;
-  setImportResult('Foto wird verarbeitet …','');
+  setImportResult(txt('essen.foto_wird_verarbeitet'),'');
   try{
     // Zum Ablesen von gedrucktem Text braucht es mehr Auflösung als fürs Rezeptbild:
     // 1400 px zum Vorlesen an Claude, 600 px als gespeichertes Bild.
@@ -2188,7 +2192,7 @@ document.getElementById('imp-image-input').addEventListener('change', async e=>{
     importImageThumbUrl = await fileToResizedDataURL(file);
     document.getElementById('impImgPreview').innerHTML = '<img src="'+importImageThumbUrl+'" alt="Vorschau">';
     setImportResult('','');
-  }catch(err){ setImportResult('Das Foto ließ sich nicht laden. Versuch ein anderes Format.','err'); }
+  }catch(err){ setImportResult(txt('essen.das_foto_liess_sich_nicht'),'err'); }
 });
 /* Verkleinert ein Bild, das schon als Data-URL vorliegt (z. B. vom Server geholtes
    Vorschaubild) — analog zu fileToResizedDataURL, nur ohne FileReader davor. */
@@ -2228,21 +2232,21 @@ function uebernehmeImportiertesRezept(r, bildDataUrl, quelle){
     document.getElementById('addImgPreview').innerHTML = '<img src="'+bildDataUrl+'" alt="Vorschau">';
   }
   openAddPanel();
-  showToast('Rezept eingelesen — bitte prüfen und speichern ✓');
+  showToast(txt('essen.rezept_eingelesen_bitte_pruefen_und'));
 }
 document.getElementById('startImport').addEventListener('click', async ()=>{
   const mode = document.querySelector('input[name=impSrc]:checked').value;
   const body = {mode: mode};
   if(mode==='url'){
     const url = document.getElementById('imp-url').value.trim();
-    if(!url){ setImportResult('Erst einen Link eintragen.','err'); feldFehler(document.getElementById('imp-url')); return; }
+    if(!url){ setImportResult(txt('essen.erst_einen_link_eintragen'),'err'); feldFehler(document.getElementById('imp-url')); return; }
     body.url = url;
   } else if(mode==='text'){
     const text = document.getElementById('imp-text').value.trim();
-    if(!text){ setImportResult('Erst Text einfügen.','err'); feldFehler(document.getElementById('imp-text')); return; }
+    if(!text){ setImportResult(txt('essen.erst_text_einfuegen'),'err'); feldFehler(document.getElementById('imp-text')); return; }
     body.text = text;
   } else if(mode==='image'){
-    if(!importImageDataUrl){ setImportResult('Erst ein Foto auswählen.','err'); return; }
+    if(!importImageDataUrl){ setImportResult(txt('essen.erst_ein_foto_auswaehlen'),'err'); return; }
     body.imageDataUrl = importImageDataUrl;
   }
 
@@ -2257,11 +2261,11 @@ document.getElementById('startImport').addEventListener('click', async ()=>{
     .sort((a,b)=>a.localeCompare(b,'de'))
     .slice(0,400);
 
-  if(!auth.currentUser){ setImportResult('Bitte kurz warten, bis die Anmeldung fertig ist.','err'); return; }
+  if(!auth.currentUser){ setImportResult(txt('essen.bitte_kurz_warten_bis_die'),'err'); return; }
 
   const btn = document.getElementById('startImport');
   btn.disabled = true;
-  setImportResult('Rezept wird gelesen … das kann ein paar Sekunden dauern.','');
+  setImportResult(txt('essen.rezept_wird_gelesen_das_kann'),'');
   try{
     const idToken = await auth.currentUser.getIdToken();
     const res = await fetch('/api/import-recipe', {
@@ -2270,7 +2274,7 @@ document.getElementById('startImport').addEventListener('click', async ()=>{
       body: JSON.stringify(body)
     });
     const data = await res.json();
-    if(!data.ok){ setImportResult(data.error || 'Konnte kein Rezept erkennen.','err'); return; }
+    if(!data.ok){ setImportResult(data.error || txt('essen.konnte_kein_rezept_erkennen'),'err'); return; }
 
     // Bild: beim Foto-Import das eigene, sonst das vom Server geholte Vorschaubild
     let bild = null;
@@ -2293,10 +2297,10 @@ document.getElementById('startImport').addEventListener('click', async ()=>{
     closeImportPanel();
 
     if(typeof data.uebrig === 'number'){
-      showToast('Rezept eingelesen — noch ' + data.uebrig + ' Importe heute übrig');
+      showToast(txt('essen.rezept_eingelesen_noch') + data.uebrig + txt('essen.importe_heute_uebrig'));
     }
   } catch(err){
-    setImportResult('Verbindung zum Server fehlgeschlagen.','err');
+    setImportResult(txt('essen.verbindung_zum_server_fehlgeschlagen'),'err');
   } finally {
     btn.disabled = false;
   }
@@ -2440,7 +2444,7 @@ function renderNutritionReport(){
   const wk = weekKeyOf(currentMonday);
   const label = document.getElementById('nutriWeekLabel');
   if(!label) return;   // Tab noch nicht im DOM (z. B. beim allerersten Render)
-  label.textContent = 'Nährwerte · KW '+isoWeek(currentMonday).week;
+  label.textContent = txt('essen.naehrwerte_kw')+isoWeek(currentMonday).week;
 
   const rows = DAYS.map(day=>({day:day, d:computeDayNutrition(wk, day), portionen:nutriPortionsFor(wk, day)}));
   const sum = rows.reduce((acc,row)=>{
@@ -2513,8 +2517,8 @@ function leereErledigte(wk, doneItems){
   if(backupExtras.length) saveExtras();
   const anzahl = removedKeys.length + backupExtras.length;
   renderShop();
-  if(!anzahl){ showToast('Nichts zu leeren — wiederkehrende Einträge bleiben stehen.'); return; }
-  showToast(anzahl+' Erledigte geleert', ()=>{
+  if(!anzahl){ showToast(txt('essen.nichts_zu_leeren_wiederkehrende_eintraege')); return; }
+  showToast(anzahl+txt('essen.erledigte_geleert'), ()=>{
     removedKeys.forEach(k=>{ delete state.removed[wk][k]; saveRemoved(wk, k, false); });
     if(backupExtras.length){ state.extras = state.extras.concat(backupExtras); saveExtras(); }
     renderShop();
@@ -2527,7 +2531,7 @@ function renderShop(){
   /* Der Artikelstamm zeigt an jeder Zeile, ob sie schon auf der Liste steht —
      er muss also mitziehen, sobald sich die Liste ändert. Abgeschirmt, damit
      eine Zusatzansicht nie die Einkaufsliste mitreißt (Kapitel 2.6, Regel 2). */
-  try{ renderArtikel(); }catch(e){ console.warn('Artikelstamm konnte nicht gezeichnet werden:', e); }
+  try{ renderArtikel(); }catch(e){ console.warn(txt('essen.artikelstamm_konnte_nicht_gezeichnet_werden'), e); }
 
   const box = document.getElementById('shopGroups');
   const emptyMsg = document.getElementById('shopEmpty');
@@ -2538,8 +2542,8 @@ function renderShop(){
   if(!items.length){
     box.innerHTML=''; swipeHint.style.display='none'; emptyMsg.style.display='block';
     emptyMsg.textContent = built.planned
-      ? 'Alles abgehakt oder ausgeschlossen. Schöne Woche.'
-      : 'Für diese Woche ist noch nichts geplant. Wähl im Wochenplan ein paar Gerichte.';
+      ? txt('essen.alles_abgehakt_oder_ausgeschlossen_schoene')
+      : txt('essen.fuer_diese_woche_ist_noch');
     const ms = document.getElementById('shopMarketSummary'); ms.style.display='none'; ms.innerHTML='';
     return;
   }
@@ -2641,13 +2645,13 @@ function renderShop(){
         const backup = state.extras[idx];
         state.extras.splice(idx,1);
         saveExtras(); renderShop();
-        showToast(backup.name+' gelöscht', ()=>{
+        showToast(backup.name+txt('essen.geloescht'), ()=>{
           state.extras.splice(idx,0,backup); saveExtras(); renderShop();
         });
       } else {
         state.removed[wk][key] = true;
         saveRemoved(wk, key, true); renderShop();
-        showToast(it.name+' von dieser Liste entfernt', ()=>{
+        showToast(it.name+txt('essen.von_dieser_liste_entfernt'), ()=>{
           delete state.removed[wk][key]; saveRemoved(wk, key, false); renderShop();
         });
       }
@@ -2672,8 +2676,8 @@ function renderShop(){
       }
       saveExtras(); renderShop();
       showToast(x.recurring
-        ? '„'+x.name+'" kommt jetzt jede Woche wieder'
-        : '„'+x.name+'" steht nur noch auf dieser Liste');
+        ? '„'+x.name+txt('essen.kommt_jetzt_jede_woche_wieder')
+        : '„'+x.name+txt('essen.steht_nur_noch_auf_dieser'));
     });
 
     // Name antippen -> Abteilung wählen
@@ -2695,7 +2699,7 @@ function renderShop(){
 
     // Menge antippen -> anpassen
     li.querySelector('.qty-btn').addEventListener('click', async ()=>{
-      const eingabe = prompt('Menge für '+it.name+':', it.qty || '');
+      const eingabe = prompt(txt('essen.menge_fuer')+it.name+':', it.qty || '');
       if(eingabe === null) return;
       const val = eingabe.trim();
       if(it.kind==='extra'){
@@ -2732,7 +2736,7 @@ function renderShop(){
 
   /* Heute liest aus derselben Liste - mitziehen, sobald sie sich aendert.
      Abgeschirmt wie oben: die Einkaufsliste hat Vorrang. */
-  try{ renderHeute(); }catch(e){ console.warn('Heute konnte nicht gezeichnet werden:', e); }
+  try{ renderHeute(); }catch(e){ console.warn(txt('essen.heute_konnte_nicht_gezeichnet_werden'), e); }
 }
 
 /* ---------- Abteilungen sortieren ---------- */
@@ -2772,7 +2776,7 @@ document.getElementById('shareShop').addEventListener('click', async ()=>{
   const built = buildItems(wk);
   const open = built.items.filter(i=>!i.checked);
   if(!open.length){
-    setStatus('Nichts zu teilen — die Liste ist leer.');
+    setStatus(txt('essen.nichts_zu_teilen_die_liste'));
     setTimeout(()=>setStatus(''),2500);
     return;
   }
@@ -2792,7 +2796,7 @@ document.getElementById('shareShop').addEventListener('click', async ()=>{
       await navigator.share({title:'Einkaufsliste', text: text});
     } else {
       await navigator.clipboard.writeText(text);
-      setStatus('Liste in die Zwischenablage kopiert.');
+      setStatus(txt('essen.liste_in_die_zwischenablage_kopiert'));
       setTimeout(()=>setStatus(''),3000);
     }
   }catch(e){ /* Teilen abgebrochen — nichts zu tun */ }
@@ -2801,13 +2805,13 @@ document.getElementById('shareShop').addEventListener('click', async ()=>{
 document.getElementById('resetWeekPlanBtn').addEventListener('click', ()=>{
   const wk = weekKeyOf(currentMonday);
   const belegt = Object.keys(state.plan[wk]||{}).some(day=>Object.keys((state.plan[wk]||{})[day]||{}).length);
-  if(!belegt){ showToast('Diese Woche ist schon leer.'); return; }
-  if(!confirm('Alle Einträge im Wochenplan für KW '+isoWeek(currentMonday).week+' entfernen? Rezepte selbst bleiben erhalten.')) return;
+  if(!belegt){ showToast(txt('essen.diese_woche_ist_schon_leer')); return; }
+  if(!confirm(txt('essen.alle_eintraege_im_wochenplan_fuer')+isoWeek(currentMonday).week+txt('essen.entfernen_rezepte_selbst_bleiben_erhalten'))) return;
   const backup = JSON.parse(JSON.stringify(state.plan[wk] || {}));
   state.plan[wk] = {};
   put('data/weeks/'+wk+'/plan', null);
   renderAll();
-  showToast('Wochenplan zurückgesetzt', ()=>{
+  showToast(txt('essen.wochenplan_zurueckgesetzt'), ()=>{
     state.plan[wk] = backup;
     put('data/weeks/'+wk+'/plan', backup);
     renderAll();
@@ -2820,7 +2824,7 @@ document.getElementById('resetChecks').addEventListener('click', async ()=>{
   state.checked[wk]={}; state.removed[wk]={}; state.qty[wk]={};
   (state.extras||[]).forEach(x=>{ if(x.doneWk===wk) x.doneWk=null; });
   saveWeekMaps(wk); saveExtras(); renderShop();
-  showToast('Liste zurückgesetzt', ()=>{
+  showToast(txt('essen.liste_zurueckgesetzt'), ()=>{
     state.checked[wk]=backupChecked||{}; state.removed[wk]=backupRemoved||{}; state.qty[wk]=backupQty||{};
     backupExtras.forEach(b=>{ const x=state.extras.filter(e=>e.id===b.id)[0]; if(x) x.doneWk=b.doneWk; });
     saveWeekMaps(wk); saveExtras(); renderShop();
@@ -2970,7 +2974,7 @@ function renderArtikel(){
         const feld = document.getElementById('artSearch');
         if(feld){ feld.value = ''; feld.focus(); }
         renderArtikel();
-        showToast('„'+name+'" ist jetzt im Katalog');
+        showToast('„'+name+txt('einkauf.ist_jetzt_im_katalog'));
       });
     } else {
       neuEl.hidden = true; neuEl.innerHTML = '';
@@ -2982,10 +2986,10 @@ function renderArtikel(){
     if(leer){
       leer.hidden = false;
       leer.textContent = suche
-        ? 'Nichts gefunden.'
+        ? txt('einkauf.nichts_gefunden')
         : (artHerkunft === 'manuell'
-            ? 'Noch nichts selbst angelegt. Neue Artikel entstehen von allein, sobald ihr sie in der Einkaufsliste eintippt.'
-            : 'Sobald Rezepte da sind, erscheinen hier ihre Zutaten.');
+            ? txt('einkauf.noch_nichts_selbst_angelegt_neue')
+            : txt('einkauf.sobald_rezepte_da_sind_erscheinen'));
     }
     zeichneArtAuswahl();
     return;
@@ -3018,7 +3022,7 @@ function renderArtikel(){
         (it.manuell ? '<button class="ci-del art-del" type="button" data-key="'+escapeHtml(k)+'" title="Aus dem Katalog löschen" aria-label="'+escapeHtml(it.name)+' löschen">🗑</button>' : '') +
       '</span>' +
       '<div class="art-fuss">' +
-        '<button class="market-tag-btn" type="button" data-key="'+escapeHtml(k)+'" data-name="'+escapeHtml(it.name)+'">'+(it.market?'🏬 '+escapeHtml(it.market):'🏬 Laden zuordnen')+'</button>' +
+        '<button class="market-tag-btn" type="button" data-key="'+escapeHtml(k)+'" data-name="'+escapeHtml(it.name)+'">'+(it.market?'🏬 '+escapeHtml(it.market):txt('einkauf.laden_zuordnen'))+'</button>' +
         zuhause +
       '</div>' +
       (it.recipes.length ? '<div class="in-recipes">'+it.recipes.map(n=>'<span class="in-tag">'+escapeHtml(n)+'</span>').join('')+'</div>' : '') +
@@ -3055,7 +3059,7 @@ function renderArtikel(){
     const k = e.currentTarget.dataset.key;
     const it = map[k];
     if(!it) return;
-    if(setzeAufListe([it.name])) showToast(it.name+' steht auf der Einkaufsliste');
+    if(setzeAufListe([it.name])) showToast(it.name+txt('einkauf.steht_auf_der_einkaufsliste'));
   }));
 
   /* Aus dem Katalog löschen — nur bei selbst angelegten Artikeln */
@@ -3067,7 +3071,7 @@ function renderArtikel(){
     state.customIngredients.splice(idx,1);
     const aus = artAuswahl.indexOf(k); if(aus >= 0) artAuswahl.splice(aus,1);
     saveCustomIngredients(); renderArtikel(); refreshIngNameDatalist();
-    showToast(backup.name+' aus dem Katalog gelöscht', ()=>{
+    showToast(backup.name+txt('einkauf.aus_dem_katalog_geloescht'), ()=>{
       state.customIngredients.splice(idx,0,backup);
       saveCustomIngredients(); renderArtikel(); refreshIngNameDatalist();
     });
@@ -3077,7 +3081,7 @@ function renderArtikel(){
   Array.prototype.forEach.call(box.querySelectorAll('.market-tag-btn'), b=>b.addEventListener('click', e=>{
     const key = e.currentTarget.dataset.key;
     const name = e.currentTarget.dataset.name;
-    const eingabe = prompt('In welchem Laden kauft ihr „'+name+'" meistens? (leer lassen, um es wieder zu entfernen)', marketOf(name));
+    const eingabe = prompt(txt('einkauf.in_welchem_laden_kauft_ihr')+name+txt('einkauf.meistens_leer_lassen_um_es'), marketOf(name));
     if(eingabe === null) return;
     const neu = eingabe.trim();
     if(neu) state.marketOverrides[key] = neu; else delete state.marketOverrides[key];
@@ -3104,8 +3108,8 @@ function zeichneArtAuswahl(){
   if(!artAuswahl.length){ leiste.hidden = true; return; }
   leiste.hidden = false;
   knopf.textContent = artAuswahl.length === 1
-    ? '1 Artikel auf die Liste'
-    : artAuswahl.length+' Artikel auf die Liste';
+    ? txt('einkauf.1_artikel_auf_die_liste')
+    : artAuswahl.length+txt('einkauf.artikel_auf_die_liste');
 }
 
 (function(){
@@ -3133,7 +3137,7 @@ function zeichneArtAuswahl(){
     const n = setzeAufListe(namen);
     artAuswahl = [];
     renderArtikel();
-    showToast(n === 1 ? '1 Artikel auf der Liste' : n+' Artikel auf der Liste');
+    showToast(n === 1 ? '1 Artikel auf der Liste' : n+txt('einkauf.artikel_auf_der_liste'));
   });
 })();
 
@@ -3175,7 +3179,7 @@ function renderShopVorschlaege(){
   if(!bekannt && roh.length >= 2){
     html += '<button class="vorschlag neu" type="button" data-name="'+escapeHtml(roh)+'">' +
       '<span class="v-plus">+</span>' +
-      '<span class="v-name">„'+escapeHtml(roh)+'" auf die Liste' +
+      '<span class="v-name">„'+escapeHtml(roh)+txt('einkauf.auf_die_liste_2') +
         '<span class="v-sub">wird als Artikel im Katalog angelegt</span>' +
       '</span>' +
     '</button>';
@@ -3197,7 +3201,7 @@ function uebernehmeSuchbegriff(name){
   const feld = document.getElementById('shopSearch');
   if(feld){ feld.value = ''; feld.focus(); }
   renderShopVorschlaege();
-  showToast(n ? sauber+' steht auf der Liste' : sauber+' steht schon auf der Liste');
+  showToast(n ? sauber+' steht auf der Liste' : sauber+txt('einkauf.steht_schon_auf_der_liste'));
 }
 
 (function(){
@@ -3280,7 +3284,7 @@ function faelligText(iso){
   const morgen = new Date(); morgen.setDate(morgen.getDate()+1);
   const morgenIso = morgen.getFullYear() + '-' + String(morgen.getMonth()+1).padStart(2,'0') + '-' + String(morgen.getDate()).padStart(2,'0');
   if(iso === morgenIso) return 'morgen';
-  if(iso < heute) return 'überfällig · ' + fmtDate(d);
+  if(iso < heute) return txt('notizen.ueberfaellig') + fmtDate(d);
   return fmtDate(d);
 }
 
@@ -3296,14 +3300,14 @@ function renderNotizUebersicht(){
   if(lage){
     lage.textContent = listen.length
       ? listen.length + (listen.length === 1 ? ' Liste · ' : ' Listen · ') + offenGesamt + ' offen'
-      : 'Noch nichts angelegt';
+      : txt('notizen.noch_nichts_angelegt');
   }
 
   if(!listen.length){
     box.innerHTML = '';
     if(leer){
       leer.hidden = false;
-      leer.textContent = 'Noch keine Liste. Was der Haushalt aufschreiben will, entscheidet er selbst.';
+      leer.textContent = txt('notizen.noch_keine_liste_was_der');
     }
     return;
   }
@@ -3316,7 +3320,7 @@ function renderNotizUebersicht(){
       '<button class="notiz-karte-btn" type="button" data-id="'+escapeHtml(l.id)+'">' +
         '<span class="nk-zeile">' +
           '<span class="nk-text">' +
-            '<span class="nk-name">'+escapeHtml(l.name || 'Ohne Namen')+'</span>' +
+            '<span class="nk-name">'+escapeHtml(l.name || txt('notizen.ohne_namen'))+'</span>' +
             '<span class="nk-zahl zahl">'+z.offen+' von '+z.gesamt+' offen</span>' +
           '</span>' +
           '<span class="nk-pfeil">›</span>' +
@@ -3343,7 +3347,7 @@ function renderNotizDetail(){
   const titel = document.getElementById('notizDetailTitel');
   const lage  = document.getElementById('notizDetailLage');
   const z = notizZaehlung(liste);
-  if(titel) titel.textContent = liste.name || 'Ohne Namen';
+  if(titel) titel.textContent = liste.name || txt('notizen.ohne_namen');
   if(lage)  lage.textContent  = z.offen + ' von ' + z.gesamt + ' offen';
 
   const alle = notizEintraege(liste);
@@ -3363,7 +3367,7 @@ function renderNotizDetail(){
           (istErledigt ? '' :
             '<span class="nz-fuss">' +
               (personVon(e.wer) ? personPunkt(e.wer, 'klein') + '<button class="nz-wer" type="button">'+escapeHtml(personVon(e.wer).name||'')+'</button> · ' : '') +
-              '<button class="nz-datum'+zustand+'" type="button">'+(e.faellig ? escapeHtml(faelligText(e.faellig)) : 'Fällig zuordnen')+'</button>' +
+              '<button class="nz-datum'+zustand+'" type="button">'+(e.faellig ? escapeHtml(faelligText(e.faellig)) : txt('notizen.faellig_zuordnen'))+'</button>' +
               (personen(true).length && !personVon(e.wer) ? ' · <button class="nz-wer" type="button">Wer?</button>' : '') +
             '</span>') +
         '</div>' +
@@ -3419,7 +3423,7 @@ function renderNotizDetail(){
     delete liste.eintraege[eid];
     saveNotizEintrag(lid, eid, null);
     renderNotizen();
-    showToast(sicherung.text + ' gelöscht', ()=>{
+    showToast(sicherung.text + txt('notizen.geloescht'), ()=>{
       state.notizen[lid].eintraege = state.notizen[lid].eintraege || {};
       state.notizen[lid].eintraege[eid] = sicherung;
       saveNotizEintrag(lid, eid, sicherung);
@@ -3478,7 +3482,7 @@ function renderNotizDetail(){
     erledigt.forEach(e=>{ sicherung[e.id] = (liste.eintraege||{})[e.id]; delete liste.eintraege[e.id]; });
     Object.keys(sicherung).forEach(eid=>saveNotizEintrag(lid, eid, null));
     renderNotizen();
-    showToast(erledigt.length + ' Erledigte gelöscht', ()=>{
+    showToast(erledigt.length + txt('notizen.erledigte_geloescht'), ()=>{
       state.notizen[lid].eintraege = state.notizen[lid].eintraege || {};
       Object.keys(sicherung).forEach(eid=>{
         state.notizen[lid].eintraege[eid] = sicherung[eid];
@@ -3519,12 +3523,12 @@ function renderNotizen(){
   renderNotizWerWahl();
   if(offeneNotizListe) renderNotizDetail(); else renderNotizUebersicht();
   /* Heute liest aus denselben Daten — abgeschirmt wie überall sonst. */
-  try{ renderHeuteAufgaben(); }catch(e){ console.warn('Aufgaben auf Heute:', e); }
+  try{ renderHeuteAufgaben(); }catch(e){ console.warn(txt('notizen.aufgaben_auf_heute'), e); }
 }
 
 /* ---------- Anlegen, umbenennen, löschen ---------- */
 function legeNotizListeAn(){
-  const name = prompt('Wie soll die Liste heißen?', '');
+  const name = prompt(txt('notizen.wie_soll_die_liste_heissen'), '');
   if(name === null) return;
   const sauber = name.trim();
   if(!sauber) return;
@@ -3541,7 +3545,7 @@ function legeNotizEintragAn(){
   const feld = document.getElementById('notizEintragText');
   if(!feld || !offeneNotizListe) return;
   const text = feld.value.trim();
-  if(!text){ feldFehler(feld, 'Ohne Text kann der Eintrag nicht angelegt werden.'); return; }
+  if(!text){ feldFehler(feld, txt('notizen.ohne_text_kann_der_eintrag')); return; }
   const liste = (state.notizen || {})[offeneNotizListe];
   if(!liste) return;
   const eid = neueId('p');
@@ -3569,7 +3573,7 @@ function legeNotizEintragAn(){
   if(um) um.addEventListener('click', ()=>{
     const liste = (state.notizen || {})[offeneNotizListe];
     if(!liste) return;
-    const name = prompt('Neuer Name der Liste:', liste.name || '');
+    const name = prompt(txt('notizen.neuer_name_der_liste'), liste.name || '');
     if(name === null) return;
     const sauber = name.trim();
     if(!sauber) return;
@@ -3584,13 +3588,13 @@ function legeNotizEintragAn(){
     const liste = (state.notizen || {})[lid];
     if(!liste) return;
     const z = notizZaehlung(liste);
-    if(z.gesamt && !confirm('Liste „'+(liste.name||'')+'" mit '+z.gesamt+' Einträgen löschen?')) return;
+    if(z.gesamt && !confirm('Liste „'+(liste.name||'')+'" mit '+z.gesamt+txt('notizen.eintraegen_loeschen'))) return;
     const sicherung = JSON.parse(JSON.stringify(liste));
     delete state.notizen[lid];
     saveNotizListe(lid, null);
     offeneNotizListe = null;
     renderNotizen();
-    showToast('Liste „'+(sicherung.name||'')+'" gelöscht', ()=>{
+    showToast('Liste „'+(sicherung.name||'')+txt('notizen.geloescht_2'), ()=>{
       state.notizen[lid] = sicherung;
       saveNotizListe(lid, sicherung);
       renderNotizen();
@@ -3767,7 +3771,7 @@ function renderPersonen(){
   box.innerHTML = alle.map(p=>{
     const offen = offenePerson === p.id;
     const meta = [];
-    if(p.uid) meta.push(p.uid === meineUid ? 'dein Konto' : 'mit Konto verknüpft');
+    if(p.uid) meta.push(p.uid === meineUid ? 'dein Konto' : txt('personen.mit_konto_verknuepft'));
     if(p.geburtstag) meta.push(fmtGeburtstag(p.geburtstag));
     if(p.ehemalig) meta.push('ehemalig');
     return '<li class="person-zeile'+(offen?' offen':'')+(p.ehemalig?' ehemalig':'')+'" data-id="'+escapeHtml(p.id)+'">' +
@@ -3874,7 +3878,7 @@ function renderPersonen(){
       p.ehemalig = true;
       savePersonFeld(id, 'ehemalig', true);
       renderPersonen(); renderNotizen();
-      showToast(sicherung.name+' ist jetzt ehemalig — bestehende Zuordnungen bleiben', ()=>{
+      showToast(sicherung.name+txt('personen.ist_jetzt_ehemalig_bestehende_zuordnungen'), ()=>{
         delete state.personen[id].ehemalig;
         savePersonFeld(id, 'ehemalig', null);
         renderPersonen(); renderNotizen();
@@ -3885,7 +3889,7 @@ function renderPersonen(){
     savePerson(id, null);
     if(offenePerson === id) offenePerson = null;
     renderPersonen(); renderNotizen();
-    showToast(sicherung.name+' gelöscht', ()=>{
+    showToast(sicherung.name+txt('personen.geloescht'), ()=>{
       state.personen[id] = sicherung;
       savePerson(id, sicherung);
       renderPersonen(); renderNotizen();
@@ -3903,9 +3907,9 @@ function legePersonAn(){
   const feld = document.getElementById('personName');
   if(!feld) return;
   const name = feld.value.trim();
-  if(!name){ feldFehler(feld, 'Ohne Namen lässt sich niemand anlegen.'); return; }
+  if(!name){ feldFehler(feld, txt('personen.ohne_namen_laesst_sich_niemand')); return; }
   if(personen().some(p=>(p.name||'').toLowerCase() === name.toLowerCase())){
-    feldFehler(feld, '„'+name+'" gibt es schon.');
+    feldFehler(feld, '„'+name+txt('personen.gibt_es_schon'));
     return;
   }
   const id = neueId('pe');
@@ -3948,15 +3952,15 @@ function legePersonAn(){
 
 const KAL_ZWEIG = 'data/kalender/gemeinsam';
 const WOCHENTAGE_KURZ = ['Mo','Di','Mi','Do','Fr','Sa','So'];
-const MONATE = ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+const MONATE = ['Januar','Februar',txt('kalender.maerz'),'April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
 
 /* Fünf Wiederholungen, gespeichert als echte RRULE — damit ist der Export
    ohne Übersetzung möglich und eine spätere Erweiterung ändert keine Daten. */
 const WIEDERHOLUNGEN = [
   {id:'',                        label:'Einmalig'},
-  {id:'FREQ=DAILY',              label:'Täglich'},
-  {id:'FREQ=WEEKLY',             label:'Wöchentlich'},
-  {id:'FREQ=WEEKLY;INTERVAL=2',  label:'Alle 2 Wochen'},
+  {id:'FREQ=DAILY',              label:txt('kalender.taeglich')},
+  {id:'FREQ=WEEKLY',             label:txt('kalender.woechentlich')},
+  {id:'FREQ=WEEKLY;INTERVAL=2',  label:txt('kalender.alle_2_wochen')},
   {id:'FREQ=MONTHLY',            label:'Monatlich'}
 ];
 /* O-27 — eine Regel, die die App nicht kennt, ist trotzdem eine Wiederholung.
@@ -3965,7 +3969,7 @@ const WIEDERHOLUNGEN = [
    Blick in die Datenbank. Sie bekommt jetzt einen Namen; der Rohwert bleibt
    über `wdhRoh` erreichbar, damit ihn ein Titel-Attribut zeigen kann, statt
    ihn in die Zeile zu schreiben. */
-const WDH_UNBEKANNT = 'Eigene Wiederholung';
+const WDH_UNBEKANNT = txt('kalender.eigene_wiederholung');
 function istBekannteWdh(rrule){
   return WIEDERHOLUNGEN.some(w => w.id === (rrule || ''));
 }
@@ -4027,7 +4031,7 @@ const rruleGemeldet = {};
 function meldeUnbekannteRrule(rrule){
   if(!rrule || rruleGemeldet[rrule]) return;
   rruleGemeldet[rrule] = true;
-  console.warn('Butley: unbekannte RRULE „' + rrule + '" — die Serie wird im Kalender nur an ihrem Starttag gezeigt, steht im ICS-Feed aber vollständig.');
+  console.warn(txt('kalender.butley_unbekannte_rrule') + rrule + txt('kalender.die_serie_wird_im_kalender'));
 }
 
 /* Die geänderten Einzelausgaben einer Reihe. Sie tragen dieselbe `uid` und ein
@@ -4215,8 +4219,8 @@ function gewaehlteWdh(){
    Beim Speichern soll nicht das Aussehen des Formulars entscheiden, sondern
    ein Wert. Sonst hängt die Datenwirkung an einer CSS-Klasse. */
 const UMFAENGE = [
-  {id:'einzeln', label:'Nur dieser Termin'},
-  {id:'reihe',   label:'Ganze Reihe'}
+  {id:'einzeln', label:txt('kalender.nur_dieser_termin')},
+  {id:'reihe',   label:txt('kalender.ganze_reihe')}
 ];
 function renderTerminUmfang(serie){
   const feld = document.getElementById('terminUmfangFeld');
@@ -4244,8 +4248,8 @@ function renderTerminUmfang(serie){
      Angabe anzubieten, die beim Speichern verworfen wird. */
   if(wdh) wdh.hidden = einzeln;
   hint.textContent = einzeln
-    ? 'Die Reihe bleibt, wie sie ist — ' + wdhLabel(serie.rrule).toLowerCase() + ' ab ' + fmtTag(serie.datum) + '. Nur dieser eine Termin wird herausgelöst.'
-    : 'Ändert alle Termine der Reihe, auch die vergangenen. Das Datum verschiebt den Beginn.';
+    ? txt('kalender.die_reihe_bleibt_wie_sie') + wdhLabel(serie.rrule).toLowerCase() + ' ab ' + fmtTag(serie.datum) + txt('kalender.nur_dieser_eine_termin_wird')
+    : txt('kalender.aendert_alle_termine_der_reihe');
 
   /* Das Datumsfeld folgt der Wahl: „nur dieser" meint den angeklickten Tag,
      „ganze Reihe" den Beginn. Ohne das stünde bei „ganze Reihe" ein Datum, das
@@ -4272,7 +4276,7 @@ function oeffneTerminForm(id, ausgabe){
   const serie = (t && t.rrule) ? t : null;
   terminUmfang = 'einzeln';   // die enge, umkehrbare Wahl ist die Vorgabe
 
-  document.getElementById('terminFormTitel').textContent = t ? 'Termin bearbeiten' : 'Neuer Termin';
+  document.getElementById('terminFormTitel').textContent = t ? 'Termin bearbeiten' : txt('kalender.neuer_termin');
   document.getElementById('terminTitel').value  = t ? (t.titel||'') : '';
   document.getElementById('terminDatum').value  = t ? (terminAusgabe || t.datum || '') : (kalGewaehlt || heuteIso());
   document.getElementById('terminOrt').value    = t ? (t.ort||'') : '';
@@ -4300,9 +4304,9 @@ function schliesseTerminForm(){
 function speichereTermin(){
   const titelEl = document.getElementById('terminTitel');
   const titel = titelEl.value.trim();
-  if(!titel){ feldFehler(titelEl, 'Ohne Bezeichnung lässt sich der Termin nicht speichern.'); return; }
+  if(!titel){ feldFehler(titelEl, txt('kalender.ohne_bezeichnung_laesst_sich_der')); return; }
   const datum = document.getElementById('terminDatum').value;
-  if(!datum){ feldFehler(document.getElementById('terminDatum'), 'Ein Datum braucht der Termin.'); return; }
+  if(!datum){ feldFehler(document.getElementById('terminDatum'), txt('kalender.ein_datum_braucht_der_termin')); return; }
 
   const ganztag = document.getElementById('terminGanztag').checked;
   const zeit = ganztag ? '' : document.getElementById('terminZeit').value;
@@ -4358,7 +4362,7 @@ function speichereTermin(){
   schliesseTerminForm();
   renderKalender();
   schreibeIcs();
-  showToast(alt ? 'Termin geändert' : 'Termin angelegt');
+  showToast(alt ? 'Termin geändert' : txt('kalender.termin_angelegt'));
 }
 
 /* O-25 — eine Ausgabe aus der Reihe lösen. Zwei gezielte Schreibvorgänge nach
@@ -4403,7 +4407,7 @@ function loeseAusgabeHeraus(serie, felder){
   schreibeIcs();
 
   const zurueck = Object.assign({}, serie); delete zurueck.id;
-  showToast('Nur dieser Termin geändert', ()=>{
+  showToast(txt('kalender.nur_dieser_termin_geaendert'), ()=>{
     state.kalender.gemeinsam[serie.id] = zurueck;
     delete state.kalender.gemeinsam[id];
     saveTermin(serie.id, zurueck);
@@ -4452,7 +4456,7 @@ function loescheTermin(){
   schliesseTerminForm();
   renderKalender();
   schreibeIcs();
-  showToast('„'+(sicherung.titel||'')+'" gelöscht'+(ausnahmen.length ? ' (mit '+ausnahmen.length+' geänderten Terminen)' : ''), ()=>{
+  showToast('„'+(sicherung.titel||'')+txt('kalender.geloescht')+(ausnahmen.length ? ' (mit '+ausnahmen.length+' geänderten Terminen)' : ''), ()=>{
     state.kalender.gemeinsam[id] = sicherung;
     saveTermin(id, sicherung);
     ausnahmen.forEach(a=>{
@@ -4613,12 +4617,12 @@ function renderIcsAus(){
   if(!adresse){
     aus.innerHTML = '';
     if(neu) neu.hidden = true;
-    if(knopf) knopf.textContent = '🔗 Link erzeugen';
+    if(knopf) knopf.textContent = txt('kalender.link_erzeugen');
     return;
   }
   aus.innerHTML = '<p class="ics-link">'+escapeHtml(adresse)+'</p>';
   if(neu) neu.hidden = false;
-  if(knopf) knopf.textContent = '🔗 Link kopieren';
+  if(knopf) knopf.textContent = txt('kalender.link_kopieren');
 }
 
 (function(){
@@ -4630,29 +4634,29 @@ function renderIcsAus(){
       saveIcsToken(token);
       schreibeIcs();
       renderIcsAus();
-      showToast('Abo-Link erzeugt');
+      showToast(txt('kalender.abo_link_erzeugt'));
       return;
     }
     schreibeIcs();
     try{
       await navigator.clipboard.writeText(icsAdresse());
-      showToast('Link kopiert');
+      showToast(txt('kalender.link_kopiert'));
     }catch(e){
-      showToast('Kopieren ging nicht — Link steht oben zum Markieren');
+      showToast(txt('kalender.kopieren_ging_nicht_link_steht'));
     }
   });
   const neu = document.getElementById('icsNeu');
   if(neu) neu.addEventListener('click', ()=>{
     const alt = icsToken();
     if(!alt) return;
-    if(!confirm('Der bisherige Link wird ungültig. Alle, die den Kalender abonniert haben, müssen ihn neu einrichten. Fortfahren?')) return;
+    if(!confirm(txt('kalender.der_bisherige_link_wird_ungueltig'))) return;
     putWurzel('ics/' + alt, null);
     const token = neuesToken();
     state.settings.icsToken = token;
     saveIcsToken(token);
     schreibeIcs();
     renderIcsAus();
-    showToast('Neuer Link erzeugt, der alte ist ungültig');
+    showToast(txt('kalender.neuer_link_erzeugt_der_alte'));
   });
 })();
 
@@ -4884,7 +4888,7 @@ document.getElementById('kopfKonto').addEventListener('click', ()=>{
   an('schnellSpeichern', 'click', ()=>{
     const name = (feldName && feldName.value || '').trim();
     if(!name){
-      feldFehler(feldName, 'Ohne Namen lässt sich das Rezept später nicht wiederfinden.');
+      feldFehler(feldName, txt('navigation.ohne_namen_laesst_sich_das'));
       return;
     }
     const zutaten = (feldZutaten && feldZutaten.value || '')
@@ -4987,28 +4991,28 @@ document.addEventListener('visibilitychange', ()=>{
    Der Merker liegt in der Datenbank, nicht auf dem Geraet: Wer den Haushalt
    auf einem zweiten Telefon oeffnet, hat ihn schon eingerichtet. */
 const OB_SCHRITTE = [
-  { zustand:'begruessend', titel:'Sehr erfreut.',
-    text:'Ich bin Butley. Ich halte zusammen, was in deinem Haushalt anliegt — Termine, Essen, Einkauf und alles, was aufgeschrieben werden will.',
-    weiter:'Fangen wir an' },
-  { zustand:'erklaerend', titel:'Fangen wir mit dem Haushalt an.',
-    text:'Ein Haushalt ist der gemeinsame Ort. Du kannst später in mehreren sein und jederzeit wechseln.',
+  { zustand:'begruessend', titel:txt('navigation.sehr_erfreut'),
+    text:txt('navigation.ich_bin_butley_ich_halte'),
+    weiter:txt('navigation.fangen_wir_an') },
+  { zustand:'erklaerend', titel:txt('navigation.fangen_wir_mit_dem_haushalt'),
+    text:txt('navigation.ein_haushalt_ist_der_gemeinsame'),
     weiter:'Weiter', feld:true },
-  { zustand:'erklaerend', titel:'Wer gehört dazu?',
-    text:'Personen brauchen kein eigenes Konto. Kinder und Gäste bekommen einfach einen Namen und eine Farbe — anlegen kannst du sie jederzeit in den Einstellungen.',
+  { zustand:'erklaerend', titel:txt('navigation.wer_gehoert_dazu'),
+    text:txt('navigation.personen_brauchen_kein_eigenes_konto'),
     weiter:'Weiter' },
   /* O-20, Variante A (10.08.2026) — der Schritt baut nichts, er zeigt nur, was
      es schon gibt. Beide Importwege waren fertig und im Onboarding kam keiner
      von beiden vor; wer nicht zufaellig nach Essen navigiert, tippt ab. Er
      steht **vor** dem iPhone-Hinweis: Mitbringen gehoert zum Einrichten, der
      Hinweis zum Abschluss. */
-  { zustand:'erklaerend', titel:'Bring mit, was du schon hast.',
-    text:'Rezepte musst du nicht abtippen. Unter Essen lese ich eure Excel-Tabelle ein — oder du gibst mir einen Link, einen Text oder ein Foto, und ich hole das Rezept selbst heraus. Einkaufsartikel entstehen von allein, sobald du sie das erste Mal in die Liste tippst.',
-    weiter:'Gut zu wissen' },
-  { zustand:'ankuendigend', titel:'Eine Sache noch, wenn du ein iPhone hast.',
-    text:'Erinnerungen erreichen dich auf dem iPhone nur, wenn Butley auf dem Homescreen liegt. Teilen antippen, „Zum Home-Bildschirm“ wählen — das war es.',
+  { zustand:'erklaerend', titel:txt('navigation.bring_mit_was_du_schon'),
+    text:txt('navigation.rezepte_musst_du_nicht_abtippen'),
+    weiter:txt('navigation.gut_zu_wissen') },
+  { zustand:'ankuendigend', titel:txt('navigation.eine_sache_noch_wenn_du'),
+    text:txt('navigation.erinnerungen_erreichen_dich_auf_dem'),
     weiter:'Verstanden', hinweis:true },
-  { zustand:'bestaetigend', titel:'Alles bereit.',
-    text:'Du landest jetzt auf „Heute“. Dort steht, was ansteht — und wenn nichts ansteht, steht dort nichts.',
+  { zustand:'bestaetigend', titel:txt('navigation.alles_bereit'),
+    text:txt('navigation.du_landest_jetzt_auf_heute'),
     weiter:'Los' }
 ];
 let obIndex = 0;
@@ -5139,7 +5143,7 @@ function renderHeute(){
       const q = restenQuelle(wk, e);
       const r = q && q.id ? state.recipes.find(x=>x.id === q.id) : null;
       zeilen.push(schieneEssen(sl.label,
-        '<span class="sch-art">Reste</span> ' + escapeHtml(r ? r.name : (e.text || 'vom Vortag')), null));
+        '<span class="sch-art">Reste</span> ' + escapeHtml(r ? r.name : (e.text || txt('navigation.vom_vortag'))), null));
       return;
     }
     const r = state.recipes.find(x=>x.id === e.id);
@@ -5172,8 +5176,8 @@ function renderHeute(){
 
   /* Termine und Aufgaben kommen aus Kalender und Notizen — abgeschirmt, damit
      keine der Zusatzansichten die uebrigen mitreisst (Kapitel 2.6, Regel 2) */
-  try{ renderHeuteTermine(); }catch(e){ console.warn('Termine auf Heute:', e); }
-  try{ renderHeuteAufgaben(); }catch(e){ console.warn('Aufgaben auf Heute:', e); }
+  try{ renderHeuteTermine(); }catch(e){ console.warn(txt('navigation.termine_auf_heute'), e); }
+  try{ renderHeuteAufgaben(); }catch(e){ console.warn(txt('navigation.aufgaben_auf_heute'), e); }
 
   /* ---- Einkauf ----
      Kapitel 3.2: offene Posten direkt abhakbar, nicht nur als Zahl. Vier
@@ -5236,7 +5240,7 @@ function renderHeute(){
     const teile = [];
     if(termineHeute) teile.push(termineHeute + (termineHeute === 1 ? ' Termin' : ' Termine'));
     if(abendRezept) teile.push('abends ' + abendRezept.name);
-    else if(abend && abend.kind === 'out') teile.push('abends auswärts');
+    else if(abend && abend.kind === 'out') teile.push(txt('navigation.abends_auswaerts'));
     if(offen.length) teile.push(offen.length + ' Posten');
     if(aufgabenHeute) teile.push(aufgabenHeute + (aufgabenHeute === 1 ? ' Aufgabe' : ' Aufgaben'));
 
@@ -5315,21 +5319,21 @@ window.addEventListener('focus', zurueckZurAktuellenWoche);
    an, der auf den aktuellen Haushalt zeigt (siehe database.rules.json + tritteUeberEinladungBei) */
 document.getElementById('copyInvite').addEventListener('click', async ()=>{
   const out = document.getElementById('inviteOut');
-  if(!auth.currentUser || !HAUSHALT_ID){ out.textContent = 'Bitte kurz warten, bis die Anmeldung fertig ist.'; return; }
-  out.textContent = 'Erzeuge Link …';
+  if(!auth.currentUser || !HAUSHALT_ID){ out.textContent = txt('navigation.bitte_kurz_warten_bis_die'); return; }
+  out.textContent = txt('navigation.erzeuge_link');
   try{
     const code = randId('', 24);
     await set(ref(db, 'einladungen/' + code), { haushalt: HAUSHALT_ID, erstelltVon: auth.currentUser.uid, erstellt: Date.now() });
     const link = location.origin + location.pathname + '#invite=' + code;
     try{
       await navigator.clipboard.writeText(link);
-      out.textContent = 'Kopiert. Auf dem anderen Gerät öffnen, dort ein Konto erstellen oder anmelden — tritt danach automatisch diesem Haushalt bei.';
+      out.textContent = txt('navigation.kopiert_auf_dem_anderen_geraet');
     }catch(e){
       out.textContent = link;
     }
     renderMemberList();
   }catch(e){
-    out.textContent = 'Konnte keinen Einladungslink erzeugen (' + (e.code || e.message) + ').';
+    out.textContent = txt('navigation.konnte_keinen_einladungslink_erzeugen') + (e.code || e.message) + ').';
   }
 });
 
@@ -5359,14 +5363,14 @@ document.getElementById('joinHhBtn').addEventListener('click', async ()=>{
   const out = document.getElementById('joinHhOut');
   const inp = document.getElementById('joinHhInput');
   const val = (inp.value || '').trim();
-  if(!auth.currentUser){ out.textContent = 'Bitte kurz warten, bis die Anmeldung fertig ist.'; return; }
-  if(!val){ out.textContent = 'Bitte eine Haushalts-ID oder einen Einladungscode eingeben.'; return; }
-  out.textContent = 'Prüfe …';
+  if(!auth.currentUser){ out.textContent = txt('navigation.bitte_kurz_warten_bis_die'); return; }
+  if(!val){ out.textContent = txt('navigation.bitte_eine_haushalts_id_oder'); return; }
+  out.textContent = txt('navigation.pruefe');
   try{
     let hhId;
     if(/^hh-/.test(val)){
       const ok = await versucheClaim(val, auth.currentUser.uid);
-      if(!ok) throw { message: 'Diese Haushalts-ID gehört schon zu einem Konto. Fragt stattdessen nach einem Einladungslink.' };
+      if(!ok) throw { message: txt('navigation.diese_haushalts_id_gehoert_schon') };
       hhId = val;
     } else {
       hhId = await tritteUeberEinladungBei(val, auth.currentUser.uid);
@@ -5375,10 +5379,10 @@ document.getElementById('joinHhBtn').addEventListener('click', async ()=>{
     const mitgliedschaften = await ladeMitgliedschaften(auth.currentUser.uid);
     renderHhSwitch(mitgliedschaften);
     loadState();
-    out.textContent = 'Beigetreten — ihr seht jetzt „' + aktivesHaushaltName + '“.';
+    out.textContent = txt('navigation.beigetreten_ihr_seht_jetzt') + aktivesHaushaltName + '“.';
     inp.value = '';
   }catch(e){
-    out.textContent = e.message || ('Beitreten fehlgeschlagen (' + (e.code || '') + ').');
+    out.textContent = e.message || (txt('navigation.beitreten_fehlgeschlagen') + (e.code || '') + ').');
   }
 });
 
@@ -5386,10 +5390,10 @@ document.getElementById('joinHhBtn').addEventListener('click', async ()=>{
    23. Einstellungen: Haushaltsname, eigenes Profil (Name/E-Mail/Passwort)
    ========================================================================= */
 const AUTH_ERR_DE_2 = {
-  'auth/requires-recent-login': 'Das geht aus Sicherheitsgründen nur kurz nach dem Anmelden. Einmal ab- und wieder anmelden, dann nochmal versuchen.',
-  'auth/email-already-in-use': 'Diese E-Mail-Adresse wird schon von einem anderen Konto benutzt.',
-  'auth/credential-already-in-use': 'Für dieses Konto ist schon ein Passwort hinterlegt.',
-  'auth/provider-already-linked': 'Für dieses Konto ist schon ein Passwort hinterlegt.'
+  'auth/requires-recent-login': txt('einstellungen.das_geht_aus_sicherheitsgruenden_nur'),
+  'auth/email-already-in-use': txt('einstellungen.diese_e_mail_adresse_wird'),
+  'auth/credential-already-in-use': txt('einstellungen.fuer_dieses_konto_ist_schon'),
+  'auth/provider-already-linked': txt('einstellungen.fuer_dieses_konto_ist_schon')
 };
 function authErrText2(err){
   return AUTH_ERR_DE_2[err.code] || AUTH_ERR_DE[err.code] || ('Fehlgeschlagen (' + (err.code || err.message) + ').');
@@ -5445,9 +5449,9 @@ function zeichneFigur(el, zustand){
 }
 
 const BUTLEY_TEXT = {
-  voll:  'Begrüßung, leere Zustände und Ankündigungen.',
-  hilfe: 'Erscheint nur, wenn du das Fragezeichen antippst.',
-  aus:   'Keine Figur. Die Hilfe bleibt als reines Fragezeichen erhalten.'
+  voll:  txt('einstellungen.begruessung_leere_zustaende_und_ankuendigungen'),
+  hilfe: txt('einstellungen.erscheint_nur_wenn_du_das'),
+  aus:   txt('einstellungen.keine_figur_die_hilfe_bleibt')
 };
 const BUTLEY_ZUSTAND = { voll:'begruessend', hilfe:'ruhend', aus:'schlafend' };
 
@@ -5500,18 +5504,18 @@ let loeschBestaetigt = false;
   const out = document.getElementById('hhLoeschenOut');
   if(btn) btn.addEventListener('click', async ()=>{
     if(meineRolle !== 'owner'){
-      if(out) out.textContent = 'Nur der Eigentümer dieses Haushalts kann ihn löschen.';
+      if(out) out.textContent = txt('einstellungen.nur_der_eigentuemer_dieses_haushalts');
       return;
     }
     if(!loeschBestaetigt){
       loeschBestaetigt = true;
-      btn.textContent = 'Wirklich löschen — endgültig';
+      btn.textContent = txt('einstellungen.wirklich_loeschen_endgueltig');
       btn.classList.remove('btn-soft'); btn.classList.add('btn-primary');
-      if(out) out.textContent = 'Rezepte, Pläne, Listen, Notizen und Termine dieses Haushalts sind danach weg — auch für alle anderen Mitglieder. Nochmal tippen bestätigt, ein Bereichswechsel bricht ab.';
+      if(out) out.textContent = txt('einstellungen.rezepte_plaene_listen_notizen_und');
       return;
     }
     btn.disabled = true;
-    if(out) out.textContent = 'Wird gelöscht …';
+    if(out) out.textContent = txt('einstellungen.wird_geloescht');
     try{
       const uidsSnap = await get(ref(db, 'haushalte/' + HAUSHALT_ID + '/members'));
       const uids = uidsSnap.exists() ? Object.keys(uidsSnap.val()) : [];
@@ -5524,7 +5528,7 @@ let loeschBestaetigt = false;
       location.reload();
     }catch(err){
       btn.disabled = false;
-      if(out) out.textContent = 'Löschen fehlgeschlagen (' + (err.message || err) + '). Der Haushalt ist unverändert.';
+      if(out) out.textContent = txt('einstellungen.loeschen_fehlgeschlagen') + (err.message || err) + txt('einstellungen.der_haushalt_ist_unveraendert');
     }
   });
 }
@@ -5536,7 +5540,7 @@ function loeschBestaetigungZuruecknehmen(){
   loeschBestaetigt = false;
   const btn = document.getElementById('hhLoeschen');
   const out = document.getElementById('hhLoeschenOut');
-  if(btn){ btn.textContent = 'Haushalt löschen'; btn.classList.remove('btn-primary'); btn.classList.add('btn-soft'); }
+  if(btn){ btn.textContent = txt('einstellungen.haushalt_loeschen'); btn.classList.remove('btn-primary'); btn.classList.add('btn-soft'); }
   if(out) out.textContent = '';
 }
 
@@ -5562,7 +5566,7 @@ function renderSettingsTab(){
     loesch.disabled = !binIchOwnerHh;
     const loeschOut = document.getElementById('hhLoeschenOut');
     if(loeschOut && !binIchOwnerHh){
-      loeschOut.textContent = 'Nur der Eigentümer dieses Haushalts kann ihn löschen.';
+      loeschOut.textContent = txt('einstellungen.nur_der_eigentuemer_dieses_haushalts');
     }
   }
 
@@ -5580,25 +5584,25 @@ function renderSettingsTab(){
     const binIchOwner = meineRolle === 'owner';
     if(hhSave) hhSave.disabled = !binIchOwner;
     if(hhHint) hhHint.textContent = binIchOwner
-      ? 'So heißt euer Haushalt in der Übersicht und für alle Mitglieder.'
-      : 'Nur der Eigentümer dieses Haushalts kann den Namen ändern.';
+      ? txt('einstellungen.so_heisst_euer_haushalt_in')
+      : txt('einstellungen.nur_der_eigentuemer_dieses_haushalts_2');
   }
 
   const pwLabel = document.getElementById('profilPwLabel');
   const hatPasswort = !!(auth.currentUser && auth.currentUser.providerData.some(p=>p.providerId==='password'));
-  if(pwLabel) pwLabel.textContent = hatPasswort ? 'Passwort ändern' : 'Passwort hinzufügen (bisher nur Google-Anmeldung)';
+  if(pwLabel) pwLabel.textContent = hatPasswort ? 'Passwort ändern' : txt('einstellungen.passwort_hinzufuegen_bisher_nur_google');
   const pwBtn = document.getElementById('profilPwSave');
-  if(pwBtn) pwBtn.textContent = hatPasswort ? 'Speichern' : 'Hinzufügen';
+  if(pwBtn) pwBtn.textContent = hatPasswort ? 'Speichern' : txt('einstellungen.hinzufuegen');
 
 
   /* Haushaltsname und Initialen stehen seit B1 in der Kopfzeile. */
-  try{ renderKopfzeile(); }catch(e){ console.warn('Kopfzeile konnte nicht gezeichnet werden:', e); }
+  try{ renderKopfzeile(); }catch(e){ console.warn(txt('einstellungen.kopfzeile_konnte_nicht_gezeichnet_werden'), e); }
 }
 
 document.getElementById('hhNameSave').addEventListener('click', async ()=>{
   const out = document.getElementById('hhNameOut');
   const val = (document.getElementById('hhNameInput').value || '').trim();
-  if(!val){ out.textContent = 'Bitte einen Namen eintragen.'; return; }
+  if(!val){ out.textContent = txt('einstellungen.bitte_einen_namen_eintragen'); return; }
   try{
     await set(ref(db, 'haushalte/' + HAUSHALT_ID + '/meta/name'), val);
     aktivesHaushaltName = val;
@@ -5614,7 +5618,7 @@ document.getElementById('hhNameSave').addEventListener('click', async ()=>{
 document.getElementById('profilNameSave').addEventListener('click', async ()=>{
   const out = document.getElementById('profilNameOut');
   const val = (document.getElementById('profilNameInput').value || '').trim();
-  if(!val){ out.textContent = 'Bitte einen Namen eintragen.'; return; }
+  if(!val){ out.textContent = txt('einstellungen.bitte_einen_namen_eintragen'); return; }
   out.textContent = 'Speichere …';
   try{
     await updateProfile(auth.currentUser, { displayName: val });
@@ -5632,16 +5636,16 @@ document.getElementById('profilNameSave').addEventListener('click', async ()=>{
 document.getElementById('profilEmailSave').addEventListener('click', async ()=>{
   const out = document.getElementById('profilEmailOut');
   const val = (document.getElementById('profilEmailInput').value || '').trim();
-  if(!val){ out.textContent = 'Bitte eine neue E-Mail-Adresse eintragen.'; return; }
-  out.textContent = 'Ändere …';
+  if(!val){ out.textContent = txt('einstellungen.bitte_eine_neue_e_mail'); return; }
+  out.textContent = txt('einstellungen.aendere');
   try{
     await updateEmail(auth.currentUser, val);
     document.getElementById('profilEmailInput').value = '';
     renderSettingsTab();
-    out.textContent = 'Gespeichert — künftig mit ' + val + ' anmelden.';
+    out.textContent = txt('einstellungen.gespeichert_kuenftig_mit') + val + ' anmelden.';
   }catch(e){
     out.textContent = (e.code === 'auth/operation-not-allowed')
-      ? 'Firebase verlangt hier eine Bestätigung per Link statt einer direkten Änderung — dieses Projekt hat "Email enumeration protection" aktiv. Für jetzt: E-Mail-Adresse stattdessen direkt in der Firebase-Konsole unter Authentication ändern.'
+      ? txt('einstellungen.firebase_verlangt_hier_eine_bestaetigung')
       : authErrText2(e);
   }
 });
@@ -5649,7 +5653,7 @@ document.getElementById('profilEmailSave').addEventListener('click', async ()=>{
 document.getElementById('profilPwSave').addEventListener('click', async ()=>{
   const out = document.getElementById('profilPwOut');
   const val = document.getElementById('profilPwInput').value;
-  if(!val || val.length < 6){ out.textContent = 'Mindestens 6 Zeichen eintragen.'; return; }
+  if(!val || val.length < 6){ out.textContent = txt('einstellungen.mindestens_6_zeichen_eintragen'); return; }
   out.textContent = 'Speichere …';
   try{
     const hatPasswort = auth.currentUser.providerData.some(p=>p.providerId==='password');
@@ -5660,7 +5664,7 @@ document.getElementById('profilPwSave').addEventListener('click', async ()=>{
       renderSettingsTab();
     }
     document.getElementById('profilPwInput').value = '';
-    out.textContent = hatPasswort ? 'Gespeichert.' : 'Hinzugefügt — ihr könnt euch jetzt auch mit E-Mail und Passwort anmelden.';
+    out.textContent = hatPasswort ? 'Gespeichert.' : txt('einstellungen.hinzugefuegt_ihr_koennt_euch_jetzt');
   }catch(e){
     out.textContent = authErrText2(e);
   }

@@ -10,12 +10,20 @@ Fuenf Regeln, alle aus echten Vorfaellen beim Bau von C1:
 1. Jeder Schluessel im HTML steht im Katalog.
    Sonst schreibt uebersetzeSeite() den Schluesselnamen auf den Bildschirm.
 
+0. Der Name txt ist reserviert und darf nirgends als Bezeichner stehen.
+   Die Funktion heisst nicht t, weil `t` in app.js seit dem Kalender fuer einen
+   Termin steht - an 28 Stellen, als Parameter in werText(t), werPunkte(t),
+   terminAmTag(t) und in einem Dutzend map(t=>...). Der erste Anlauf von C1b
+   hat genau dort t('schluessel') eingesetzt, und der Kalender baute sein
+   Raster nicht mehr auf. Wird txt eines Tages als Variablenname benutzt,
+   passiert dasselbe still wieder - deshalb diese Regel.
+
 2. Der Text im HTML ist zeichengleich mit dem Text im Katalog.
    Das HTML traegt den deutschen Text weiterhin (erster Frame, Rueckfall ohne
    Modul). Zwei Orte fuer denselben Satz laufen auseinander, sobald jemand nur
    einen davon anfasst - dieselbe Falle wie bei K-13. Diese Regel schliesst sie.
 
-3. Jeder t(...)-Aufruf in app.js hat einen Eintrag.
+3. Jeder txt(...)-Aufruf in app.js hat einen Eintrag.
    Meldungen und Fehlertexte liegen in Pfaden, die kein Bild zeigt
    (Betriebsregel 12). Statisch ist es trotzdem pruefbar.
 
@@ -31,8 +39,25 @@ Fuenf Regeln, alle aus echten Vorfaellen beim Bau von C1:
    hat das gefunden, sondern der byteweise Bildvergleich; seitdem prueft es
    diese Regel.
 
+6. Der Rest ist gedeckelt.
+   C1b hat die Zeichenketten uebersetzt, die vollstaendig Text sind. Was in
+   einem zusammengesetzten HTML-Fragment steckt ('<p class="x">Text</p>'),
+   blieb stehen: Das herauszuschneiden hiesse, die Zeichenroutinen umzubauen,
+   und das ist ein eigener Schritt. Diese Regel haelt die Luecke fest, statt
+   sie zu vergessen (Betriebsregel 19) - wer neuen harten Text in app.js
+   schreibt, laesst den Pruefer anschlagen.
+
 Ausnahmen bekommen /* texte-ok: <Grund> */ in die Zeile.
 """
+
+# Stand nach C1b. Gezaehlt wird jede deutsche Zeichenkette in app.js ausserhalb
+# von Kommentaren, die keinen Schluessel hat - also auch die bewusst nicht
+# uebersetzten: CAT_KEYWORDS, NUTRITION_DB, SEED_RECIPES, IRREGULAR, die
+# Excel-Spaltennamen und die Texte, die in HTML-Fragmenten stecken.
+# Wird die Zahl kleiner, hier nachziehen. Wird sie groesser, ist harter Text
+# dazugekommen - dann entweder einen Schluessel vergeben oder die Zahl bewusst
+# erhoehen. Beides ist eine Entscheidung, kein Versehen.
+REST_ERWARTET = 431
 import re, sys
 from html.parser import HTMLParser
 
@@ -43,6 +68,39 @@ KATALOG = 'public/js/texte.js'
 
 def lies(p):
     return open(p, encoding='utf-8').read()
+
+
+def zaehle_rest(app):
+    """Deutsche Zeichenketten in app.js, die keinen Schluessel haben. Zaehlt nur,
+       was ausserhalb von Kommentaren steht und wie Text fuer Menschen aussieht."""
+    zeilen = app.split('\n')
+    komm, blk = set(), False
+    for i, z in enumerate(zeilen, 1):
+        t = z.strip()
+        if blk:
+            komm.add(i)
+            if '*/' in z:
+                blk = False
+            continue
+        if t.startswith('//'):
+            komm.add(i)
+        elif '/*' in z and '*/' not in z:
+            blk = True
+            komm.add(i)
+        elif t.startswith('/*'):
+            komm.add(i)
+    n = 0
+    for m in re.finditer(r"'((?:[^'\\\n]|\\.)*)'|\"((?:[^\"\\\n]|\\.)*)\"", app):
+        s = m.group(1) if m.group(1) is not None else m.group(2)
+        if app[:m.start()].count('\n') + 1 in komm:
+            continue
+        if len(s) < 2 or not re.search(r'[A-Za-zAeOeUeaeoeuess\u00c4\u00d6\u00dc\u00e4\u00f6\u00fc\u00df]', s):
+            continue
+        if not (re.search(r'[\u00c4\u00d6\u00dc\u00e4\u00f6\u00fc\u00df]', s)
+                or (' ' in s.strip() and re.search(r'[a-z] [a-zA-Z0-9\u00c4\u00d6\u00dc]', s))):
+            continue
+        n += 1
+    return n
 
 
 def katalog_lesen(quelle):
@@ -122,6 +180,12 @@ def main():
     fehler = []
     benutzt = set()
 
+    # 0: txt als Bezeichner
+    for m in re.finditer(r'\b(?:const|let|var|function)\s+txt\b|\(\s*txt\s*[,)]|\btxt\s*=>', app):
+        z = app[:m.start()].count('\n') + 1
+        fehler.append(f'{APP}:{z}  txt wird als Bezeichner benutzt: {m.group(0).strip()!r} '
+                      f'- der Name ist fuer die Textfunktion reserviert')
+
     # 1 + 2: HTML gegen Katalog
     for schluessel, text, art, z in p.paare:
         benutzt.add(schluessel)
@@ -137,12 +201,18 @@ def main():
                       f'es gibt nur {anzahl} ({schluessel})')
 
     # 3: t()/tf() in app.js
-    for m in re.finditer(r"\bt[f]?\(\s*'((?:[^'\\]|\\.)*)'", app):
+    for m in re.finditer(r"\btxtf?\(\s*'((?:[^'\\]|\\.)*)'", app):
         s = m.group(1)
         benutzt.add(s)
         if s not in katalog:
             z = app[:m.start()].count('\n') + 1
             fehler.append(f'{APP}:{z}  t(): Schluessel fehlt im Katalog: {s}')
+
+    # 6: Deckel fuer den nicht umgestellten Rest
+    rest = zaehle_rest(app)
+    if rest > REST_ERWARTET:
+        fehler.append(f'{APP}  {rest - REST_ERWARTET} neue deutsche Zeichenkette(n) ohne '
+                      f'Schluessel (erwartet hoechstens {REST_ERWARTET}, gezaehlt {rest})')
 
     # 4: unbenutzte Schluessel
     verwaist = sorted(set(katalog) - benutzt)
