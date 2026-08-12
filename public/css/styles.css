@@ -692,7 +692,8 @@
      Einstellungen. */
   .shop-inner input[type=checkbox],
   .kal-ganztag input[type=checkbox],
-  .mealrow input[type=checkbox]{
+  .mealrow input[type=checkbox],
+  .schalter-zeile input[type=checkbox]{
     appearance:none; -webkit-appearance:none;
     width:22px; height:22px; flex:none; margin:0; cursor:pointer;
     border:2px solid var(--linie); border-radius:50%;
@@ -701,10 +702,12 @@
   .shop-inner input[type=checkbox]{ width:24px; height:24px; } /* stil-ok: nur Groesse, appearance:none steht in der Regel darueber */
   .shop-inner input[type=checkbox]:hover,
   .kal-ganztag input[type=checkbox]:hover,
-  .mealrow input[type=checkbox]:hover{ border-color:var(--messing-aktion); }
+  .mealrow input[type=checkbox]:hover,
+  .schalter-zeile input[type=checkbox]:hover{ border-color:var(--messing-aktion); }
   .shop-inner input[type=checkbox]:checked,
   .kal-ganztag input[type=checkbox]:checked,
-  .mealrow input[type=checkbox]:checked{
+  .mealrow input[type=checkbox]:checked,
+  .schalter-zeile input[type=checkbox]:checked{
     border-color:var(--erledigt-farbe); background:var(--erledigt-farbe);
     background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5'/%3E%3C/svg%3E");
     background-size:15px 15px; background-position:center; background-repeat:no-repeat;
@@ -1621,3 +1624,18 @@
   .hh-switch button{ min-height:var(--hoehe-chip); padding:0 var(--abstand-m); border-radius:var(--radius-rund); border:1px solid var(--linie); display:inline-flex; align-items:center; justify-content:center; background:var(--flaeche-senke); color:var(--text-leise); font-size:14px; cursor:pointer; font-family:var(--schrift); }
   .hh-switch button.active{ background:var(--messing-aktion); color:var(--auf-aktion); border-color:var(--messing-aktion); }
   .nutri-portion-row input{ width:72px; margin-left:4px; min-height:var(--hoehe-control); padding:0 var(--abstand-s); text-align:center; border-radius:6px; border:1px solid var(--linie); background:var(--flaeche-feld); color:var(--text-haupt); }
+
+  /* Schalterzeile in den Einstellungen (C2). Kein zweites Kaestchen: Der Satz
+     aus .shop-inner / .kal-ganztag / .mealrow gilt hier mit, deshalb steht der
+     Selektor oben in jeder der drei Regeln — und zwar mit derselben
+     Pseudoklasse. Beim ersten Anlauf ging beim Einfuegen das `:checked`
+     verloren; die Gestaltung fuer "angehakt" galt dadurch fuer jedes
+     Mahlzeiten-Kaestchen, und alle vier sahen aus wie eingeschaltet. Gefunden
+     hat das der byteweise Bildvergleich, kein Pruefskript. */
+  .schalter-zeile{
+    display:flex; align-items:center; justify-content:space-between; gap:var(--abstand-m);
+    min-height:var(--hoehe-control); cursor:pointer; width:100%;
+  }
+  .schalter-zeile input[type=checkbox]:disabled{ opacity:.42; cursor:default; }
+  .schalter-zeile:has(input:disabled){ cursor:default; }
+

@@ -40,6 +40,8 @@ Fuenf Regeln, alle aus echten Vorfaellen beim Bau von C1:
    diese Regel.
 
 6. Der Rest ist gedeckelt.
+   Konsolenmeldungen (console.warn/error/log) zaehlen nicht mit: Sie richten
+   sich an den, der den Fehler sucht, nicht an den, der die App benutzt.
    C1b hat die Zeichenketten uebersetzt, die vollstaendig Text sind. Was in
    einem zusammengesetzten HTML-Fragment steckt ('<p class="x">Text</p>'),
    blieb stehen: Das herauszuschneiden hiesse, die Zeichenroutinen umzubauen,
@@ -63,6 +65,7 @@ from html.parser import HTMLParser
 
 HTML = 'public/index.html'
 APP = 'public/js/app.js'
+PUSH = 'public/js/push.js'
 KATALOG = 'public/js/texte.js'
 
 
@@ -92,7 +95,13 @@ def zaehle_rest(app):
     n = 0
     for m in re.finditer(r"'((?:[^'\\\n]|\\.)*)'|\"((?:[^\"\\\n]|\\.)*)\"", app):
         s = m.group(1) if m.group(1) is not None else m.group(2)
-        if app[:m.start()].count('\n') + 1 in komm:
+        nr = app[:m.start()].count('\n') + 1
+        if nr in komm:
+            continue
+        # Meldungen an die Konsole sind fuer den, der den Fehler sucht, nicht
+        # fuer den, der die App benutzt. Sie werden nie uebersetzt und zaehlen
+        # deshalb auch nicht gegen den Deckel.
+        if 'console.' in zeilen[nr - 1]:
             continue
         if len(s) < 2 or not re.search(r'[A-Za-zAeOeUeaeoeuess\u00c4\u00d6\u00dc\u00e4\u00f6\u00fc\u00df]', s):
             continue
@@ -171,6 +180,9 @@ class Leser(HTMLParser):
 
 def main():
     html, app, quelle = lies(HTML), lies(APP), lies(KATALOG)
+    # Weitere Module, die txt() benutzen. Neue Dateien gehoeren hierher —
+    # sonst gelten ihre Schluessel als unbenutzt und Regel 4 meldet falsch.
+    module = {PUSH: lies(PUSH)}
     katalog = katalog_lesen(quelle)
     ausnahmen = set(re.findall(r'texte-ok:\s*\S+\s*\|\s*(\S+)', quelle))
 
@@ -200,13 +212,20 @@ def main():
         fehler.append(f'{HTML}:{z}  data-t-teil zeigt auf Textknoten {idx}, '
                       f'es gibt nur {anzahl} ({schluessel})')
 
-    # 3: t()/tf() in app.js
-    for m in re.finditer(r"\btxtf?\(\s*'((?:[^'\\]|\\.)*)'", app):
-        s = m.group(1)
-        benutzt.add(s)
-        if s not in katalog:
-            z = app[:m.start()].count('\n') + 1
-            fehler.append(f'{APP}:{z}  t(): Schluessel fehlt im Katalog: {s}')
+    # 3: txt()/txtf() in app.js und in jedem weiteren Modul
+    for datei, inhalt in [(APP, app)] + sorted(module.items()):
+        for m in re.finditer(r"\btxtf?\(\s*'((?:[^'\\]|\\.)*)'", inhalt):
+            s = m.group(1)
+            benutzt.add(s)
+            if s not in katalog:
+                z = inhalt[:m.start()].count('\n') + 1
+                fehler.append(f'{datei}:{z}  txt(): Schluessel fehlt im Katalog: {s}')
+
+    # 0 gilt in jedem Modul, nicht nur in app.js
+    for datei, inhalt in sorted(module.items()):
+        for m in re.finditer(r'\b(?:const|let|var|function)\s+txt\b|\(\s*txt\s*[,)]|\btxt\s*=>', inhalt):
+            z = inhalt[:m.start()].count('\n') + 1
+            fehler.append(f'{datei}:{z}  txt wird als Bezeichner benutzt: {m.group(0).strip()!r}')
 
     # 6: Deckel fuer den nicht umgestellten Rest
     rest = zaehle_rest(app)

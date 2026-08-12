@@ -494,6 +494,23 @@ export const TEXTE = {
     'suche.schliessen': 'Schließen',
     'suche.suchen': '🔍 Suchen …',
 
+    /* --- Benachrichtigungen (C2) --- */
+    'push.auf_diesem_geraet': 'Auf diesem Gerät',
+    'push.ausgeschaltet': 'Aus. Es geht nichts verloren — es steht alles in der App.',
+    'push.benachrichtigungen': 'Benachrichtigungen',
+    'push.browser_kann_das_nicht': 'Dieser Browser kann keine Benachrichtigungen anzeigen.',
+    'push.eingeschaltet': 'An. Sobald es etwas zu melden gibt, kommt es hier an.',
+    'push.erlaubnis_verweigert': 'Du hast Benachrichtigungen für Butley abgelehnt. Das lässt sich nur in den Einstellungen deines Browsers zurücknehmen.',
+    'push.erneuert': 'Die Anmeldung war abgelaufen und ist erneuert.',
+    'push.ging_nicht': 'Das hat nicht geklappt. Versuch es später noch einmal.',
+    'push.nur_vom_homescreen': 'Auf dem iPhone nur vom Homescreen aus: Teilen antippen, „Zum Home-Bildschirm“ wählen. Das ist eine Vorgabe von Apple, keine von uns.',
+    'push.probe_erklaerung': 'Zeigt eine Benachrichtigung, wie sie später ankommt.',
+    'push.probe_senden': 'Probe senden',
+    'push.probe_text': 'So sieht eine Nachricht aus. Wenn du das liest, ist alles eingerichtet.',
+    'push.probe_titel': 'Butley meldet sich',
+    'push.toast_an': 'Benachrichtigungen sind an',
+    'push.toast_aus': 'Benachrichtigungen sind aus',
+
     /* --- Meldungen und Rückgängig --- */
     'meldung.rueckgaengig': 'Rückgängig',
 

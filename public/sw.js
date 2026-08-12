@@ -1,7 +1,7 @@
 /* Butley – Service Worker
    Shell wird gecacht, damit die App auch ohne Netz startet.
    Die Daten selbst kommen von Firebase und werden dort nie gecacht. */
-const CACHE = 'butley-v24';
+const CACHE = 'butley-v25';
 const SHELL = [
   './',
   './index.html',
@@ -9,6 +9,7 @@ const SHELL = [
   './js/app.js',
   './js/figur.js',
   './js/texte.js',
+  './js/push.js',
   './manifest.webmanifest',
   './fonts/literata-600.woff2',
   './icons/icon-192.png',
@@ -85,7 +86,7 @@ self.addEventListener('fetch', e=>{
      zusammen unter 300 kB; der Preis ist ein Bruchteil einer Sekunde beim
      Start, der Gewinn ist, dass "neu laden" wieder bedeutet, was es sagt.
      Schriften und Symbole bleiben Cache zuerst - die aendern sich fast nie. */
-  const wechselhaft = /\/(app|figur|texte)\.js$|\/styles\.css$/.test(url.pathname);
+  const wechselhaft = /\/(app|figur|texte|push)\.js$|\/styles\.css$/.test(url.pathname);
   if(wechselhaft){
     e.respondWith(
       fetch(req).then(res=>{
@@ -106,3 +107,52 @@ self.addEventListener('fetch', e=>{
     })
   );
 });
+
+/* ---------- Push (C2, Kapitel 3.7) ----------
+
+   Zwei Ereignisse, mehr braucht es nicht: Eine Nachricht kommt an, und jemand
+   tippt sie an.
+
+   `userVisibleOnly: true` steht im Abo, und die Browser nehmen das wörtlich:
+   Wer ein push-Ereignis empfängt und nichts anzeigt, bekommt vom Push-Dienst
+   eine Verwarnung und nach mehreren Malen kein Abo mehr. Deshalb zeigt der
+   catch-Zweig unten lieber eine allgemeine Meldung als gar keine — eine
+   unschöne Benachrichtigung ist besser als ein stillgelegtes Abo. */
+
+self.addEventListener('push', e=>{
+  let d = {};
+  try { d = e.data ? e.data.json() : {}; } catch(err){ d = {}; }
+  const titel = d.titel || 'Butley';
+  const optionen = {
+    body: d.text || '',
+    icon: 'icons/icon-192.png',
+    badge: 'icons/icon-96.png',
+    /* Gleiche Kennung ersetzt die vorige Meldung, statt eine zweite daneben zu
+       legen. Ohne das stapeln sich bei einer Einkaufsliste, die dreimal
+       nacheinander geändert wird, drei Meldungen mit demselben Inhalt. */
+    tag: d.tag || 'butley',
+    data: { bereich: d.bereich || 'heute' }
+  };
+  e.waitUntil(self.registration.showNotification(titel, optionen));
+});
+
+self.addEventListener('notificationclick', e=>{
+  e.notification.close();
+  const bereich = (e.notification.data && e.notification.data.bereich) || 'heute';
+  const ziel = './#' + bereich;
+  /* Ein offenes Fenster wird nach vorn geholt, statt ein zweites zu öffnen.
+     Auf dem Homescreen-iPhone gibt es ohnehin nur eines; am Schreibtisch wäre
+     ein zweiter Tab derselben App der schnellste Weg zu zwei Zuständen, die
+     sich gegenseitig überschreiben. */
+  e.waitUntil((async ()=>{
+    const fenster = await self.clients.matchAll({ type:'window', includeUncontrolled:true });
+    for(const f of fenster){
+      if(f.url.indexOf(self.registration.scope) === 0 && 'focus' in f){
+        try { await f.navigate(ziel); } catch(err){ /* navigate ist nicht überall erlaubt */ }
+        return f.focus();
+      }
+    }
+    if(self.clients.openWindow) return self.clients.openWindow(ziel);
+  })());
+});
+

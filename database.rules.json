@@ -26,7 +26,7 @@
     "ics": {
       "$token": {
         ".read": true,
-        ".write": "auth != null && $token.length >= 16 && ( !newData.exists() || ( newData.hasChildren(['hh','text']) && newData.child('text').isString() && newData.child('text').val().length < 400000 && root.child('haushalte/' + newData.child('hh').val() + '/members/' + auth.uid).exists() ) )"
+        ".write": "auth != null && $token.length >= 16 && ( ( newData.exists() && newData.hasChildren(['hh','text']) && newData.child('text').isString() && newData.child('text').val().length < 400000 && root.child('haushalte/' + newData.child('hh').val() + '/members/' + auth.uid).exists() && root.child('haushalte/' + newData.child('hh').val() + '/data/settings/icsToken').val() === $token ) || ( !newData.exists() && data.exists() && root.child('haushalte/' + data.child('hh').val() + '/members/' + auth.uid).exists() && root.child('haushalte/' + data.child('hh').val() + '/data/settings/icsToken').val() === $token ) )"
       }
     },
 
@@ -45,7 +45,16 @@
           }
         },
 
-        "data": { ".validate": true },
+        "data": {
+          ".validate": true,
+
+          "push": {
+            "$uid3": {
+              ".validate": "!newData.exists() || ( newData.hasChildren(['endpunkt','p256dh','auth','angelegt']) && newData.child('endpunkt').isString() && newData.child('endpunkt').val().length < 800 && newData.child('endpunkt').val().beginsWith('https://') && newData.child('p256dh').isString() && newData.child('p256dh').val().length < 200 && newData.child('auth').isString() && newData.child('auth').val().length < 60 && newData.child('angelegt').isNumber() )"
+            }
+          }
+        },
+
         "images": {
           "$rezept": { ".validate": "newData.isString() && newData.val().length < 400000" }
         }

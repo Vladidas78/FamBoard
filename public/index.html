@@ -709,6 +709,27 @@
         </div>
       </section>
 
+      <!-- Benachrichtigungen (C2, Kapitel 3.7). Steht vor "Haushalt", weil es eine
+           Einstellung dieser Person auf diesem Geraet ist und keine des Haushalts
+           (K-6, P-10). Der Grund fuer einen ausgegrauten Schalter steht als Text
+           daneben, nicht als title — Betriebsregel 18. -->
+      <section class="gruppe" id="gruppeBenachrichtigungen">
+        <div class="gruppen-kopf"><h3 data-t="push.benachrichtigungen">Benachrichtigungen</h3></div>
+        <div class="karte karte-liste">
+          <div class="reihe reihe-block">
+            <label class="schalter-zeile" for="pushAn">
+              <span data-t="push.auf_diesem_geraet">Auf diesem Gerät</span>
+              <input type="checkbox" id="pushAn">
+            </label>
+            <span class="reihe-unter" id="pushGrund"></span>
+          </div>
+          <div class="reihe reihe-block" id="pushProbeZeile" hidden>
+            <button class="btn btn-soft btn-sm" id="pushProbe" type="button" data-t="push.probe_senden">Probe senden</button>
+            <span class="reihe-unter" data-t="push.probe_erklaerung">Zeigt eine Benachrichtigung, wie sie später ankommt.</span>
+          </div>
+        </div>
+      </section>
+
       <section class="gruppe">
         <div class="gruppen-kopf"><h3 data-t="einstellungen.haushalt">Haushalt</h3></div>
         <div class="karte karte-liste">

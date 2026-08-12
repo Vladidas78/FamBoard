@@ -9,6 +9,7 @@ import {
 import { getDatabase, ref, set, remove, get, onValue } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-database.js";
 import { FIGUR, FIGUR_VIEWBOX } from "./figur.js";
 import { txt, txtf, uebersetzeSeite } from "./texte.js";
+import * as Push from "./push.js";
 
 /* Die ausgezeichneten Stellen im HTML einmal aus dem Katalog schreiben.
 
@@ -313,6 +314,10 @@ async function aktiviereHaushalt(hhId){
      providerData liess renderSettingsTab werfen, und die App kam nie hoch. */
   try{ renderMemberList(); }catch(e){ console.warn(txt('anmeldung.mitgliederliste_konnte_nicht_gezeichnet_werden'), e); }
   try{ renderSettingsTab(); }catch(e){ console.warn(txt('anmeldung.einstellungen_konnten_nicht_gezeichnet_werden'), e); }
+  /* Nach dem Anmelden einmal pruefen, ob das gespeicherte Push-Abo noch gilt
+     (C2). Bewusst ohne await und in einem eigenen Zweig: Es ist eine
+     Aufraeumarbeit, kein Teil des Anmeldepfads (Betriebsregel 14). */
+  pushAbgleichen().catch(e=>console.warn('[push] Abgleich:', e));
 }
 
 function renderHhSwitch(ids){
@@ -489,7 +494,8 @@ function emptyState(){
     customIngredients: [],     // { name } — Artikelstamm: selbst angelegte Artikel
     notizen: {},               // { listeId: { name, angelegt, eintraege: { id: {text, angelegt, erledigt?, faellig?, wer?} } } }
     personen: {},              // { personId: { name, farbe, angelegt, uid?, geburtstag?, ehemalig? } }
-    kalender: {gemeinsam:{}}   // { gemeinsam: { terminId: {…} } } — privat bleibt leer (K-5, K-9)
+    kalender: {gemeinsam:{}},  // { gemeinsam: { terminId: {…} } } — privat bleibt leer (K-5, K-9)
+    push: {}                   // { uid: { endpunkt, p256dh, auth, angelegt } } — ein Abo je Konto (C2)
   };
 }
 let state = emptyState();
@@ -868,6 +874,10 @@ function fromRemote(d){
   s.notizen  = d.notizen || {};
   s.personen = d.personen || {};
   s.kalender = {gemeinsam: (d.kalender && d.kalender.gemeinsam) || {}};
+  /* Push-Abos, je Konto eines (C2). Sie stehen unter data, damit der Zuhoerer,
+     der lokale Zwischenspeicher und die vorhandene Sicherheitsregel ohne
+     Zusatzarbeit greifen — dieselbe Ueberlegung wie bei den Personen (T-11). */
+  s.push = d.push || {};
   Object.keys(d.catOverrides || {}).forEach(k=>{ s.catOverrides[decKey(k)] = d.catOverrides[k]; });
   Object.keys(d.marketOverrides || {}).forEach(k=>{ s.marketOverrides[decKey(k)] = d.marketOverrides[k]; });
   Object.keys(d.weeks || {}).forEach(wk=>{
@@ -5546,6 +5556,11 @@ function loeschBestaetigungZuruecknehmen(){
 
 function renderSettingsTab(){
   renderDarstellung();
+  /* Abgeschirmt nach Betriebsregel 14: renderSettingsTab haengt im Anmeldepfad.
+     Der Push-Abschnitt fragt den Browser nach Erlaubnis- und Abo-Zustand, und
+     das kann auf einem Ersatzmodul oder in einem alten WebView werfen. Eine
+     reine Anzeige darf die Anmeldung nicht aufhalten. */
+  try { renderPush(); } catch(e){ console.warn('[push] Abschnitt nicht gezeichnet:', e); }
 
   const lage = document.getElementById('settingsLage');
   if(lage) lage.textContent = (aktivesHaushaltName && aktivesHaushaltName !== HAUSHALT_ID) ? aktivesHaushaltName : 'Haushalt';
@@ -5669,6 +5684,113 @@ document.getElementById('profilPwSave').addEventListener('click', async ()=>{
     out.textContent = authErrText2(e);
   }
 });
+
+/* =========================================================================
+   24. Benachrichtigungen (C2, Kapitel 3.7 · K-6 · P-10 · O-21)
+   Das Modul steht in js/push.js; hier haengt nur die Oberflaeche daran.
+   Gesendet wird noch nichts — die Ausloeser kommen mit C3, der Wecker nach
+   T-14 mit C4. Was hier schon geht: ein- und ausschalten und eine Probe.
+   ========================================================================= */
+
+/* Der Zweig, in dem das Abo dieses Kontos liegt. Ein Abo je Konto und Haushalt:
+   Wer sich auf einem zweiten Geraet anmeldet, ersetzt das erste — siehe O-31. */
+const pushZweig = () => 'data/push/' + (auth.currentUser ? auth.currentUser.uid : '');
+
+function pushGespeichert(){
+  const uid = auth.currentUser && auth.currentUser.uid;
+  return (uid && state.push && state.push[uid]) || null;
+}
+
+function renderPush(){
+  const gruppe  = document.getElementById('gruppeBenachrichtigungen');
+  const schalter= document.getElementById('pushAn');
+  const grundEl = document.getElementById('pushGrund');
+  const probe   = document.getElementById('pushProbeZeile');
+  if(!gruppe || !schalter || !grundEl) return;
+
+  const grund = Push.hindernis();
+  const an = !grund && !!pushGespeichert();
+
+  schalter.checked = an;
+  schalter.disabled = !!grund;
+  /* Der Grund steht als Text, nicht als title: button:disabled traegt
+     pointer-events:none, und auf dem Telefon gab es ohnehin nie einen Tooltip
+     (D-23, Betriebsregel 18). Ohne diesen Satz liest sich ein grauer Schalter
+     als kaputte App statt als Vorbedingung. */
+  grundEl.textContent = grund ? Push.hindernisText(grund)
+                              : (an ? txt('push.eingeschaltet') : txt('push.ausgeschaltet'));
+  if(probe) probe.hidden = !an;
+}
+
+/* Traegt das Abo ein oder aus. Beides schreibt genau einen Zweig (T-6). */
+async function pushEinschalten(){
+  const e = await Push.abonnieren();
+  if(!e.ok){
+    renderPush();
+    showToast(Push.hindernisText(e.grund) || txt('push.ging_nicht'));
+    return false;
+  }
+  await put(pushZweig(), e.daten);
+  showToast(txt('push.toast_an'));
+  return true;
+}
+
+async function pushAusschalten(){
+  await Push.abbestellen();
+  await put(pushZweig(), null);
+  showToast(txt('push.toast_aus'));
+}
+
+(function(){
+  const schalter = document.getElementById('pushAn');
+  if(schalter) schalter.addEventListener('change', async ()=>{
+    /* Die Erlaubnis wird nur aus dieser Geste heraus erfragt. iOS verwirft eine
+       Anfrage, die nicht an einem Klick haengt, wortlos — und ein Dialog beim
+       Laden waere ohnehin genau die Zudringlichkeit, die MD-15 ausschliesst. */
+    schalter.disabled = true;
+    try {
+      if(schalter.checked) await pushEinschalten();
+      else await pushAusschalten();
+    } catch(e){
+      console.warn('[push] Umschalten:', e);
+      showToast(txt('push.ging_nicht'));
+    }
+    schalter.disabled = false;
+    renderPush();
+  });
+
+  const probe = document.getElementById('pushProbe');
+  if(probe) probe.addEventListener('click', async ()=>{
+    try {
+      const ok = await Push.probeAnzeigen();
+      if(!ok) showToast(txt('push.ging_nicht'));
+    } catch(e){
+      console.warn('[push] Probe:', e);
+      showToast(txt('push.ging_nicht'));
+    }
+  });
+})();
+
+/* Nach dem Laden pruefen, ob das gespeicherte Abo noch gilt.
+
+   Ein Push-Dienst kann ein Abo jederzeit fallen lassen — nach einer
+   Neuinstallation, nach langem Nichtgebrauch. Dann steht in der Datenbank ein
+   Endpunkt, an den niemand mehr zustellen kann, und der Schalter zeigt "an",
+   ohne dass je etwas ankaeme. Dieselbe Bauart wie der Dunkelmodus vor B6:
+   vorhanden, dokumentiert, nie wirksam. */
+async function pushAbgleichen(){
+  if(!auth.currentUser || !BASE) return;
+  const gespeichert = pushGespeichert();
+  if(!gespeichert) return;
+  const lage = await Push.abgleichen(gespeichert);
+  if(lage.zustand === 'neu' && lage.daten){
+    await put(pushZweig(), lage.daten);
+    showToast(txt('push.erneuert'));
+  } else if(lage.zustand === 'aus'){
+    await put(pushZweig(), null);
+  }
+  renderPush();
+}
 
 /* Service Worker: sorgt dafür, dass die App auch ohne Netz startet */
 if('serviceWorker' in navigator && location.protocol.indexOf('http') === 0){
