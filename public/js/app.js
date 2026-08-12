@@ -8,6 +8,20 @@ import {
 } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-auth.js";
 import { getDatabase, ref, set, remove, get, onValue } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-database.js";
 import { FIGUR, FIGUR_VIEWBOX } from "./figur.js";
+import { t, tf, uebersetzeSeite } from "./texte.js";
+
+/* Die ausgezeichneten Stellen im HTML einmal aus dem Katalog schreiben.
+
+   Läuft auch für Deutsch, obwohl das HTML schon deutsch ist — siehe die
+   Begründung in texte.js. Kurz: Deckt der Katalog eine Stelle nicht, steht
+   der Schlüssel danach sichtbar im Bild, statt erst in Stufe 2 aufzufallen.
+
+   In try/catch, weil hier eine reine Anzeige vor dem gesamten Rest der Datei
+   steht: Betriebsregel 14 — der Anmeldepfad ist ein Datenpfad, und nichts,
+   was nur zeichnet, darf ihn blockieren. Ohne die Schirmung würde ein
+   einziger fehlerhafter Selektor die App im Login-Gate stehen lassen,
+   obwohl in der Datenbank alles liegt. */
+try { uebersetzeSeite(); } catch(e){ console.warn('[texte] Seite nicht übersetzt:', e); }
 
 const DAYS = ["Montag","Dienstag","Mittwoch","Donnerstag","Freitag","Samstag","Sonntag"];
 

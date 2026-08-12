@@ -1,13 +1,14 @@
 /* Butley – Service Worker
    Shell wird gecacht, damit die App auch ohne Netz startet.
    Die Daten selbst kommen von Firebase und werden dort nie gecacht. */
-const CACHE = 'butley-v22';
+const CACHE = 'butley-v23';
 const SHELL = [
   './',
   './index.html',
   './css/styles.css',
   './js/app.js',
   './js/figur.js',
+  './js/texte.js',
   './manifest.webmanifest',
   './fonts/literata-600.woff2',
   './icons/icon-192.png',
@@ -84,7 +85,7 @@ self.addEventListener('fetch', e=>{
      zusammen unter 300 kB; der Preis ist ein Bruchteil einer Sekunde beim
      Start, der Gewinn ist, dass "neu laden" wieder bedeutet, was es sagt.
      Schriften und Symbole bleiben Cache zuerst - die aendern sich fast nie. */
-  const wechselhaft = /\/(app|figur)\.js$|\/styles\.css$/.test(url.pathname);
+  const wechselhaft = /\/(app|figur|texte)\.js$|\/styles\.css$/.test(url.pathname);
   if(wechselhaft){
     e.respondWith(
       fetch(req).then(res=>{
