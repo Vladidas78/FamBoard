@@ -30,7 +30,9 @@ export const signInWithEmailAndPassword = ()=>Promise.resolve({ user: NUTZER });
 export const sendPasswordResetEmail = nichts;
 export const signInWithRedirect = nichts;
 export const getRedirectResult = ()=>Promise.resolve(null);
-export const updateProfile = nichts;
+/* Wie live: displayName bleibt am Konto haengen - der Wahlschritt (E2)
+   schreibt ihn, members-Eintraege und Anfragen lesen ihn danach. */
+export const updateProfile = (nutzer, daten)=>{ Object.assign(NUTZER, daten || {}); return Promise.resolve(); };
 export const updateEmail = nichts;
 export const updatePassword = nichts;
 export const linkWithCredential = nichts;

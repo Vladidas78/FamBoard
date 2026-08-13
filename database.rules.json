@@ -8,9 +8,19 @@
     },
 
     "einladungen": {
-      ".read": "auth != null",
       "$code": {
-        ".write": "auth != null && !data.exists() && newData.hasChildren(['haushalt','erstelltVon']) && newData.child('erstelltVon').val() === auth.uid && root.child('haushalte/' + newData.child('haushalt').val() + '/members/' + auth.uid).exists()"
+        ".read": "auth != null",
+        ".write": "auth != null && ( ( !data.exists() && newData.hasChildren(['haushalt','erstelltVon']) && newData.child('erstelltVon').val() === auth.uid && root.child('haushalte/' + newData.child('haushalt').val() + '/members/' + auth.uid).exists() ) || ( data.exists() && !newData.exists() && root.child('haushalte/' + data.child('haushalt').val() + '/members/' + auth.uid).exists() ) )"
+      }
+    },
+
+    "beitrittsanfragen": {
+      "$haushalt": {
+        ".read": "auth != null && root.child('haushalte/' + $haushalt + '/members/' + auth.uid).exists()",
+        "$anfrager": {
+          ".read": "auth != null && auth.uid === $anfrager",
+          ".write": "auth != null && ( ( auth.uid === $anfrager && !data.exists() && newData.hasChildren(['name','angefragt','status']) && newData.child('name').isString() && newData.child('name').val().length < 80 && newData.child('angefragt').isNumber() && newData.child('status').val() === 'offen' && !root.child('haushalte/' + $haushalt + '/members/' + auth.uid).exists() && root.child('haushalte/' + $haushalt + '/meta').exists() ) || ( auth.uid === $anfrager && !newData.exists() ) || ( root.child('haushalte/' + $haushalt + '/members/' + auth.uid + '/rolle').val() === 'owner' && ( !newData.exists() || newData.child('status').val() === 'angenommen' || newData.child('status').val() === 'abgelehnt' ) ) )"
+        }
       }
     },
 
@@ -41,7 +51,7 @@
 
         "members": {
           "$uid2": {
-            ".write": "auth != null && ( root.child('haushalte/' + $haushalt + '/members/' + auth.uid + '/rolle').val() === 'owner' || (auth.uid === $uid2 && !newData.exists()) || (auth.uid === $uid2 && !data.exists() && ( !root.child('haushalte/' + $haushalt + '/members').hasChildren() || (newData.child('viaCode').exists() && root.child('einladungen/' + newData.child('viaCode').val() + '/haushalt').val() === $haushalt) )) || (auth.uid === $uid2 && data.exists() && newData.child('rolle').val() === data.child('rolle').val()) )"
+            ".write": "auth != null && ( root.child('haushalte/' + $haushalt + '/members/' + auth.uid + '/rolle').val() === 'owner' || (auth.uid === $uid2 && !newData.exists()) || (auth.uid === $uid2 && !data.exists() && root.child('haushalte/' + $haushalt).exists() && ( !root.child('haushalte/' + $haushalt + '/members').hasChildren() || (newData.child('viaCode').exists() && root.child('einladungen/' + newData.child('viaCode').val() + '/haushalt').val() === $haushalt) )) || (auth.uid === $uid2 && data.exists() && newData.child('rolle').val() === data.child('rolle').val()) )"
           }
         },
 

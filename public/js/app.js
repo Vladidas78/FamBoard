@@ -169,8 +169,10 @@ function authSetMode(mode){
   authMode = mode;
   document.getElementById('authTabLogin').classList.toggle('active', mode==='login');
   document.getElementById('authTabRegister').classList.toggle('active', mode==='register');
-  document.getElementById('authClaimField').style.display = mode==='register' ? 'block' : 'none';
-  document.getElementById('authNameField').style.display = mode==='register' ? 'block' : 'none';
+  /* E2: Das Alt-ID-Feld und der Haushaltsname sind aus dem Formular heraus.
+     Die Registrierung legt keinen Haushalt mehr an — wohin es geht, entscheidet
+     danach der Wahlschritt. Die Alt-Uebernahme lebt weiter in den Einstellungen
+     („Weiterem Haushalt beitreten", hh-… wird dort zuerst als Claim versucht). */
   document.getElementById('authSubmit').textContent = mode==='register' ? 'Konto erstellen' : 'Anmelden';
   document.getElementById('authPassword').setAttribute('autocomplete', mode==='register' ? 'new-password' : 'current-password');
   authHideMessages();
@@ -233,14 +235,9 @@ document.getElementById('authForgot').addEventListener('click', async ()=>{
 
 document.getElementById('authGoogle').addEventListener('click', async ()=>{
   authHideMessages();
-  // Bei Google navigiert die Seite komplett weg und wieder zurück — Eingaben aus dem
-  // Formular (Alt-ID, Haushaltsname) zwischenspeichern, damit sie danach nicht weg sind
-  try{
-    if(authMode === 'register'){
-      sessionStorage.setItem('famboard.pendingClaim', document.getElementById('authClaimId').value.trim());
-      sessionStorage.setItem('famboard.pendingName', document.getElementById('authHaushaltName').value.trim());
-    }
-  }catch(e){}
+  // Bei Google navigiert die Seite komplett weg und wieder zurück. Seit E2 gibt es
+  // im Formular nichts mehr zu retten: Wohin ein neues Konto gehört, fragt der
+  // Wahlschritt nach der Rückkehr — der übersteht den Redirect von selbst.
   try{
     await signInWithRedirect(auth, new GoogleAuthProvider());
     // Seite lädt danach neu; getRedirectResult/onAuthStateChanged übernehmen den Rest
@@ -264,28 +261,97 @@ async function ladeMitgliedschaften(uid){
    (frisch angelegt oder ein verwaister Alt-Haushalt aus der Zeit vor dem Login) */
 async function versucheClaim(hhId, uid){
   try{
-    await set(ref(db, 'haushalte/' + hhId + '/members/' + uid), { rolle:'owner', beigetreten: Date.now() });
+    const eintrag = { rolle:'owner', beigetreten: Date.now() };
+    const name = meinAnzeigename();
+    if(name) eintrag.name = name;
+    await set(ref(db, 'haushalte/' + hhId + '/members/' + uid), eintrag);
     await set(ref(db, 'haushalte/' + hhId + '/meta'), { name:txt('anmeldung.mein_haushalt'), owner:uid, erstellt: Date.now() });
     await set(ref(db, 'users/' + uid + '/haushalte/' + hhId), true);
     return true;
   }catch(e){ return false; }
 }
 
+/* Der Kontoname wandert in jeden members-Eintrag, damit Mitgliederliste und
+   Beitrittsanfragen einen Namen zeigen koennen, ohne users/ lesen zu duerfen. */
+function meinAnzeigename(){
+  return (auth.currentUser && (auth.currentUser.displayName || '').trim()) || '';
+}
+
 async function tritteUeberEinladungBei(code, uid){
   const snap = await get(ref(db, 'einladungen/' + code));
   if(!snap.exists()) throw { message: txt('anmeldung.einladungslink_ist_ungueltig_oder_schon') };
   const hhId = snap.val().haushalt;
-  await set(ref(db, 'haushalte/' + hhId + '/members/' + uid), { rolle:'mitglied', beigetreten: Date.now(), viaCode: code });
+  const eintrag = { rolle:'mitglied', beigetreten: Date.now(), viaCode: code };
+  const name = meinAnzeigename();
+  if(name) eintrag.name = name;
+  await set(ref(db, 'haushalte/' + hhId + '/members/' + uid), eintrag);
   await set(ref(db, 'users/' + uid + '/haushalte/' + hhId), true);
+  /* E3: Ein eingeloester Code ist verbraucht. Loeschen duerfen laut Regeln nur
+     Mitglieder des Haushalts — das sind wir seit zwei Zeilen. Faellt das Loeschen
+     aus (alte Regeln noch scharf, kurzer Netzabriss), bleibt der Beitritt gueltig;
+     deshalb ohne await und mit catch. */
+  remove(ref(db, 'einladungen/' + code)).catch(()=>{});
   return hhId;
 }
 
 async function erzeugeNeuenHaushalt(uid, name){
   const hhId = randId('hh-', 20);
-  await set(ref(db, 'haushalte/' + hhId + '/members/' + uid), { rolle:'owner', beigetreten: Date.now() });
+  const eintrag = { rolle:'owner', beigetreten: Date.now() };
+  const eigenerName = meinAnzeigename();
+  if(eigenerName) eintrag.name = eigenerName;
+  /* meta zuerst: Die members-Regel verlangt seit E3, dass es den Haushalt
+     gibt — sonst legte ein Tippfehler in einer hh-ID beim Claim-Versuch
+     einen Geisterhaushalt unter der falschen ID an. */
   await set(ref(db, 'haushalte/' + hhId + '/meta'), { name: name || txt('anmeldung.mein_haushalt'), owner:uid, erstellt: Date.now() });
+  await set(ref(db, 'haushalte/' + hhId + '/members/' + uid), eintrag);
+  /* E1: Der Merker faellt bei der Anlage ausdruecklich auf false. obPruefen
+     gehorcht dem expliziten Wert; die Inhalts-Heuristik bleibt nur fuer
+     Alt-Haushalte ohne Merker. Vorher gab es den Merker erst NACH dem
+     Onboarding — und weil seed() sechs Beispielrezepte vor die erste Pruefung
+     schrieb, hielt die Heuristik jeden frisch angelegten Haushalt fuer
+     eingerichtet: Kein neuer Haushalt hat je ein Onboarding gesehen. */
+  await set(ref(db, 'haushalte/' + hhId + '/data/settings/onboardingFertig'), false);
   await set(ref(db, 'users/' + uid + '/haushalte/' + hhId), true);
   return hhId;
+}
+
+/* ---------- Beitrittsanfragen (E3) ----------
+   Wer nur die Haushalts-ID kennt, tritt nicht einfach bei — er fragt an.
+   Die Anfrage liegt unter beitrittsanfragen/<hh>/<uid> ausserhalb des
+   Haushalts: lesbar fuer Mitglieder und den Anfragenden selbst, beantwortbar
+   nur von Eigentuemern (database.rules.json). Ein Spiegel unter
+   users/<uid>/anfragen/<hh> macht die eigene Anfrage auf jedem Geraet
+   wiederauffindbar — den fremden Zweig kann der Anfragende nicht auflisten. */
+async function sendeBeitrittsanfrage(hhId, uid){
+  const eigen = await get(ref(db, 'beitrittsanfragen/' + hhId + '/' + uid)).catch(()=>null);
+  if(eigen && eigen.exists()) return 'laeuft';
+  try{
+    await set(ref(db, 'beitrittsanfragen/' + hhId + '/' + uid), {
+      /* Die Regel deckelt den Namen bei 80 Zeichen - lieber hier kuerzen als
+         an der Regel scheitern. */
+      name: (meinAnzeigename() || (auth.currentUser.email || '').split('@')[0] || 'Unbekannt').slice(0, 79),
+      angefragt: Date.now(),
+      status: 'offen'
+    });
+  }catch(e){
+    /* Abgelehnt heisst hier fast immer: Diesen Haushalt gibt es nicht
+       (Tippfehler) - die Regel laesst Anfragen nur an bestehende Haushalte zu. */
+    throw { message: txt('wahl.anfrage_nicht_moeglich_stimmt') };
+  }
+  await set(ref(db, 'users/' + uid + '/anfragen/' + hhId), Date.now());
+  return 'gesendet';
+}
+
+async function zieheBeitrittsanfrageZurueck(hhId, uid){
+  await remove(ref(db, 'beitrittsanfragen/' + hhId + '/' + uid)).catch(()=>{});
+  await remove(ref(db, 'users/' + uid + '/anfragen/' + hhId)).catch(()=>{});
+}
+
+/* Nach der Freigabe traegt der Eigentuemer nur den members-Eintrag — die
+   eigene Kontozuordnung schreibt jedes Konto selbst (users/<uid> gehoert ihm). */
+async function schliesseBeitrittAb(hhId, uid){
+  await set(ref(db, 'users/' + uid + '/haushalte/' + hhId), true);
+  await zieheBeitrittsanfrageZurueck(hhId, uid);
 }
 
 async function loadHaushaltMeta(hhId){
@@ -338,22 +404,30 @@ function renderHhSwitch(ids){
   });
 }
 
+/* Liefert true, wenn danach ein Haushalt aktiv ist. false heisst: Das Konto
+   gehoert (noch) nirgends dazu — dann uebernimmt der Wahlschritt (E2), statt
+   wie frueher ungefragt einen leeren Haushalt anzulegen. Genau diese stille
+   Anlage hat die Datenbank mit unbenutzten Haushalten gefuellt und jedem
+   Eingeladenen, der den Link nicht benutzt hat, einen zweiten Haushalt
+   untergeschoben. */
 async function loesePfadNachLogin(user){
   const acctEl = document.getElementById('acctEmail');
   if(acctEl) acctEl.textContent = user.email || 'Konto ' + user.uid.slice(0,6);
 
   let mitgliedschaften = await ladeMitgliedschaften(user.uid);
 
-  // 1) Einladungscode aus dem Link hat Vorrang
+  // 1) Einladungscode aus dem Link hat Vorrang — der Code ist die schon
+  //    erteilte Freigabe, hier wartet niemand.
   if(pendingInvite){
     const code = pendingInvite;
     pendingInvite = null;
     try{
       const hhId = await tritteUeberEinladungBei(code, user.uid);
       mitgliedschaften = await ladeMitgliedschaften(user.uid);
+      kurzOnboardingAnzeigen = true;
       await aktiviereHaushalt(hhId);
       renderHhSwitch(mitgliedschaften);
-      return;
+      return true;
     }catch(err){
       zeigeFehler(err.message || txt('anmeldung.einladung_konnte_nicht_eingeloest_werden'));
       // fällt durch zu den übrigen Fällen, Konto ist ja schon angelegt
@@ -367,57 +441,52 @@ async function loesePfadNachLogin(user){
     const hhId = (vorschlag && mitgliedschaften.indexOf(vorschlag) !== -1) ? vorschlag : mitgliedschaften[0];
     await aktiviereHaushalt(hhId);
     renderHhSwitch(mitgliedschaften);
-    return;
+    /* Liegen gebliebene Beitrittsanfragen still aufnehmen — ohne await, das
+       ist Aufraeumarbeit und kein Teil des Anmeldepfads (Betriebsregel 14). */
+    pruefeOffeneAnfragen(user.uid).catch(()=>{});
+    return true;
   }
 
-  // 3) Manuell eingetragene Alt-ID beim Registrieren — für den Umstieg von der alten,
-  //    linkbasierten Version auf echte Konten (siehe ANLEITUNG.md). Bei Google-Anmeldung
-  //    kommt der Wert aus sessionStorage, weil die Seite für den Redirect neu lädt.
-  const claimFeld = document.getElementById('authClaimId');
-  let manuelleId = claimFeld ? claimFeld.value.trim() : '';
-  let gespeicherterName = '';
-  try{
-    if(!manuelleId) manuelleId = sessionStorage.getItem('famboard.pendingClaim') || '';
-    gespeicherterName = sessionStorage.getItem('famboard.pendingName') || '';
-    sessionStorage.removeItem('famboard.pendingClaim');
-    sessionStorage.removeItem('famboard.pendingName');
-  }catch(e){}
-  if(manuelleId){
-    if(await versucheClaim(manuelleId, user.uid)){
-      await aktiviereHaushalt(manuelleId);
-      renderHhSwitch([manuelleId]);
-      return;
-    }
-    zeigeFehler(txt('anmeldung.die_haushalts_id') + manuelleId + txt('anmeldung.gehoert_schon_zu_einem_konto'));
-  }
-
-  // 4) Kandidat aus dem localStorage dieses Geräts (z. B. alter #h=-Link)
+  // 3) Kandidat aus dem localStorage dieses Geräts (alter #h=-Link aus der
+  //    Zeit vor den Konten). Klappt nur bei Haushalten ohne Mitglieder.
   let legacyKandidat = null;
   try{ legacyKandidat = localStorage.getItem(HH_KEY); }catch(e){}
   if(legacyKandidat && await versucheClaim(legacyKandidat, user.uid)){
     await aktiviereHaushalt(legacyKandidat);
     renderHhSwitch([legacyKandidat]);
-    return;
+    return true;
   }
 
-  // 5) Sonst: neuen, leeren Haushalt anlegen
-  const nameFeld = document.getElementById('authHaushaltName');
-  const name = (nameFeld && nameFeld.value.trim()) || gespeicherterName;
-  const neuerId = await erzeugeNeuenHaushalt(user.uid, name);
-  await aktiviereHaushalt(neuerId);
-  renderHhSwitch([neuerId]);
+  // 4) Nirgends Mitglied: Wahlschritt. Laeuft von frueher noch eine
+  //    Beitrittsanfrage, direkt im Wartezustand weitermachen.
+  let anfragen = {};
+  try{
+    const snap = await get(ref(db, 'users/' + user.uid + '/anfragen'));
+    anfragen = snap.exists() ? (snap.val() || {}) : {};
+  }catch(e){}
+  const offeneAnfrage = Object.keys(anfragen)[0] || null;
+  zeigeWahlschritt(offeneAnfrage);
+  return false;
 }
 
 let appGestartet = false;
+/* Gemeinsamer Abschluss von Wahlschritt und Login: loadState meldet einen
+   etwaigen alten Zuhoerer selbst ab, der Aufruf ist also auch beim zweiten
+   Mal in Ordnung. */
+function starteAppMitHaushalt(){
+  document.body.classList.remove('pre-auth');
+  appGestartet = true;
+  loadState();
+}
 onAuthStateChanged(auth, async (user)=>{
   if(!user){
     document.body.classList.add('pre-auth');
     return;
   }
   try{
-    await loesePfadNachLogin(user);
+    const bereit = await loesePfadNachLogin(user);
     document.body.classList.remove('pre-auth');
-    if(!appGestartet){ appGestartet = true; loadState(); }
+    if(bereit && !appGestartet){ appGestartet = true; loadState(); }
   }catch(err){
     authShowError(txt('anmeldung.haushalt_konnte_nicht_geladen_werden') + (err.code || err.message) + ').');
   }
@@ -1022,8 +1091,15 @@ function imgOf(r){ return imageCache[r.id] || null; }
    loadState() wird erst aufgerufen, wenn HAUSHALT_ID feststeht, und erneut bei jedem
    Haushalts-Wechsel. unsubscribeData sorgt dafür, dass beim Wechsel nicht zwei
    Haushalte gleichzeitig mitgeschrieben werden. */
-let ersterSnapshot = true;
 let unsubscribeData = null;
+let unsubscribeAnfragen = null;   // Beitrittsanfragen des aktiven Haushalts (E3)
+/* Erst wenn der erste echte Datensatz des aktiven Haushalts da ist, darf das
+   Onboarding entscheiden (E1). loadState zeichnet einmal VOR den Daten - in
+   diesem Moment sieht der Zustand wie ein leerer Haushalt aus, ist aber nur
+   ein noch nicht geladener. Der alte Code hat an dieser Stelle das Onboarding
+   kurz gezeigt und wieder versteckt; seit die Schrittliste von der Antwort
+   abhaengt (voll oder kurz), muss die Entscheidung warten koennen. */
+let datenAngekommen = false;
 let onlineListenerAttached = false;
 
 async function loadState(){
@@ -1043,15 +1119,24 @@ async function loadState(){
     onValue(ref(db, '.info/connected'), snap=>setOnline(!!snap.val()));
   }
 
-  // 3. alten Zuhörer abmelden, falls wir gerade den Haushalt gewechselt haben
+  // 3. alte Zuhörer abmelden, falls wir gerade den Haushalt gewechselt haben
   if(unsubscribeData){ unsubscribeData(); unsubscribeData = null; }
-  ersterSnapshot = true;
+  if(unsubscribeAnfragen){ unsubscribeAnfragen(); unsubscribeAnfragen = null; }
+  datenAngekommen = false;
+  hoereAufBeitrittsanfragen();
 
   // 4. dauerhaft zuhören: jede Änderung von jedem Gerät kommt hier an
   unsubscribeData = onValue(ref(db, BASE + '/data'), snap=>{
     const d = snap.val();
-    if(!d && ersterSnapshot){ ersterSnapshot = false; seed(); return; }
-    ersterSnapshot = false;
+    /* E1: Die stille Vorbelegung ist weg. Frueher schrieb hier seed() sechs
+       Beispielrezepte in jeden leeren Haushalt — der zweite Snapshot lief dann
+       mit sechs Rezepten in obPruefen, dessen Inhalts-Heuristik den Haushalt
+       fuer laengst eingerichtet hielt und das Onboarding fuer immer verbarg.
+       Beispielrezepte gibt es weiterhin: als abwaehlbares Angebot im
+       Onboarding (beispielRezepteEinspielen). fromRemote kommt mit einem
+       leeren d zurecht — auch ein leeres d ist eine Antwort (frisch
+       angelegter Haushalt), deshalb gilt es als angekommen. */
+    datenAngekommen = true;
     planAlt = false; slotsFehlen = false; haushaltMigriert = false;
     artikelMigriert = false; migrationsCats = []; migrationsMarkets = [];
     state = fromRemote(d);
@@ -1089,7 +1174,10 @@ async function loadState(){
     renderAll();
   });
 }
-function seed(){
+/* E1: frueher seed(), lief still bei jedem leeren Haushalt. Jetzt nur noch auf
+   ausdrueckliches Haekchen im Onboarding — neue Haushalte starten leer, die
+   Leerzustaende zeigen die Importwege (T-13). */
+function beispielRezepteEinspielen(){
   const s = migrate({recipes: SEED_RECIPES});
   put('data/recipes', s.recipes.map(r=>Object.assign({type:'rezept'}, r)));
   put('data/settings/personen', 4);
@@ -5011,9 +5099,20 @@ document.addEventListener('visibilitychange', ()=>{
 });
 
 /* ---------- Onboarding ----------
-   Sechs Schritte, strikt einmalig je Haushalt (Entscheidung vom 07.08.2026).
+   Sieben Schritte, strikt einmalig je Haushalt (Entscheidung vom 07.08.2026).
    Der Merker liegt in der Datenbank, nicht auf dem Geraet: Wer den Haushalt
-   auf einem zweiten Telefon oeffnet, hat ihn schon eingerichtet. */
+   auf einem zweiten Telefon oeffnet, hat ihn schon eingerichtet.
+
+   Seit E1 setzt erzeugeNeuenHaushalt den Merker ausdruecklich auf false, und
+   obPruefen gehorcht dem expliziten Wert. Die Inhalts-Heuristik unten gilt nur
+   noch fuer Alt-Haushalte ohne Merker — vorher hat sie in Verbindung mit den
+   still eingespielten Beispielrezepten das Onboarding fuer jeden neuen
+   Haushalt verhindert.
+
+   Dazu ein Kurz-Onboarding (E2) fuer alle, die einem bestehenden Haushalt
+   beitreten: Der Haushalt ist eingerichtet, der Mensch ist neu. Es haengt an
+   einem Sitzungsmerker, den nur die beiden Beitrittswege setzen — kein
+   Datenbankfeld, damit es Bestandskonten nicht nachtraeglich vorgesetzt wird. */
 const OB_SCHRITTE = [
   { zustand:'begruessend', titel:txt('navigation.sehr_erfreut'),
     text:txt('navigation.ich_bin_butley_ich_halte'),
@@ -5032,6 +5131,12 @@ const OB_SCHRITTE = [
   { zustand:'erklaerend', titel:txt('navigation.bring_mit_was_du_schon'),
     text:txt('navigation.rezepte_musst_du_nicht_abtippen'),
     weiter:txt('navigation.gut_zu_wissen') },
+  /* E1: Beispielrezepte als Angebot statt stiller Vorbelegung. Das Haekchen
+     ist bewusst NICHT vorgewaehlt — neue Haushalte starten leer, die
+     Leerzustaende zeigen die Importwege (T-13). */
+  { zustand:'erklaerend', titel:txt('onboarding.zum_ausprobieren'),
+    text:txt('onboarding.wenn_ihr_moegt_lege_ich'),
+    weiter:'Weiter', beispiele:true },
   { zustand:'ankuendigend', titel:txt('navigation.eine_sache_noch_wenn_du'),
     text:txt('navigation.erinnerungen_erreichen_dich_auf_dem'),
     weiter:'Verstanden', hinweis:true },
@@ -5039,22 +5144,42 @@ const OB_SCHRITTE = [
     text:txt('navigation.du_landest_jetzt_auf_heute'),
     weiter:'Los' }
 ];
+/* Kurzfassung fuer Beitretende: begruessen, iPhone-Hinweis, fertig. Der Text
+   des ersten Schritts entsteht erst beim Zeichnen — der Haushaltsname steht
+   beim Laden des Moduls noch nicht fest. */
+const KURZ_SCHRITTE = [
+  { zustand:'begruessend', titel:txt('navigation.sehr_erfreut'),
+    text: ()=>txtf('onboarding.ich_bin_butley_ihr_seid', { haushalt: aktivesHaushaltName || txt('anmeldung.mein_haushalt') }),
+    weiter:txt('navigation.fangen_wir_an') },
+  { zustand:'ankuendigend', titel:txt('navigation.eine_sache_noch_wenn_du'),
+    text:txt('navigation.erinnerungen_erreichen_dich_auf_dem'),
+    weiter:'Verstanden', hinweis:true },
+  { zustand:'bestaetigend', titel:txt('navigation.alles_bereit'),
+    text:txt('navigation.du_landest_jetzt_auf_heute'),
+    weiter:'Los' }
+];
+let obListe = OB_SCHRITTE;
 let obIndex = 0;
+/* Sitzungsmerker: wird nur in den Beitrittswegen gesetzt (Einladungslink,
+   angenommene Beitrittsanfrage) und beim Beenden geloescht. */
+let kurzOnboardingAnzeigen = false;
 
 function obZeichne(){
-  const s = OB_SCHRITTE[obIndex];
+  const s = obListe[obIndex];
   if(!s) return;
   zeichneFigur(document.getElementById('obFigur'), s.zustand);
   const setzen = (id, wert)=>{ const el = document.getElementById(id); if(el) el.textContent = wert; };
   setzen('obTitel', s.titel);
-  setzen('obText', s.text);
+  setzen('obText', typeof s.text === 'function' ? s.text() : s.text);
   setzen('obWeiter', s.weiter);
   const feld = document.getElementById('obFeld');
   if(feld) feld.hidden = !s.feld;
   const hinweis = document.getElementById('obHinweis');
   if(hinweis) hinweis.hidden = !s.hinweis;
+  const beispiele = document.getElementById('obBeispieleFeld');
+  if(beispiele) beispiele.hidden = !s.beispiele;
   const punkte = document.getElementById('obPunkte');
-  if(punkte) punkte.innerHTML = OB_SCHRITTE
+  if(punkte) punkte.innerHTML = obListe
     .map((_, i)=>'<span class="ob-punkt' + (i === obIndex ? ' an' : '') + '"></span>').join('');
   const nameFeld = document.getElementById('obHaushaltName');
   if(s.feld && nameFeld && !nameFeld.value){
@@ -5066,30 +5191,49 @@ function obZeichne(){
 function obBeenden(){
   const huelle = document.getElementById('onboarding');
   if(huelle) huelle.hidden = true;
-  /* Der Merker geht in die Datenbank, nicht auf das Geraet - Betriebsregel 7
-     gilt hier nicht, weil nichts migriert wird, aber dieselbe Ueberlegung:
-     erst festhalten, dann handeln. */
-  put('data/settings/onboardingFertig', true);
-  if(!state.settings) state.settings = {};
-  state.settings.onboardingFertig = true;
+  if(obListe === OB_SCHRITTE){
+    /* Der Merker geht in die Datenbank, nicht auf das Geraet - Betriebsregel 7
+       gilt hier nicht, weil nichts migriert wird, aber dieselbe Ueberlegung:
+       erst festhalten, dann handeln. */
+    put('data/settings/onboardingFertig', true);
+    if(!state.settings) state.settings = {};
+    state.settings.onboardingFertig = true;
+    /* Beispielrezepte nur auf ausdrueckliches Haekchen — auch beim
+       Ueberspringen: Wer erst ankreuzt und dann abkuerzt, meint es so. */
+    const kasten = document.getElementById('obBeispiele');
+    if(kasten && kasten.checked) beispielRezepteEinspielen();
+  }
+  kurzOnboardingAnzeigen = false;
   zeigeBereich('heute');
 }
 
 function obPruefen(){
   const huelle = document.getElementById('onboarding');
   if(!huelle) return;
-  const fertig = !!(state.settings && state.settings.onboardingFertig);
+  /* Vor dem ersten Datensatz ist ein leerer Zustand keine Auskunft, sondern
+     nur "noch nicht geladen" - keine Entscheidung auf dieser Grundlage. */
+  if(!datenAngekommen){ huelle.hidden = true; return; }
+  const merker = state.settings ? state.settings.onboardingFertig : undefined;
   /* Ein Haushalt mit Inhalt hat das Onboarding offensichtlich hinter sich -
-     die sechs Testhaushalte sollen es nicht nachtraeglich vorgesetzt bekommen. */
+     die sechs Testhaushalte sollen es nicht nachtraeglich vorgesetzt bekommen.
+     Gilt nur noch, wenn der explizite Merker fehlt (Alt-Haushalt): Seit E1
+     traegt jeder neue Haushalt onboardingFertig:false von der Anlage an. */
   const schonBenutzt = (state.recipes && state.recipes.length)
     || (state.personen && Object.keys(state.personen).length)
     || (state.notizen && Object.keys(state.notizen).length);
-  if(fertig || schonBenutzt){
-    if(!fertig && schonBenutzt) put('data/settings/onboardingFertig', true);
+  let voll;
+  if(merker === false) voll = true;
+  else if(merker === true) voll = false;
+  else {
+    voll = !schonBenutzt;
+    if(!voll) put('data/settings/onboardingFertig', true);
+  }
+  if(!voll && !kurzOnboardingAnzeigen){
     huelle.hidden = true;
     return;
   }
   if(!huelle.hidden) return;      // laeuft schon
+  obListe = voll ? OB_SCHRITTE : KURZ_SCHRITTE;
   obIndex = 0;
   huelle.hidden = false;
   obZeichne();
@@ -5098,7 +5242,7 @@ function obPruefen(){
 {
   const an = (id, ev, fn)=>{ const el = document.getElementById(id); if(el) el.addEventListener(ev, fn); };
   an('obWeiter', 'click', async ()=>{
-    const s = OB_SCHRITTE[obIndex];
+    const s = obListe[obIndex];
     if(s && s.feld){
       const wert = (document.getElementById('obHaushaltName') || {}).value || '';
       const name = wert.trim();
@@ -5110,10 +5254,253 @@ function obPruefen(){
         }catch(e){ /* Der Name laesst sich jederzeit aendern - hier nicht blockieren */ }
       }
     }
-    if(obIndex >= OB_SCHRITTE.length - 1) obBeenden();
+    if(obIndex >= obListe.length - 1) obBeenden();
     else { obIndex++; obZeichne(); }
   });
   an('obUeberspringen', 'click', obBeenden);
+}
+
+/* ---------- Wahlschritt (E2) ----------
+   Erscheint nach der Anmeldung, wenn das Konto nirgends Mitglied ist. Frueher
+   legte die App an dieser Stelle ungefragt einen leeren Haushalt an — wer
+   eigentlich zu einem bestehenden wollte, hatte danach zwei. Jetzt wird
+   gefragt. Drei Ausgaenge: neuer Haushalt (volles Onboarding folgt),
+   Einladungscode (Beitritt sofort, Kurz-Onboarding), Haushalts-ID
+   (Beitrittsanfrage, E3 — es geht weiter, sobald jemand freigibt). */
+let wsAnfrageUnsub = null;
+let wsAnfrageHh = null;
+
+function wsZustand(zustand){
+  const zeigen = (id, sichtbar)=>{ const el = document.getElementById(id); if(el) el.hidden = !sichtbar; };
+  zeigen('wsNameFeld',   zustand !== 'warten');
+  zeigen('wsWahl',       zustand === 'wahl');
+  zeigen('wsBeitrittFeld', zustand === 'beitreten');
+  zeigen('wsBeitrittKnoepfe', zustand === 'beitreten');
+  zeigen('wsWarten',     zustand === 'warten');
+  zeigen('wsWartenKnoepfe', zustand === 'warten');
+  const s = {
+    wahl:      { figur:'begruessend', titel: txt('wahl.fast_geschafft'),   text: txt('wahl.sag_mir_kurz_wer') },
+    beitreten: { figur:'erklaerend',  titel: txt('wahl.zu_wem_solls_gehen'), text: txt('wahl.mit_einem_einladungscode_bist') },
+    warten:    { figur:'ruhend',      titel: txt('wahl.anfrage_gesendet'),  text: txt('wahl.sobald_jemand_aus_dem') }
+  }[zustand] || {};
+  zeichneFigur(document.getElementById('wsFigur'), s.figur || 'begruessend');
+  const setzen = (id, wert)=>{ const el = document.getElementById(id); if(el) el.textContent = wert; };
+  setzen('wsTitel', s.titel || '');
+  setzen('wsText', s.text || '');
+  const aus = document.getElementById('wsOut');
+  if(aus) aus.textContent = '';
+}
+
+function zeigeWahlschritt(offeneAnfrageHh){
+  const huelle = document.getElementById('wahlschritt');
+  if(!huelle) return;
+  huelle.hidden = false;
+  const nameFeld = document.getElementById('wsName');
+  if(nameFeld && !nameFeld.value) nameFeld.value = meinAnzeigename();
+  if(offeneAnfrageHh){
+    wsZustand('warten');
+    const wo = document.getElementById('wsWartenHaushalt');
+    if(wo) wo.textContent = offeneAnfrageHh;
+    hoereAufEigeneAnfrage(offeneAnfrageHh);
+  } else {
+    wsZustand('wahl');
+  }
+}
+
+function verbergeWahlschritt(){
+  const huelle = document.getElementById('wahlschritt');
+  if(huelle) huelle.hidden = true;
+  if(wsAnfrageUnsub){ wsAnfrageUnsub(); wsAnfrageUnsub = null; }
+  wsAnfrageHh = null;
+}
+
+/* Anzeigename uebernehmen, bevor ein members-Eintrag oder eine Anfrage
+   entsteht — beide tragen ihn hinein. Ohne Namen hiesse es dort nur
+   „Mitglied a3f9k2". */
+async function wsNameUebernehmen(pflicht){
+  const feld = document.getElementById('wsName');
+  const name = feld ? feld.value.trim() : '';
+  if(!name){
+    if(pflicht){ feldFehler(feld, txt('einstellungen.bitte_einen_namen_eintragen')); return null; }
+    return '';
+  }
+  if(name !== meinAnzeigename()){
+    try{ await updateProfile(auth.currentUser, { displayName: name }); }
+    catch(e){ /* Der Name ist Komfort, kein Tor — im Zweifel ohne weitermachen */ }
+  }
+  renderKopfzeile();
+  return name;
+}
+
+function hoereAufEigeneAnfrage(hhId){
+  if(wsAnfrageUnsub){ wsAnfrageUnsub(); wsAnfrageUnsub = null; }
+  wsAnfrageHh = hhId;
+  const uid = auth.currentUser.uid;
+  wsAnfrageUnsub = onValue(ref(db, 'beitrittsanfragen/' + hhId + '/' + uid), async snap=>{
+    const a = snap.exists() ? snap.val() : null;
+    /* Geloescht ohne Antwort: Ein Eigentuemer hat die Anfrage entfernt.
+       Das eigene Zurueckziehen laeuft nicht hier durch — es meldet den
+       Zuhoerer vorher ab. */
+    if(!a || a.status === 'abgelehnt'){
+      if(wsAnfrageUnsub){ wsAnfrageUnsub(); wsAnfrageUnsub = null; }
+      await zieheBeitrittsanfrageZurueck(hhId, uid);
+      wsZustand('wahl');
+      const aus = document.getElementById('wsOut');
+      if(aus) aus.textContent = txt('wahl.die_anfrage_wurde_abgelehnt');
+      return;
+    }
+    if(a.status === 'angenommen'){
+      if(wsAnfrageUnsub){ wsAnfrageUnsub(); wsAnfrageUnsub = null; }
+      await schliesseBeitrittAb(hhId, uid);
+      kurzOnboardingAnzeigen = true;
+      await aktiviereHaushalt(hhId);
+      renderHhSwitch(await ladeMitgliedschaften(uid));
+      verbergeWahlschritt();
+      starteAppMitHaushalt();
+    }
+  });
+}
+
+{
+  const an = (id, ev, fn)=>{ const el = document.getElementById(id); if(el) el.addEventListener(ev, fn); };
+
+  an('wsNeu', 'click', async ()=>{
+    const name = await wsNameUebernehmen(true);
+    if(name === null) return;
+    const aus = document.getElementById('wsOut');
+    try{
+      if(aus) aus.textContent = txt('wahl.lege_an');
+      const hhId = await erzeugeNeuenHaushalt(auth.currentUser.uid, '');
+      await aktiviereHaushalt(hhId);
+      renderHhSwitch([hhId]);
+      verbergeWahlschritt();
+      starteAppMitHaushalt();
+    }catch(e){
+      if(aus) aus.textContent = txt('wahl.das_hat_nicht_geklappt') + (e.code || e.message) + ').';
+    }
+  });
+
+  an('wsBeitreten', 'click', ()=>{
+    wsZustand('beitreten');
+    const feld = document.getElementById('wsCode');
+    if(feld) feld.focus();
+  });
+
+  an('wsZurueck', 'click', ()=>wsZustand('wahl'));
+
+  an('wsSenden', 'click', async ()=>{
+    const feld = document.getElementById('wsCode');
+    const val = (feld.value || '').trim();
+    if(!val){ feldFehler(feld, txt('wahl.bitte_code_oder_haushalts_id')); return; }
+    const name = await wsNameUebernehmen(true);
+    if(name === null) return;
+    const aus = document.getElementById('wsOut');
+    if(aus) aus.textContent = txt('navigation.pruefe');
+    const uid = auth.currentUser.uid;
+    try{
+      if(/^hh-/.test(val)){
+        /* Zuerst die Alt-Uebernahme: Ein FamBoard-Haushalt aus der Zeit vor
+           den Konten hat keine Mitglieder und gehoert dem, der ihn eintraegt.
+           Bei einem bewohnten Haushalt lehnen die Regeln ab — dann wird
+           daraus eine Beitrittsanfrage (E3) statt einer Absage. */
+        if(await versucheClaim(val, uid)){
+          await aktiviereHaushalt(val);
+          renderHhSwitch(await ladeMitgliedschaften(uid));
+          verbergeWahlschritt();
+          starteAppMitHaushalt();
+          return;
+        }
+        await sendeBeitrittsanfrage(val, uid);
+        const wo = document.getElementById('wsWartenHaushalt');
+        if(wo) wo.textContent = val;
+        wsZustand('warten');
+        hoereAufEigeneAnfrage(val);
+      } else {
+        /* Einladungscode: die Freigabe ist schon erteilt. */
+        const hhId = await tritteUeberEinladungBei(val, uid);
+        kurzOnboardingAnzeigen = true;
+        await aktiviereHaushalt(hhId);
+        renderHhSwitch(await ladeMitgliedschaften(uid));
+        verbergeWahlschritt();
+        starteAppMitHaushalt();
+      }
+    }catch(e){
+      if(aus) aus.textContent = e.message || (txt('wahl.das_hat_nicht_geklappt') + (e.code || '') + ').');
+    }
+  });
+
+  an('wsZurueckziehen', 'click', async ()=>{
+    if(wsAnfrageUnsub){ wsAnfrageUnsub(); wsAnfrageUnsub = null; }
+    if(wsAnfrageHh) await zieheBeitrittsanfrageZurueck(wsAnfrageHh, auth.currentUser.uid);
+    wsAnfrageHh = null;
+    wsZustand('wahl');
+  });
+
+  an('wsAbmelden', 'click', async ()=>{
+    if(!confirm(txt('anmeldung.auf_diesem_geraet_abmelden'))) return;
+    try{ await signOut(auth); location.reload(); }catch(e){}
+  });
+}
+
+/* ---------- Beitrittsanfragen beantworten (E3) ----------
+   Die Eigentuemer sehen offene Anfragen als Karte auf Heute — beim Oeffnen der
+   App, ohne Push: Die Push-Route authentifiziert ueber die Mitgliedschaft
+   (T-16), und wer anfragt, ist gerade noch keine. */
+let beitrittsAnfragen = {};
+
+function hoereAufBeitrittsanfragen(){
+  if(!HAUSHALT_ID) return;
+  unsubscribeAnfragen = onValue(ref(db, 'beitrittsanfragen/' + HAUSHALT_ID), snap=>{
+    beitrittsAnfragen = snap.exists() ? (snap.val() || {}) : {};
+    try{ renderBeitrittsAnfragen(); }catch(e){ console.warn('[beitritt] Karte:', e); }
+  }, ()=>{ /* kein Leserecht (alte Regeln) — dann gibt es die Karte eben noch nicht */ });
+}
+
+function renderBeitrittsAnfragen(){
+  const band = document.getElementById('beitrittsBand');
+  if(!band) return;
+  const offene = Object.keys(beitrittsAnfragen)
+    .filter(uid=>(beitrittsAnfragen[uid] || {}).status === 'offen');
+  /* Nur Eigentuemer koennen antworten — allen anderen bleibt die Karte weg,
+     ein Knopf ohne Wirkung waere schlimmer als keiner (Kapitel 3.3). */
+  if(meineRolle !== 'owner' || !offene.length){
+    band.hidden = true; band.innerHTML = '';
+    return;
+  }
+  band.hidden = false;
+  band.innerHTML = offene.map(uid=>{
+    const a = beitrittsAnfragen[uid] || {};
+    const wer = escapeHtml(a.name || ('Konto ' + uid.slice(0,6)));
+    return '<div class="beitritt-zeile" data-uid="' + uid + '">' +
+      '<p><strong>' + wer + '</strong> ' + txt('beitritt.moechte_diesem_haushalt_beitreten') + '</p>' +
+      '<div class="beitritt-knoepfe">' +
+      '<button type="button" class="btn btn-primary" data-antwort="ja">' + txt('beitritt.aufnehmen') + '</button>' +
+      '<button type="button" class="btn btn-soft" data-antwort="nein">' + txt('beitritt.ablehnen') + '</button>' +
+      '</div></div>';
+  }).join('');
+  Array.prototype.forEach.call(band.querySelectorAll('button[data-antwort]'), b=>{
+    b.addEventListener('click', ()=>beantworteAnfrage(b.closest('.beitritt-zeile').dataset.uid, b.dataset.antwort === 'ja'));
+  });
+}
+
+async function beantworteAnfrage(uid, aufnehmen){
+  const a = beitrittsAnfragen[uid] || {};
+  try{
+    if(aufnehmen){
+      /* Erst das Mitglied, dann die Antwort: Faellt dazwischen etwas aus,
+         steht die Anfrage noch offen und laesst sich erneut beantworten —
+         der members-Eintrag ist derselbe Schreibbefehl und stoert nicht. */
+      const eintrag = { rolle:'mitglied', beigetreten: Date.now() };
+      if(a.name) eintrag.name = a.name;
+      await set(ref(db, 'haushalte/' + HAUSHALT_ID + '/members/' + uid), eintrag);
+      await set(ref(db, 'beitrittsanfragen/' + HAUSHALT_ID + '/' + uid + '/status'), 'angenommen');
+      renderMemberList();
+    } else {
+      await set(ref(db, 'beitrittsanfragen/' + HAUSHALT_ID + '/' + uid + '/status'), 'abgelehnt');
+    }
+  }catch(e){
+    showToast(txt('beitritt.antwort_fehlgeschlagen') + (e.code || e.message) + ').');
+  }
 }
 
 /* Die Fusszeilen der Heute-Karten fuehren in den zugehoerigen Bereich.
@@ -5361,8 +5748,26 @@ document.getElementById('copyInvite').addEventListener('click', async ()=>{
   }
 });
 
+/* E1: Haushalts-ID kopieren — fuer die Beitrittsanfrage aus einem anderen
+   Konto. Anders als der Einladungslink gewaehrt die ID nichts von selbst;
+   ein Eigentuemer muss die Anfrage annehmen (E3). */
+document.getElementById('hhIdKopieren').addEventListener('click', async ()=>{
+  const out = document.getElementById('hhIdOut');
+  if(!HAUSHALT_ID){ out.textContent = txt('navigation.bitte_kurz_warten_bis_die'); return; }
+  try{
+    await navigator.clipboard.writeText(HAUSHALT_ID);
+    out.textContent = txt('einstellungen.kopiert');
+  }catch(e){
+    out.textContent = HAUSHALT_ID;
+  }
+});
+
 /* Mitgliederliste im Reiter „Haushalt“ */
 async function renderMemberList(){
+  /* E1: Die eigene Haushalts-ID sichtbar machen. Bis dahin verlangte das
+     Beitrittsfeld eine „hh-…"-ID, die nirgends in der Oberflaeche stand. */
+  const idWert = document.getElementById('hhIdWert');
+  if(idWert) idWert.textContent = HAUSHALT_ID || '';
   const box = document.getElementById('memberList');
   if(!box || !HAUSHALT_ID) return;
   try{
@@ -5378,11 +5783,10 @@ async function renderMemberList(){
   }catch(e){ box.innerHTML = ''; }
 }
 
-/* Nachträglich einem weiteren Haushalt beitreten — deckt den Fall ab, dass beim ersten
-   Login (z. B. über Google, ohne das Alt-ID-Feld auszufüllen) schon ein neuer, leerer
-   Haushalt entstanden ist und man danach noch den eigentlichen Haushalt claimen oder
-   einer Einladung folgen möchte. "hh-…" wird als Haushalts-ID behandelt, alles andere
-   als Einladungscode. */
+/* Nachträglich einem weiteren Haushalt beitreten. "hh-…" wird zuerst als
+   Alt-Uebernahme versucht (Haushalt ohne Mitglieder, aus der Zeit vor den
+   Konten); gehoert der Haushalt schon jemandem, wird daraus seit E3 eine
+   Beitrittsanfrage statt einer Absage. Alles andere gilt als Einladungscode. */
 document.getElementById('joinHhBtn').addEventListener('click', async ()=>{
   const out = document.getElementById('joinHhOut');
   const inp = document.getElementById('joinHhInput');
@@ -5394,7 +5798,16 @@ document.getElementById('joinHhBtn').addEventListener('click', async ()=>{
     let hhId;
     if(/^hh-/.test(val)){
       const ok = await versucheClaim(val, auth.currentUser.uid);
-      if(!ok) throw { message: txt('navigation.diese_haushalts_id_gehoert_schon') };
+      if(!ok){
+        if(val === HAUSHALT_ID) throw { message: txt('beitritt.in_diesem_haushalt_seid_ihr') };
+        const stand = await sendeBeitrittsanfrage(val, auth.currentUser.uid);
+        verfolgeAnfrageImHintergrund(val, auth.currentUser.uid);
+        out.textContent = stand === 'laeuft'
+          ? txt('beitritt.eure_anfrage_laeuft_schon')
+          : txt('beitritt.anfrage_gesendet_sobald_ein');
+        inp.value = '';
+        return;
+      }
       hhId = val;
     } else {
       hhId = await tritteUeberEinladungBei(val, auth.currentUser.uid);
@@ -5409,6 +5822,42 @@ document.getElementById('joinHhBtn').addEventListener('click', async ()=>{
     out.textContent = e.message || (txt('navigation.beitreten_fehlgeschlagen') + (e.code || '') + ').');
   }
 });
+
+/* Laufende Anfragen eines Kontos, das schon irgendwo Mitglied ist: still im
+   Hintergrund verfolgen. Bei Annahme kommt der Haushalt in die eigene Liste
+   und der Umschalter kennt ihn — ohne dass man auf der Einstellungsseite
+   stehen bleiben muss. */
+const anfragenImBlick = {};
+function verfolgeAnfrageImHintergrund(hhId, uid){
+  if(anfragenImBlick[hhId]) return;
+  anfragenImBlick[hhId] = onValue(ref(db, 'beitrittsanfragen/' + hhId + '/' + uid), async snap=>{
+    const a = snap.exists() ? snap.val() : null;
+    if(a && a.status === 'offen') return;
+    const stop = anfragenImBlick[hhId];
+    delete anfragenImBlick[hhId];
+    if(stop) stop();
+    if(a && a.status === 'angenommen'){
+      await schliesseBeitrittAb(hhId, uid);
+      renderHhSwitch(await ladeMitgliedschaften(uid));
+      showToast(txt('beitritt.aufgenommen_ueber_den_haushaltsnamen_oben'));
+    } else {
+      await zieheBeitrittsanfrageZurueck(hhId, uid);
+      showToast(txt('beitritt.die_anfrage_wurde_abgelehnt'));
+    }
+  });
+}
+
+/* Beim Anmelden liegen gebliebene Anfragen aufnehmen (anderes Geraet, App
+   zwischendurch zu). Nur fuer Konten mit Mitgliedschaft — ohne eine laeuft
+   dasselbe sichtbar im Wahlschritt. */
+async function pruefeOffeneAnfragen(uid){
+  let anfragen = {};
+  try{
+    const snap = await get(ref(db, 'users/' + uid + '/anfragen'));
+    anfragen = snap.exists() ? (snap.val() || {}) : {};
+  }catch(e){ return; }
+  Object.keys(anfragen).forEach(hhId=>verfolgeAnfrageImHintergrund(hhId, uid));
+}
 
 /* =========================================================================
    23. Einstellungen: Haushaltsname, eigenes Profil (Name/E-Mail/Passwort)

@@ -47,14 +47,9 @@
     <div class="auth-error" id="authError"></div>
     <div class="auth-info" id="authInfo"></div>
 
-    <div class="field" id="authClaimField" style="display:none;">
-      <label data-t-teil="0:anmeldung.schon_famboard_genutzt">Schon FamBoard genutzt? <span class="hint" data-t="anmeldung.haushalts_id_hier_uebernehmen">Haushalts-ID hier übernehmen, sonst leer lassen</span></label>
-      <input type="text" id="authClaimId" autocomplete="off" placeholder="z. B. hh-xxxxxxxxxxxxxxxxxxxx" data-t-ph="anmeldung.z_b_hh_xxxxxxxxxxxxxxxxxxxx" style="font-family:var(--schrift); font-variant-numeric:tabular-nums; font-size:0.82rem;">
-    </div>
-    <div class="field" id="authNameField" style="display:none;">
-      <label data-t-teil="0:anmeldung.name_eures_neuen_haushalts">Name eures neuen Haushalts <span class="hint" data-t="anmeldung.optional_nur_falls_oben">optional, nur falls oben keine ID eingetragen ist</span></label>
-      <input type="text" id="authHaushaltName" autocomplete="off" placeholder="Mein Haushalt" data-t-ph="anmeldung.mein_haushalt">
-    </div>
+    <!-- E2: Alt-ID und Haushaltsname sind aus dem Formular heraus. Registrieren
+         legt nur noch das Konto an; wohin es gehoert, fragt der Wahlschritt.
+         Die Uebernahme eines Alt-Haushalts lebt in den Einstellungen weiter. -->
     <div class="field">
       <label data-t="anmeldung.e_mail">E-Mail</label>
       <input type="email" id="authEmail" autocomplete="email" placeholder="du@beispiel.de" data-t-ph="anmeldung.du_beispiel_de">
@@ -155,6 +150,11 @@
         <h1 class="sk-titel" data-t="kopfzeile.heute">Heute</h1>
       </div>
     </header>
+
+    <!-- E3 - offene Beitrittsanfragen. Nur Eigentuemer sehen die Karte; sie
+         erscheint beim Oeffnen der App, ohne Push (T-16: die Push-Route
+         authentifiziert ueber die Mitgliedschaft, ein Anfragender hat keine). -->
+    <div class="karte beitritt-karte" id="beitrittsBand" style="margin-bottom:var(--abstand-xl);" hidden></div>
 
     <!-- MD-18 - die Figur wohnt hier. Sie steht fest im Markup und wird nur
          ein- und ausgeblendet: Bei jedem Zeichnen 6,6 kB SVG neu zu erzeugen
@@ -769,12 +769,24 @@
             <span class="reihe-unter" style="margin:0 0 10px;" data-t="einstellungen.wer_den_einladungslink_oeffnet">Wer den Einladungslink öffnet und sich anmeldet, sieht Wochenplan und Einkaufsliste und kann beides ändern — also nur an Leute geben, die dazugehören.</span>
             <button class="btn btn-soft" id="copyInvite" type="button" data-t="einstellungen.einladungslink_erzeugen">🔗 Einladungslink erzeugen</button>
             <div class="ex-hint" id="inviteOut" style="margin-top:10px;"></div>
+            <!-- E1: Die Haushalts-ID stand bisher nirgends in der Oberflaeche,
+                 obwohl das Beitrittsfeld sie verlangt. Anders als der Link
+                 gewaehrt sie nichts von selbst - eine Anfrage damit muss ein
+                 Eigentuemer annehmen (E3). -->
+            <div class="hh-id-zeile">
+              <span class="reihe-unter" style="margin:0 0 6px;" data-t="einstellungen.haushalts_id_wer_sie_kennt">Haushalts-ID — wer sie kennt, kann nicht hinein, sondern nur anklopfen: Die Beitrittsanfrage muss hier jemand annehmen.</span>
+              <div class="ing-input-row" style="grid-template-columns:minmax(0,1fr) auto;">
+                <code id="hhIdWert" class="hh-id-wert"></code>
+                <button class="btn btn-soft" id="hhIdKopieren" type="button" data-t="einstellungen.id_kopieren">ID kopieren</button>
+              </div>
+              <div class="ex-hint" id="hhIdOut"></div>
+            </div>
             <ul class="member-list" id="memberList"></ul>
           </div>
 
           <div class="reihe reihe-block">
             <span class="reihe-titel" data-t="einstellungen.weiterem_haushalt_beitreten">Weiterem Haushalt beitreten</span>
-            <span class="reihe-unter" style="margin:0 0 8px;" data-t-teil="0:einstellungen.fuer_einen_zusaetzlichen_haushalt|1:einstellungen.oder_um_einen_einladungscode">Für einen zusätzlichen Haushalt, den ihr schon von früher kennt (Haushalts-ID, z. B. <code data-t="einstellungen.hh">hh-…</code>), oder um einen Einladungscode einzulösen, den ihr per Nachricht bekommen habt.</span>
+            <span class="reihe-unter" style="margin:0 0 8px;" data-t-teil="0:einstellungen.einladungscode_einloesen_gilt_sofort|1:einstellungen.anfragen_jemand_dort_muss">Einladungscode einlösen (gilt sofort) — oder mit einer Haushalts-ID (<code data-t="einstellungen.hh">hh-…</code>) anfragen: Jemand dort muss die Anfrage annehmen. Alte FamBoard-Haushalte ohne Konto übernimmt die ID direkt.</span>
             <div class="ing-input-row" style="grid-template-columns:1fr 100px;">
               <input type="text" id="joinHhInput" placeholder="hh-… oder Einladungscode" data-t-ph="einstellungen.hh_oder_einladungscode" autocomplete="off" style="font-family:var(--schrift); font-variant-numeric:tabular-nums; font-size:0.82rem;">
               <button class="btn btn-primary" id="joinHhBtn" type="button" data-t="einstellungen.beitreten">Beitreten</button>
@@ -873,6 +885,46 @@
      hier, im leeren Zustand und bei Ankuendigungen. Duzen ohne Ausnahme,
      keine Formulierung, die Druck erzeugt (MD-15). P-9 - keine
      Geschlechtsabfrage. -->
+<!-- E2: Wahlschritt. Erscheint nach der Anmeldung, wenn das Konto nirgends
+     Mitglied ist - an der Stelle, an der frueher ungefragt ein leerer Haushalt
+     entstand. Gleiche Huelle wie das Onboarding, gleiche Bauteile. Titel und
+     Text setzt app.js je Zustand (wahl / beitreten / warten). -->
+<div class="onboarding" id="wahlschritt" hidden>
+  <div class="ob-inhalt">
+    <svg class="figur" id="wsFigur" viewBox="0 0 512 512" fill="currentColor" aria-hidden="true"></svg>
+    <h1 class="ob-titel" id="wsTitel"></h1>
+    <p class="ob-text" id="wsText"></p>
+    <div class="ob-feld" id="wsNameFeld">
+      <label for="wsName" data-t="wahl.dein_name">Dein Name</label>
+      <input type="text" id="wsName" placeholder="z. B. Vladi" data-t-ph="einstellungen.z_b_vladi" autocomplete="name">
+      <p class="ex-hint" data-t="wahl.wird_den_anderen_im_haushalt">Wird den anderen im Haushalt angezeigt. Lässt sich jederzeit ändern.</p>
+    </div>
+    <div class="ob-feld" id="wsBeitrittFeld" hidden>
+      <label for="wsCode" data-t="wahl.einladungscode_oder_haushalts_id">Einladungscode oder Haushalts-ID</label>
+      <input type="text" id="wsCode" placeholder="Code oder hh-…" data-t-ph="wahl.code_oder_hh" autocomplete="off" style="font-family:var(--schrift); font-variant-numeric:tabular-nums;">
+      <p class="ex-hint" data-t="wahl.beides_bekommt_ihr_von_jemandem">Beides bekommt ihr von jemandem, der schon drin ist: Einstellungen → Mitglieder &amp; Einladung.</p>
+    </div>
+    <div class="ob-feld" id="wsWarten" hidden>
+      <p class="ex-hint" data-t-teil="0:wahl.anfrage_an">Anfrage an <code id="wsWartenHaushalt"></code></p>
+    </div>
+    <div class="ex-hint" id="wsOut" role="status" style="margin-top:var(--abstand-m);"></div>
+  </div>
+  <div class="ob-fuss">
+    <div class="ws-wahl" id="wsWahl">
+      <button class="btn btn-primary full" id="wsNeu" type="button" data-t="wahl.neuen_haushalt_anlegen">Neuen Haushalt anlegen</button>
+      <button class="btn btn-soft full" id="wsBeitreten" type="button" data-t="wahl.einem_haushalt_beitreten">Einem Haushalt beitreten</button>
+    </div>
+    <div class="ws-wahl" id="wsBeitrittKnoepfe" hidden>
+      <button class="btn btn-primary full" id="wsSenden" type="button" data-t="wahl.beitreten_oder_anfragen">Beitreten / anfragen</button>
+      <button class="btn btn-ghost full" id="wsZurueck" type="button" data-t="wahl.zurueck">Zurück</button>
+    </div>
+    <div class="ws-wahl" id="wsWartenKnoepfe" hidden>
+      <button class="btn btn-ghost full" id="wsZurueckziehen" type="button" data-t="wahl.anfrage_zurueckziehen">Anfrage zurückziehen</button>
+    </div>
+    <button class="btn btn-ghost full" id="wsAbmelden" type="button" data-t="wahl.abmelden">Abmelden</button>
+  </div>
+</div>
+
 <div class="onboarding" id="onboarding" hidden>
   <div class="ob-inhalt">
     <svg class="figur" id="obFigur" viewBox="0 0 512 512" fill="currentColor" aria-hidden="true"></svg>
@@ -882,6 +934,15 @@
       <label for="obHaushaltName" data-t="onboarding.name_des_haushalts">Name des Haushalts</label>
       <input type="text" id="obHaushaltName" placeholder="Mein Haushalt" data-t-ph="onboarding.mein_haushalt" autocomplete="off">
       <p class="ex-hint" data-t="onboarding.laesst_sich_jederzeit_aendern">Lässt sich jederzeit ändern.</p>
+    </div>
+    <!-- E1: Beispielrezepte als Angebot. Das Haekchen ist bewusst nicht
+         vorgewaehlt - neue Haushalte starten leer (T-13). -->
+    <div class="ob-feld" id="obBeispieleFeld" hidden>
+      <label class="schalter-zeile" for="obBeispiele">
+        <span data-t="onboarding.sechs_beispielrezepte_einspielen">Sechs Beispielrezepte einspielen</span>
+        <input type="checkbox" id="obBeispiele">
+      </label>
+      <p class="ex-hint" data-t="onboarding.loeschen_geht_jederzeit_rezept">Löschen geht jederzeit — Rezept öffnen, Papierkorb.</p>
     </div>
     <div class="hinweis-band" id="obHinweis" hidden>
       <svg class="hb-symbol" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9a6 6 0 1 1 12 0c0 4 1.5 5.5 1.5 5.5h-15S6 13 6 9Z"/><path d="M10 18a2 2 0 0 0 4 0"/></svg>

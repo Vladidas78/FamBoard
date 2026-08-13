@@ -175,18 +175,32 @@ const DATEN = {
 /* Mit ?leer=1 startet der Pruefstand einen frisch angelegten Haushalt -
    nur so laesst sich das Onboarding ueberhaupt sehen. */
 const LEER = typeof location !== 'undefined' && /[?&]leer=1/.test(location.search);
+/* Mit ?neu=1 hat das Konto nirgends eine Mitgliedschaft - der Zustand, in dem
+   seit E2 der Wahlschritt erscheint. Der Haushalt hh-pruefstand existiert
+   weiter, gehoert aber jemand anderem: Genau so sieht die Welt fuer einen
+   Eingeladenen aus, der nur die Haushalts-ID kennt. */
+const NEU = typeof location !== 'undefined' && /[?&]neu=1/.test(location.search);
+/* Mit ?anfrage=1 liegt eine offene Beitrittsanfrage vor - fuer die
+   Eigentuemer-Karte auf Heute (E3). */
+const ANFRAGE = typeof location !== 'undefined' && /[?&]anfrage=1/.test(location.search);
 
 /* ---- Der Baum ---- */
 const BAUM = {
-  users:{ [UID]:{ haushalte:{ [HH]:true } } },
+  users: NEU ? {} : { [UID]:{ haushalte:{ [HH]:true } } },
   haushalte:{ [HH]:{
-    meta:{ name:'Haushalt Krüger', owner:UID, erstellt:1785000000000 },
-    members:{ [UID]:{ rolle:'owner', beigetreten:1785000000000 },
-              'zweite-uid':{ rolle:'mitglied', beigetreten:1785500000000 } },
+    meta:{ name:'Haushalt Krüger', owner: NEU ? 'andere-uid' : UID, erstellt:1785000000000 },
+    members: NEU
+      ? { 'andere-uid':{ rolle:'owner', beigetreten:1785000000000, name:'Kim' } }
+      : { [UID]:{ rolle:'owner', beigetreten:1785000000000 },
+          'zweite-uid':{ rolle:'mitglied', beigetreten:1785500000000 } },
     data: LEER ? { settings:{ personen:4, slots:DATEN.settings.slots } } : DATEN,
     images:{},
   } },
-  einladungen:{},
+  /* Ein uneingeloester Code fuer den Einladungsweg des Wahlschritts. */
+  einladungen:{ pruefcode12345678901234: { haushalt:HH, erstelltVon: NEU ? 'andere-uid' : UID, erstellt:1785600000000 } },
+  beitrittsanfragen: ANFRAGE
+    ? { [HH]: { 'neue-uid': { name:'Mara', angefragt:1785900000000, status:'offen' } } }
+    : {},
   ics:{},
 };
 
@@ -211,8 +225,20 @@ function schreib(pfad, wert){
   setTimeout(sichern, 0);
   const t = teile(pfad);
   let k = BAUM;
-  for(let i=0;i<t.length-1;i++){ if(typeof k[t[i]] !== 'object' || k[t[i]] === null) k[t[i]] = {}; k = k[t[i]]; }
-  if(wert === null || wert === undefined) delete k[t[t.length-1]];
+  const kette = [];
+  for(let i=0;i<t.length-1;i++){ if(typeof k[t[i]] !== 'object' || k[t[i]] === null) k[t[i]] = {}; kette.push([k, t[i]]); k = k[t[i]]; }
+  if(wert === null || wert === undefined){
+    delete k[t[t.length-1]];
+    /* Wie live: Firebase kennt keine leeren Knoten - ein Ast ohne Blaetter
+       verschwindet. Ohne das bliebe z. B. users/<uid>/anfragen als {} stehen,
+       waehrend die echte Datenbank null liefert. */
+    for(let i=kette.length-1; i>=0; i--){
+      const [eltern, name] = kette[i];
+      const kind = eltern[name];
+      if(kind && typeof kind === 'object' && !Object.keys(kind).length) delete eltern[name];
+      else break;
+    }
+  }
   else k[t[t.length-1]] = wert;
 }
 
@@ -228,7 +254,32 @@ function schnappschuss(pfad){
 
 export function get(r){ return Promise.resolve(schnappschuss(r._pfad)); }
 
+/* Die Regeln aus database.rules.json, an denen Ablaeufe haengen: In einen
+   bewohnten Haushalt schreibt sich niemand selbst hinein, ein Claim braucht
+   einen bestehenden Haushalt, eine Beitrittsanfrage auch. Ohne sie wuerde
+   versucheClaim im Pruefstand immer gelingen und der Anfrageweg (E3) waere
+   hier nicht pruefbar - live lehnt Firebase ab, der Stub muss es auch. */
+function schreibungErlaubt(pfad, wert){
+  const m = String(pfad).match(/^haushalte\/([^/]+)\/members\/([^/]+)$/);
+  if(m){
+    const members = lies('haushalte/' + m[1] + '/members') || {};
+    if(!Object.keys(members).length) return !!lies('haushalte/' + m[1]); // Claim nur, wenn es den Haushalt gibt
+    if(members[UID]) return true;                                 // Mitglied oder Eigentuemer schreibt
+    if(wert && wert.viaCode && lies('einladungen/' + wert.viaCode)) return true; // Einladung
+    return false;
+  }
+  const a = String(pfad).match(/^beitrittsanfragen\/([^/]+)\/([^/]+)$/);
+  if(a){
+    /* Anlegen nur an einen Haushalt, den es gibt (meta.exists in der Regel) */
+    return !!lies('haushalte/' + a[1] + '/meta');
+  }
+  return true;
+}
+
 export function set(r, wert){
+  if(!schreibungErlaubt(r._pfad, wert)){
+    return Promise.reject(new Error('PERMISSION_DENIED (Pruefstand): Schreibung wie live abgelehnt'));
+  }
   schreib(r._pfad, wert);
   melde(r._pfad);
   return Promise.resolve();
@@ -256,5 +307,9 @@ export function onValue(r, cb){
   return ()=>{ const i = ZUHOERER.indexOf(z); if(i>=0) ZUHOERER.splice(i,1); };
 }
 
-/* Für den Prüfstand von außen einsehbar */
-globalThis.__pruefstand = { BAUM, WK, HH, UID, HEUTE_ISO };
+/* Für den Prüfstand von außen einsehbar. schreib/melde zusaetzlich nach
+   aussen gereicht, damit ein Lauf die Gegenseite spielen kann - etwa den
+   Eigentuemer, der eine Beitrittsanfrage annimmt, waehrend die Seite als
+   Anfragender wartet. */
+globalThis.__pruefstand = { BAUM, WK, HH, UID, HEUTE_ISO,
+  schreib: (pfad, wert)=>{ schreib(pfad, wert); melde(pfad); } };

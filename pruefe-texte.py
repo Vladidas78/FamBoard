@@ -59,7 +59,12 @@ Ausnahmen bekommen /* texte-ok: <Grund> */ in die Zeile.
 # Wird die Zahl kleiner, hier nachziehen. Wird sie groesser, ist harter Text
 # dazugekommen - dann entweder einen Schluessel vergeben oder die Zahl bewusst
 # erhoehen. Beides ist eine Entscheidung, kein Versehen.
-REST_ERWARTET = 431
+#
+# 13.08.2026 (E3): 431 -> 435. Die vier Neuen sind reine Markup-Fragmente der
+# Beitrittsanfragen-Karte ('<div class="beitritt-zeile" ...>' usw.) - der
+# Zaehler haelt sie wegen des Leerzeichens im Attribut fuer Satzbau. Menschlicher
+# Text steckt darin nicht; der laeuft ueber txt('beitritt.*').
+REST_ERWARTET = 435
 import re, sys
 from html.parser import HTMLParser
 

@@ -1506,14 +1506,29 @@
   }
   .ob-feld{ margin-top:var(--abstand-xl); }
   .ob-feld label{ display:block; margin-bottom:6px; font-size:13px; color:var(--text-leise); }
-  /* D-19 - im bildschirmfuellenden Kasten traegt das Feld die Senkenfarbe */
-  .ob-feld input{
+  /* D-19 - im bildschirmfuellenden Kasten traegt das Feld die Senkenfarbe.
+     :not([type=checkbox]): Das Beispielrezepte-Haekchen (E1) behaelt seine
+     22px-Kreisform aus der Schalterzeile, statt auf Feldmass gezogen zu
+     werden - dieselbe Gestalt wie jedes andere Kaestchen der App. */
+  .ob-feld input:not([type=checkbox]){ /* stil-ok: :not schliesst das Kaestchen aus, gestylt wird es in der Schalterzeile */
     width:100%; height:var(--hoehe-control); padding:0 12px;
     border:1px solid var(--linie); border-radius:var(--radius-m);
     background:var(--flaeche-senke); color:var(--text-haupt);
     font-family:var(--schrift); font-size:16px;
   }
   #obHinweis{ margin-top:var(--abstand-xl); }
+  /* E1: Beispielrezepte-Angebot - dieselbe Schalterzeile wie in den
+     Einstellungen, nur auf der Senkenflaeche des Onboardings. display:flex
+     ausdruecklich, weil `.ob-feld label{display:block}` sonst gewinnt und
+     das Kaestchen aus der Zeile faellt. */
+  #obBeispieleFeld .schalter-zeile{
+    display:flex; align-items:center; justify-content:space-between;
+    height:var(--hoehe-control); padding:0 12px; margin:0;
+    border:1px solid var(--linie); border-radius:var(--radius-m);
+    background:var(--flaeche-senke);
+    font-size:16px; color:var(--text-haupt);
+  }
+  #obBeispieleFeld .ex-hint{ margin-top:6px; }
   .ob-fuss{ display:flex; flex-direction:column; gap:var(--abstand-m); }
   .ob-punkte{ display:flex; justify-content:center; gap:6px; margin-bottom:2px; }
   .ob-punkt{ width:6px; height:6px; border-radius:999px; background:var(--linie); transition:width .18s ease, background-color .18s ease; }
@@ -1620,6 +1635,29 @@
   .member-row{ display:flex; align-items:center; justify-content:space-between; gap:8px; padding:8px 2px; border-bottom:1px solid var(--linie-leise); font-size:0.88rem; }
   .member-row:last-child{ border-bottom:none; }
   .member-row .role{ font-size:0.72rem; color:var(--messing-aktion); font-weight:600; text-transform:uppercase; letter-spacing:.4px; }
+
+  /* ---------- Haushalts-ID sichtbar (E1) ---------- */
+  .hh-id-zeile{ margin:14px 0 4px; }
+  .hh-id-wert{
+    display:flex; align-items:center; min-width:0; height:var(--hoehe-control);
+    padding:0 12px; border:1px solid var(--linie); border-radius:var(--radius-m);
+    background:var(--flaeche-senke); color:var(--text-haupt);
+    font-variant-numeric:tabular-nums; font-size:0.82rem;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
+  .hh-id-zeile .ex-hint{ margin-top:6px; }
+
+  /* ---------- Wahlschritt (E2) ---------- */
+  .ws-wahl{ display:flex; flex-direction:column; gap:var(--abstand-m); }
+
+  /* ---------- Beitrittsanfragen auf Heute (E3) ---------- */
+  .beitritt-karte{ padding:14px 16px; }
+  .beitritt-zeile{ padding:10px 0; border-bottom:1px solid var(--linie-leise); }
+  .beitritt-zeile:first-child{ padding-top:0; }
+  .beitritt-zeile:last-child{ border-bottom:none; padding-bottom:0; }
+  .beitritt-zeile p{ margin:0 0 10px; font-size:15px; line-height:1.5; }
+  .beitritt-knoepfe{ display:flex; gap:var(--abstand-s); }
+  .beitritt-knoepfe .btn{ flex:1 1 0; white-space:nowrap; }
   .hh-switch{ display:flex; flex-wrap:wrap; gap:6px; margin:10px 0 4px; }
   .hh-switch button{ min-height:var(--hoehe-chip); padding:0 var(--abstand-m); border-radius:var(--radius-rund); border:1px solid var(--linie); display:inline-flex; align-items:center; justify-content:center; background:var(--flaeche-senke); color:var(--text-leise); font-size:14px; cursor:pointer; font-family:var(--schrift); }
   .hh-switch button.active{ background:var(--messing-aktion); color:var(--auf-aktion); border-color:var(--messing-aktion); }
