@@ -18,9 +18,17 @@
     "binding": "ASSETS"
   },
 
+  // Der Wecker (C4): alle fünf Minuten ein Cron-Lauf, der fällige Weckrufe
+  // sendet — siehe src/weckrufe.js. Bindings NUR hier pflegen, nicht im
+  // Dashboard (Falle Kapitel 2.6: das Dashboard wird beim Deploy überschrieben).
+  "triggers": { "crons": ["*/5 * * * *"] },
+
   // Tageslimit und Premium-Staffelung für den Rezept-Import (siehe ANLEITUNG.md).
   // Stufen werden als KV-Einträge gepflegt: tier:<e-mail> = premium | unbegrenzt | gesperrt
+  // WECKRUFE (Namespace famboard-weckrufe) trägt die Abo-Kopien (wr:), die
+  // Dedup-Vermerke (ws:) und den Heartbeat (wl:stand) des Weckers.
   "kv_namespaces": [
-    { "binding": "IMPORT_LIMITS", "id": "69667679030849d3a96dd6ce69379fb8" }
+    { "binding": "IMPORT_LIMITS", "id": "69667679030849d3a96dd6ce69379fb8" },
+    { "binding": "WECKRUFE", "id": "d9879e8f3a924aafbb6dba2b41d0cc0b" }
   ]
 }

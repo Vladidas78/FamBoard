@@ -40,6 +40,26 @@
       }
     },
 
+    "weckrufe": {
+      "$token": {
+        ".read": true,
+        ".write": "auth != null && $token.length >= 16 && ( ( newData.exists() && newData.hasChildren(['hh','liste']) && root.child('haushalte/' + newData.child('hh').val() + '/members/' + auth.uid).exists() && root.child('haushalte/' + newData.child('hh').val() + '/data/settings/weckrufToken').val() === $token ) || ( !newData.exists() && data.exists() && root.child('haushalte/' + data.child('hh').val() + '/members/' + auth.uid).exists() && root.child('haushalte/' + data.child('hh').val() + '/data/settings/weckrufToken').val() === $token ) )",
+        "hh": { ".validate": "newData.isString()" },
+        "aktualisiert": { ".validate": "newData.isNumber()" },
+        "liste": {
+          ".indexOn": "um",
+          "$w": {
+            ".validate": "newData.hasChildren(['um','titel'])",
+            "um": { ".validate": "newData.isNumber()" },
+            "titel": { ".validate": "newData.isString() && newData.val().length < 140" },
+            "text": { ".validate": "newData.isString() && newData.val().length < 300" },
+            "$other": { ".validate": false }
+          }
+        },
+        "$other": { ".validate": false }
+      }
+    },
+
     "haushalte": {
       "$haushalt": {
         ".read":  "auth != null && $haushalt.length >= 12 && root.child('haushalte/' + $haushalt + '/members/' + auth.uid).exists()",

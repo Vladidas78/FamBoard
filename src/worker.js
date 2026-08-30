@@ -10,6 +10,7 @@
 
 import { handleImportRecipe } from './import-recipe.js';
 import { handlePush } from './push-route.js';
+import { weckrufRoute, weckrufCron } from './weckrufe.js';
 
 export default {
   async fetch(request, env, ctx) {
@@ -23,6 +24,12 @@ export default {
     // dieser Worker — Einzelheiten in push-route.js.
     if (url.pathname === '/api/push') {
       return handlePush(request, env);
+    }
+
+    // Weckruf-Anmeldung (C4). Legt die Abo-Kopie fuer den Cron-Lauf in KV ab —
+    // Einzelheiten in weckrufe.js.
+    if (url.pathname === '/api/weckruf') {
+      return weckrufRoute(request, env);
     }
 
     // ICS-Feed (K-10). Der Pfad traegt ein langes, zufaelliges Token; darin liegt
@@ -64,5 +71,11 @@ export default {
 
     // Alles Übrige: die App selbst
     return env.ASSETS.fetch(request);
+  },
+
+  // Der Wecker (C4): Cloudflare ruft das alle fuenf Minuten auf (Trigger in
+  // wrangler.jsonc). waitUntil haelt den Lauf am Leben, bis er fertig ist.
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil(weckrufCron(env));
   }
 };
