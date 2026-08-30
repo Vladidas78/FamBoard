@@ -843,9 +843,14 @@
         <p data-t-teil="0:einstellungen.erinnerungen_erreichen_dich_dort"><strong data-t="einstellungen.auf_dem_iphone_nur">Auf dem iPhone nur vom Homescreen aus.</strong> Erinnerungen erreichen dich dort nur, wenn Butley auf dem Homescreen liegt: Teilen antippen, „Zum Home-Bildschirm“ wählen. Das ist eine Vorgabe von Apple, keine von uns.</p>
       </div>
 
-      <div style="display:flex; justify-content:center; padding-bottom:6px;">
+      <!-- E4: Verlassen nach Kapitel 3.1 - alles Gemeinsame bleibt, die Person
+           wird ehemalig, die Kontoverknuepfung wird geloest. Der letzte
+           Besitzer ist gesperrt und liest den Grund darunter (D-23). -->
+      <div style="display:flex; justify-content:center; gap:10px; padding-bottom:6px;">
+        <button class="btn btn-soft btn-sm" id="hhVerlassen" type="button" data-t="einstellungen.haushalt_verlassen">Haushalt verlassen</button>
         <button class="btn btn-soft btn-loeschen btn-sm" id="hhLoeschen" type="button" data-t="einstellungen.haushalt_loeschen">Haushalt löschen</button>
       </div>
+      <div class="ex-hint" id="hhVerlassenOut" style="text-align:center;"></div>
       <div class="ex-hint" id="hhLoeschenOut" style="text-align:center;"></div>
       <p class="ex-hint" style="text-align:center; padding-top:8px;" data-t-teil="1:einstellungen.stufe_1">Butley <span class="zahl" id="appVersion">0.9.0</span> · Stufe 1</p>
   </section>

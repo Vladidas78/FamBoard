@@ -64,7 +64,10 @@ Ausnahmen bekommen /* texte-ok: <Grund> */ in die Zeile.
 # Beitrittsanfragen-Karte ('<div class="beitritt-zeile" ...>' usw.) - der
 # Zaehler haelt sie wegen des Leerzeichens im Attribut fuer Satzbau. Menschlicher
 # Text steckt darin nicht; der laeuft ueber txt('beitritt.*').
-REST_ERWARTET = 435
+# 13.08.2026 (E4): 435 -> 437. Zwei weitere Markup-Fragmente, diesmal aus der
+# Mitgliederzeile (Ernennen-Knopf, rechter Zeilenteil). Gleiche Lage: kein
+# menschlicher Text, der laeuft ueber txt('einstellungen.*').
+REST_ERWARTET = 437
 import re, sys
 from html.parser import HTMLParser
 

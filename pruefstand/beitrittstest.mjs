@@ -204,6 +204,42 @@ try{
   writeFileSync(stubDatei, original, 'utf8');
 }
 
+/* --- 8. Haushalt verlassen (E4): Sperre, Uebergabe, Auszug --- */
+p = await seite();
+await p.click('#kopfKonto'); await p.waitForTimeout(400);
+const verlassenZu = await p.evaluate(()=>{
+  const b = document.getElementById('hhVerlassen');
+  return { aus: b.disabled, grund: document.getElementById('hhVerlassenOut').textContent };
+});
+gut('Letzter Besitzer: Verlassen ist gesperrt', verlassenZu.aus);
+gut('Letzter Besitzer: der Grund steht darunter', verlassenZu.grund.includes('letzte Besitzer'));
+await p.screenshot({path: join(AUS,'verlassen-gesperrt.png')});
+/* Uebergabe: zweite-uid zum Besitzer machen */
+const ernennenDa = await p.evaluate(()=>!!document.querySelector('.member-ernennen[data-uid="zweite-uid"]'));
+gut('Ernennen-Knopf am Mitglied vorhanden', ernennenDa);
+await p.click('.member-ernennen[data-uid="zweite-uid"]'); await p.waitForTimeout(500);
+gut('Rolle in der Datenbank umgestellt', ((await baum(p,'haushalte/hh-pruefstand/members/zweite-uid'))||{}).rolle === 'owner');
+gut('Verlassen ist jetzt freigegeben', !(await p.evaluate(()=>document.getElementById('hhVerlassen').disabled)));
+await p.screenshot({path: join(AUS,'verlassen-frei.png')});
+/* Zwei Schritte, wie beim Loeschen */
+await p.click('#hhVerlassen'); await p.waitForTimeout(250);
+gut('Erster Klick fragt nach', (await p.evaluate(()=>document.getElementById('hhVerlassen').textContent)).includes('Wirklich'));
+await p.click('#hhVerlassen'); await p.waitForTimeout(900);
+/* Kein weiterer Haushalt: Neustart landet im Wahlschritt */
+await p.waitForTimeout(900);
+gut('Ohne weiteren Haushalt: Wahlschritt erscheint', await p.evaluate(()=>{
+  const w = document.getElementById('wahlschritt'); return !!w && !w.hidden;
+}));
+{
+  const members = await baum(p,'haushalte/hh-pruefstand/members');
+  gut('Mitgliedschaft ist beendet', members !== null && !members['pruefstand-uid'] && !!members['zweite-uid']);
+  gut('Kontozuordnung ist geloest', (await baum(p,'users/pruefstand-uid/haushalte')) === null);
+  const p1 = await baum(p,'haushalte/hh-pruefstand/data/personen/p1');
+  gut('Person bleibt als ehemalig stehen', !!p1 && p1.ehemalig === true && !p1.uid && p1.name === 'Vladi');
+  gut('Gemeinsames bleibt unangetastet', Array.isArray((await baum(p,'haushalte/hh-pruefstand/data/recipes'))));
+}
+await p.context().close();
+
 await b.close();
 s.close();
 if(fehler.length){

@@ -4870,6 +4870,7 @@ function zeigeBereich(name){
     if(offen && offen.id !== 'settings') bereichVorEinstellungen = offen.id;
   }else{
     try{ loeschBestaetigungZuruecknehmen(); }catch(e){}
+    try{ verlassenBestaetigungZuruecknehmen(); }catch(e){}
   }
   Array.prototype.forEach.call(document.querySelectorAll('nav .tab'),
     b=>b.classList.toggle('active', b.dataset.tab === name));
@@ -5773,13 +5774,49 @@ async function renderMemberList(){
   try{
     const snap = await get(ref(db, 'haushalte/' + HAUSHALT_ID + '/members'));
     const members = snap.exists() ? snap.val() : {};
+    const meineUid = auth.currentUser && auth.currentUser.uid;
+    const besitzer = Object.keys(members).filter(u=>(members[u]||{}).rolle === 'owner');
+    const binIchOwner = meineRolle === 'owner';
     const rows = Object.keys(members).map(uid=>{
       const m = members[uid] || {};
-      const bistDu = auth.currentUser && uid === auth.currentUser.uid;
+      const bistDu = uid === meineUid;
       const label = m.name || (bistDu ? 'Ihr' : 'Mitglied ' + uid.slice(0,6));
-      return '<li class="member-row"><span>' + label + (bistDu ? ' (ihr)' : '') + '</span><span class="role">' + (m.rolle || 'mitglied') + '</span></li>';
+      /* E4: Eigentuemer koennen Mitglieder zum Besitzer machen - noetig, damit
+         der letzte Besitzer den Haushalt uebergeben und dann verlassen kann
+         (Kapitel 3.1). Zurueckstufen gibt es bewusst nicht. */
+      const ernennen = (binIchOwner && !bistDu && m.rolle !== 'owner')
+        ? '<button type="button" class="btn btn-soft btn-sm member-ernennen" data-uid="' + uid + '">' + txt('einstellungen.zum_besitzer_machen') + '</button>'
+        : '';
+      return '<li class="member-row"><span>' + escapeHtml(label) + (bistDu ? ' (ihr)' : '') + '</span>' +
+        '<span class="member-rechts">' + ernennen + '<span class="role">' + (m.rolle || 'mitglied') + '</span></span></li>';
     });
     box.innerHTML = rows.join('') || '<li class="hh-empty">Noch keine Mitglieder geladen.</li>';
+    Array.prototype.forEach.call(box.querySelectorAll('.member-ernennen'), b=>{
+      b.addEventListener('click', async ()=>{
+        b.disabled = true;
+        try{
+          await set(ref(db, 'haushalte/' + HAUSHALT_ID + '/members/' + b.dataset.uid + '/rolle'), 'owner');
+          const wer = (members[b.dataset.uid] || {}).name || ('Mitglied ' + b.dataset.uid.slice(0,6));
+          showToast(wer + txt('einstellungen.ist_jetzt_besitzer'));
+          renderMemberList();
+        }catch(e){
+          b.disabled = false;
+          showToast(txt('einstellungen.ernennen_fehlgeschlagen') + (e.code || e.message) + ').');
+        }
+      });
+    });
+    /* E4: Verlassen ist fuer den letzten Besitzer gesperrt - mit Grund als
+       Text (D-23/Betriebsregel 18). Bei allen anderen gehoert die Zeile dem
+       Verlassen-Ablauf, der dort seine eigenen Meldungen schreibt. */
+    const verlassenBtn = document.getElementById('hhVerlassen');
+    if(verlassenBtn){
+      const letzterBesitzer = binIchOwner && besitzer.length <= 1;
+      verlassenBtn.disabled = letzterBesitzer;
+      const verlassenOut = document.getElementById('hhVerlassenOut');
+      if(verlassenOut && letzterBesitzer){
+        verlassenOut.textContent = txt('einstellungen.der_letzte_besitzer_kann');
+      }
+    }
   }catch(e){ box.innerHTML = ''; }
 }
 
@@ -5965,6 +6002,99 @@ let bereichVorEinstellungen = 'heute';
 {
   const zurueck = document.getElementById('settingsZurueck');
   if(zurueck) zurueck.addEventListener('click', ()=>zeigeBereich(bereichVorEinstellungen));
+}
+
+/* Haushalt verlassen (E4, Kapitel 3.1).
+   Alles Gemeinsame bleibt ohne Nachfrage erhalten - eine Rueckfrage "soll
+   alles bleiben?" waere ein Loeschknopf fuer fremde Arbeit. Die eigene Person
+   bleibt als "ehemalig" stehen (sonst verlieren alte Zuordnungen ihre
+   Referenz), die Kontoverknuepfung wird geloest, das Push-Abo dieses Kontos
+   entfernt - sonst bekaeme das Geraet weiter Meldungen eines Haushalts, zu
+   dem es nicht mehr gehoert. Der letzte Besitzer kann nicht verlassen: erst
+   jemanden zum Besitzer machen (Mitgliederliste) oder den Haushalt loeschen.
+
+   Reihenfolge der Schritte ist tragend: Alles, was Mitgliedschaft braucht,
+   passiert VOR dem Entfernen des members-Eintrags - danach laesst die
+   Sicherheitsregel keinen Schreibzugriff mehr zu. */
+let verlassenBestaetigt = false;
+{
+  const btn = document.getElementById('hhVerlassen');
+  const out = document.getElementById('hhVerlassenOut');
+  if(btn) btn.addEventListener('click', async ()=>{
+    const uid = auth.currentUser && auth.currentUser.uid;
+    if(!uid || !HAUSHALT_ID) return;
+    /* Gegenprobe zum ausgegrauten Zustand - falls die Liste veraltet ist */
+    try{
+      const snap = await get(ref(db, 'haushalte/' + HAUSHALT_ID + '/members'));
+      const members = snap.exists() ? snap.val() : {};
+      const besitzer = Object.keys(members).filter(u=>(members[u]||{}).rolle === 'owner');
+      if(besitzer.length <= 1 && besitzer.indexOf(uid) !== -1){
+        if(out) out.textContent = txt('einstellungen.der_letzte_besitzer_kann');
+        return;
+      }
+    }catch(e){ /* Nicht lesbar? Dann entscheiden die Regeln beim Schreiben. */ }
+    if(!verlassenBestaetigt){
+      verlassenBestaetigt = true;
+      btn.textContent = txt('einstellungen.wirklich_verlassen');
+      btn.classList.remove('btn-soft'); btn.classList.add('btn-primary');
+      if(out) out.textContent = txt('einstellungen.alles_gemeinsame_bleibt_dem_haushalt');
+      return;
+    }
+    btn.disabled = true;
+    if(out) out.textContent = txt('einstellungen.verlasse');
+    const hh = HAUSHALT_ID;
+    try{
+      /* 1. Push-Abo dieses Kontos aus dem Haushalt nehmen */
+      await remove(ref(db, 'haushalte/' + hh + '/data/push/' + uid)).catch(()=>{});
+      /* 2. Private Termine der Person (K-5-Zweig; in Stufe 1 leer, K-9 -
+         der Vollstaendigkeit halber, Kapitel 3.1 verlangt es) */
+      await remove(ref(db, 'haushalte/' + hh + '/data/kalender/privat/' + uid)).catch(()=>{});
+      /* 3. Die verknuepfte Person wird ehemalig, die Verknuepfung geloest */
+      Object.keys(state.personen || {}).forEach(pid=>{
+        if((state.personen[pid] || {}).uid === uid){
+          savePersonFeld(pid, 'ehemalig', true);
+          savePersonFeld(pid, 'uid', null);
+        }
+      });
+      /* 4. Kontozuordnung loesen */
+      await remove(ref(db, 'users/' + uid + '/haushalte/' + hh));
+      /* 5. Zuhoerer abmelden, BEVOR die Mitgliedschaft faellt - sonst meldet
+         Firebase den Wegfall des Leserechts als Fehler in die Oberflaeche */
+      if(unsubscribeData){ unsubscribeData(); unsubscribeData = null; }
+      if(unsubscribeAnfragen){ unsubscribeAnfragen(); unsubscribeAnfragen = null; }
+      /* 6. Zuletzt die Mitgliedschaft selbst */
+      await remove(ref(db, 'haushalte/' + hh + '/members/' + uid));
+      try{ localStorage.removeItem(HH_KEY); localStorage.removeItem('famboard.cache.' + hh); }catch(e){}
+      const mitgliedschaften = await ladeMitgliedschaften(uid);
+      if(mitgliedschaften.length){
+        verlassenBestaetigt = false;
+        btn.disabled = false;
+        btn.textContent = txt('einstellungen.haushalt_verlassen');
+        btn.classList.remove('btn-primary'); btn.classList.add('btn-soft');
+        if(out) out.textContent = '';
+        await aktiviereHaushalt(mitgliedschaften[0]);
+        renderHhSwitch(mitgliedschaften);
+        loadState();
+        zeigeBereich('heute');
+      } else {
+        /* Kein Haushalt mehr: Neustart raeumt alle Zuhoerer auf und landet
+           im Wahlschritt - derselbe Weg wie nach Loeschen und Abmelden. */
+        location.reload();
+      }
+    }catch(err){
+      btn.disabled = false;
+      if(out) out.textContent = txt('einstellungen.verlassen_fehlgeschlagen') + (err.message || err) + ').';
+    }
+  });
+}
+
+function verlassenBestaetigungZuruecknehmen(){
+  if(!verlassenBestaetigt) return;
+  verlassenBestaetigt = false;
+  const btn = document.getElementById('hhVerlassen');
+  const out = document.getElementById('hhVerlassenOut');
+  if(btn){ btn.textContent = txt('einstellungen.haushalt_verlassen'); btn.classList.remove('btn-primary'); btn.classList.add('btn-soft'); }
+  if(out) out.textContent = '';
 }
 
 /* Haushalt loeschen (Verwaltung aus der Oberflaeche).

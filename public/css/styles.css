@@ -1635,6 +1635,9 @@
   .member-row{ display:flex; align-items:center; justify-content:space-between; gap:8px; padding:8px 2px; border-bottom:1px solid var(--linie-leise); font-size:0.88rem; }
   .member-row:last-child{ border-bottom:none; }
   .member-row .role{ font-size:0.72rem; color:var(--messing-aktion); font-weight:600; text-transform:uppercase; letter-spacing:.4px; }
+  /* E4: rechter Teil der Mitgliederzeile - Ernennen-Knopf plus Rolle */
+  .member-rechts{ display:flex; align-items:center; gap:10px; flex:none; }
+  .member-ernennen{ white-space:nowrap; }
 
   /* ---------- Haushalts-ID sichtbar (E1) ---------- */
   .hh-id-zeile{ margin:14px 0 4px; }

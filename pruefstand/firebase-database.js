@@ -209,7 +209,14 @@ const BAUM = {
    Haushalt - und "das Onboarding kommt nur einmal" nicht pruefbar. */
 try{
   const gemerkt = sessionStorage.getItem('pruefstand.baum');
-  if(gemerkt) Object.assign(BAUM, JSON.parse(gemerkt));
+  if(gemerkt){
+    /* Ersetzen statt mischen: Ein Ast, der beim Sichern geloescht war
+       (z. B. users/ nach dem Verlassen des letzten Haushalts, E4), darf
+       nach dem Neuladen nicht aus den Vorgabedaten wiederauferstehen. */
+    const alt = JSON.parse(gemerkt);
+    Object.keys(BAUM).forEach(k=>{ delete BAUM[k]; });
+    Object.assign(BAUM, alt);
+  }
 }catch(e){}
 function sichern(){ try{ sessionStorage.setItem('pruefstand.baum', JSON.stringify(BAUM)); }catch(e){} }
 
