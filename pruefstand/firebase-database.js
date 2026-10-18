@@ -159,7 +159,11 @@ const DATEN = {
     catOrder:['obst','fleisch','kuehl','trocken','gewuerze','konserven','tk','getraenke','haushalt','sonstiges'],
   },
   recipes: REZEPTE,
-  weeks:{ [WK]:{ plan:PLAN, checked:{ bananen:true }, removed:{}, qty:{}, nutriPortions:{} } },
+  /* `checked` war bis zum 18.10.2026 mit `bananen:true` belegt - ein Schluessel,
+     den die App so nie schreibt: Bananen ist ein einmaliges Extra (x4) und
+     wird ueber `doneWk` erledigt, nicht ueber `checked` (Betriebsregel 15).
+     Der Eintrag wirkte nirgends; der Klicklauf hakt jetzt selbst ab. */
+  weeks:{ [WK]:{ plan:PLAN, checked:{}, removed:{}, qty:{}, nutriPortions:{} } },
   excluded:['olivenol','salz'],
   extras: EXTRAS,
   customIngredients: CUSTOM,

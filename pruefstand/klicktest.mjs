@@ -153,5 +153,34 @@ const icsOk = /EXDATE;VALUE=DATE:\d{8}/.test(ics) && /RECURRENCE-ID;VALUE=DATE:\
 console.log('ICS traegt EXDATE und RECURRENCE-ID:', icsOk ? 'ok' : 'FEHLGESCHLAGEN');
 if(!icsOk) fehler.push('EXDATE oder RECURRENCE-ID fehlt im ICS-Feed');
 
+/* Heute-Haken. Kapitel 3.2 verlangt "offene Posten direkt abhakbar". Bis v28
+   schrieb der Haken auf Heute immer nach `checked`; einmalige Extras liest die
+   Liste aber ueber `doneWk` am Extra selbst. Der Toast kam, der Posten blieb,
+   die Zahl blieb. Gepruft wird je ein Posten beider Sorten gegen Zahl, Zeile
+   und Liste, beim ersten auch das Zuruecknehmen ueber den Toast. */
+await p.click('nav .tab[data-tab="heute"]'); await p.waitForTimeout(150);
+const zahlHeute = ()=>p.evaluate(()=>Number(document.getElementById('heuteEinkaufZahl').textContent || 0));
+const standVon = (name)=>p.evaluate((name)=>({
+  nochDa: Array.from(document.querySelectorAll('#heuteEinkauf .hz-titel')).some(el=>el.textContent===name),
+  inListe: Array.from(document.querySelectorAll('#shop .shop-item')).filter(li=>li.textContent.includes(name)).map(li=>li.classList.contains('checked'))
+}), name);
+for (const [name, sorte, zurueck] of [['Bananen','einmaliges Extra',true],['Basilikum','Rezept-Posten',false]]) {
+  const vorher = await zahlHeute();
+  const zeile = p.locator('#heuteEinkauf .heute-zeile', { hasText: name });
+  if(await zeile.count() !== 1){ fehler.push('Heute zeigt "'+name+'" nicht unter Einkauf'); continue; }
+  await zeile.locator('.haken').click(); await p.waitForTimeout(250);
+  const danach = await standVon(name);
+  const zahl = await zahlHeute();
+  const ok = zahl === vorher-1 && !danach.nochDa && danach.inListe.length === 1 && danach.inListe[0] === true;
+  console.log('Heute-Haken ('+sorte+'):', ok ? 'ok' : 'FEHLGESCHLAGEN', 'Zahl', vorher, '->', zahl, '| Zeile weg:', !danach.nochDa, '| Liste erledigt:', danach.inListe.join(','));
+  if(!ok) fehler.push('Heute-Haken wirkt nicht bei '+sorte+' ("'+name+'")');
+  if(!zurueck) continue;
+  await p.click('#toastAction'); await p.waitForTimeout(250);
+  const wieder = await standVon(name);
+  const rueckOk = (await zahlHeute()) === vorher && wieder.nochDa && wieder.inListe[0] === false;
+  console.log('Heute-Haken zurueckgenommen ('+sorte+'):', rueckOk ? 'ok' : 'FEHLGESCHLAGEN');
+  if(!rueckOk) fehler.push('Ruecknahme des Heute-Hakens wirkt nicht bei '+sorte);
+}
+
 await b.close(); s.close();
 console.log(fehler.length ? 'FEHLER:\n  '+[...new Set(fehler)].join('\n  ') : 'Keine Fehler.');

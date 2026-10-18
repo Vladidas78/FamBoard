@@ -2507,6 +2507,28 @@ function buildItems(wk){
   return {items:items, planned:planned};
 }
 
+/* Ein Posten wird an genau einer Stelle abgehakt, egal ob aus der Liste oder
+   von Heute (Kapitel 3.2). Drei Sorten, zwei Ablagen: Rezept-Posten und
+   wiederkehrende Extras liegen unter `weeks/<wk>/checked`, einmalige Extras
+   tragen `doneWk` am Extra selbst. Bis v28 kannte nur die Liste diese
+   Verzweigung; Heute schrieb immer nach `checked`, und ein einmaliges Extra
+   blieb trotz Toast stehen. Liefert false, wenn der Posten nicht mehr da ist. */
+function setzeAbgehakt(wk, it, an){
+  state.checked[wk] = state.checked[wk] || {};
+  if(it.kind === 'extra'){
+    const x = (state.extras||[]).filter(e=>('x|'+e.id)===it.key)[0];
+    if(!x) return false;
+    if(!x.recurring){
+      x.doneWk = an ? wk : null;
+      saveExtras();
+      return true;
+    }
+  }
+  if(an) state.checked[wk][it.key] = true; else delete state.checked[wk][it.key];
+  saveChecked(wk, it.key, an);
+  return true;
+}
+
 /* =========================================================================
    15b. Nährwerte-Report
    ========================================================================= */
@@ -2718,20 +2740,7 @@ function renderShop(){
     const inner = li.querySelector('.shop-inner');
 
     const toggleCheck = async ()=>{
-      if(it.kind==='extra'){
-        const x = state.extras.filter(e=>('x|'+e.id)===key)[0];
-        if(!x) return;
-        if(x.recurring){
-          state.checked[wk][key] = !state.checked[wk][key];
-          saveChecked(wk, key, state.checked[wk][key]);
-        } else {
-          x.doneWk = (x.doneWk===wk) ? null : wk;
-          saveExtras();
-        }
-      } else {
-        state.checked[wk][key] = !state.checked[wk][key];
-        saveChecked(wk, key, state.checked[wk][key]);
-      }
+      if(!setzeAbgehakt(wk, it, !it.checked)) return;
       renderShop();
     };
 
@@ -5615,15 +5624,12 @@ function renderHeute(){
         const key = e.currentTarget.closest('.heute-zeile').dataset.key;
         const posten = offen.find(i=>i.key === key);
         if(!posten) return;
-        /* Ueber dieselbe Stelle wie in der Liste selbst, damit einmalige und
-           wiederkehrende Eintraege gleich behandelt werden. */
-        state.checked[wk] = state.checked[wk] || {};
-        state.checked[wk][key] = true;
-        saveChecked(wk, key, true);
+        /* Ueber dieselbe Funktion wie die Liste selbst (setzeAbgehakt), damit
+           einmalige und wiederkehrende Eintraege gleich behandelt werden. */
+        if(!setzeAbgehakt(wk, posten, true)) return;
         renderShop(); renderHeute();
         showToast(posten.name + ' abgehakt', ()=>{
-          delete state.checked[wk][key];
-          saveChecked(wk, key, false);
+          setzeAbgehakt(wk, posten, false);
           renderShop(); renderHeute();
         });
       }));
