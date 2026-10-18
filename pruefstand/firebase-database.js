@@ -157,6 +157,8 @@ const DATEN = {
     artikelMigriert:true,
     icsToken:'pruefstandtoken1234',
     catOrder:['obst','fleisch','kuehl','trocken','gewuerze','konserven','tk','getraenke','haushalt','sonstiges'],
+    /* v31 - Wochenbudget. Der Samstag traegt kind:'out' und zaehlt 3 x 15 = 45 EUR. */
+    budget:{ woche:150, auswaertsPersonen:3, auswaertsProPerson:15 },
   },
   recipes: REZEPTE,
   /* `checked` war bis zum 18.10.2026 mit `bananen:true` belegt - ein Schluessel,
@@ -171,6 +173,12 @@ const DATEN = {
                  zahnpasta:'haushalt', mullbeutel:'haushalt', waschmittel:'haushalt',
                  mineralwasser:'getraenke', orangensaft:'getraenke', kaffeebohnen:'trocken' },
   marketOverrides:{ katzenfutter:'Fressnapf', mineralwasser:'Getränke Rot', zahnpasta:'dm' },
+  /* v31 - Preise je Packung. Schluessel sind encKey(normKey(name)) wie in app.js:
+     klein, letztes Wort im Singular ("Bananen" -> "banane", "Karotten" -> "karotte").
+     Nur Namen ohne Umlaut und Leerzeichen, damit der Schluessel lesbar bleibt. */
+  preise:{ feta:1.6, zucchini:0.89, paprika:1.29, spaghetti:1.15, rinderhackfleisch:4.99,
+           mozzarella:0.99, pizzateig:1.79, katzenfutter:3.49, mineralwasser:0.45,
+           banane:1.25, basilikum:1.49, karotte:0.99 },
   notizen: NOTIZEN,
   personen: PERSONEN,
   kalender:{ gemeinsam: TERMINE },

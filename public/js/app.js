@@ -558,6 +558,7 @@ function emptyState(){
     excluded: [],      // normalisierte Zutatennamen
     catOverrides: {},  // { normKey: catId }
     marketOverrides: {}, // { normKey: "Rewe" } — welcher Laden für diese Zutat
+    preise: {},        // { normKey: 1.15 }  Euro je Packung (v31)
     extras: [],        // { id, name, qty, cat, recurring, doneWk, from }
     haushalt: [],              // { id, name, cat, market } — Alt-Katalog, seit T-9 nur noch Sicherung
     customIngredients: [],     // { name } — Artikelstamm: selbst angelegte Artikel
@@ -962,6 +963,7 @@ function fromRemote(d){
   s.push = d.push || {};
   Object.keys(d.catOverrides || {}).forEach(k=>{ s.catOverrides[decKey(k)] = d.catOverrides[k]; });
   Object.keys(d.marketOverrides || {}).forEach(k=>{ s.marketOverrides[decKey(k)] = d.marketOverrides[k]; });
+  Object.keys(d.preise || {}).forEach(k=>{ const v = Number(d.preise[k]); if(v > 0) s.preise[decKey(k)] = v; });
   Object.keys(d.weeks || {}).forEach(wk=>{
     const w = d.weeks[wk] || {};
     s.plan[wk] = {};
@@ -1073,6 +1075,8 @@ const saveQty      = (wk,key,v)  => put('data/weeks/'+wk+'/qty/'+encKey(key), v 
 const saveNutriPortions = (wk,day,v) => put('data/weeks/'+wk+'/nutriPortions/'+day, (v && v!==1) ? v : null);
 const saveCatOv    = (key,cat)   => put('data/catOverrides/'+encKey(key), cat);
 const saveMarketOv = (key,markt) => put('data/marketOverrides/'+encKey(key), markt || null);
+const savePreis    = (key,wert)   => put('data/preise/'+encKey(key), (wert > 0) ? wert : null);
+const saveBudgetFeld = (feld,wert) => put('data/settings/budget/'+feld, (wert > 0) ? wert : null);
 const saveImage    = (id,data)   => put('images/'+id, data);
 const deleteImage  = (id)        => put('images/'+id, null);
 
@@ -2543,6 +2547,127 @@ function setzeAbgehakt(wk, it, an){
 }
 
 /* =========================================================================
+   15a. Preise und Wochenbudget (v31)
+
+   Ein Preis haengt am normalisierten Artikelnamen (`data/preise/<normKey>`),
+   nicht am Posten einer Woche - er gilt, bis jemand ihn aendert. Das Budget
+   rechnet immer mit der laufenden ISO-Woche, nie mit der im Einkauf
+   geblaetterten: Zwei Farben, verbraucht (abgehakt; Auswaerts bis heute) und
+   geplant (offen; Auswaerts kommend). Posten ohne Preis zaehlen 0 EUR und
+   werden als Zahl genannt (Betriebsregel 18: Grund als Text).
+   ========================================================================= */
+function fmtEuro(n){ return (Math.round(Number(n||0)*100)/100).toFixed(2).replace('.',',') + ' €'; }
+function preisVon(name){ const v = (state.preise||{})[normKey(name)]; return (v > 0) ? v : null; }
+function budgetCfg(){
+  const b = (state.settings||{}).budget || {};
+  return {
+    woche: (b.woche > 0) ? Number(b.woche) : null,
+    auswaertsPersonen: (b.auswaertsPersonen > 0) ? Number(b.auswaertsPersonen) : 3,
+    auswaertsProPerson: (b.auswaertsProPerson > 0) ? Number(b.auswaertsProPerson) : 15
+  };
+}
+/* Montag zu einem Wochenschluessel "JJJJ-Wnn": Woche 1 ist die mit dem 4. Januar. */
+function montagVonWeekKey(wk){
+  const m = /^(\d{4})-W(\d{2})$/.exec(wk || '');
+  if(!m) return getMondayOf(new Date());
+  const mo = getMondayOf(new Date(Number(m[1]), 0, 4));
+  mo.setDate(mo.getDate() + (Number(m[2]) - 1) * 7);
+  return mo;
+}
+function budgetDerWoche(wk){
+  const cfg = budgetCfg();
+  const out = { ziel: cfg.woche, ausgegeben:0, geplant:0, ohnePreis:0, auswaertsGezaehlt:0 };
+  let items = [];
+  try{ items = buildItems(wk).items; }catch(e){ items = []; }
+  items.forEach(it=>{
+    const p = preisVon(it.name);
+    if(p == null){ out.ohnePreis++; return; }
+    if(it.checked) out.ausgegeben += p; else out.geplant += p;
+  });
+  const heute = heuteIso();
+  const montag = montagVonWeekKey(wk);
+  const jeMahlzeit = cfg.auswaertsPersonen * cfg.auswaertsProPerson;
+  const plan = state.plan[wk] || {};
+  DAYS.forEach((day, i)=>{
+    const eintraege = plan[day] || {};
+    activeSlots().forEach(sl=>{
+      const e = eintraege[sl.id];
+      if(!e || e.kind !== 'out') return;
+      const d = new Date(montag); d.setDate(d.getDate() + i);
+      out.auswaertsGezaehlt++;
+      if(isoVon(d) <= heute) out.ausgegeben += jeMahlzeit; else out.geplant += jeMahlzeit;
+    });
+  });
+  return out;
+}
+/* Eine Zeichenfunktion fuer beide Stellen (Heute und Einkauf). Die Bauteile
+   stehen fest im HTML, hier werden nur Text und Breiten gesetzt. */
+function zeichneBudget(id, b){
+  const k = document.getElementById(id);
+  if(!k) return;
+  const stand = k.querySelector('.budget-stand');
+  const fest = k.querySelector('.budget-festlegen');
+  const ohneZiel = !(b.ziel > 0);
+  if(stand) stand.hidden = ohneZiel;
+  if(fest) fest.hidden = !ohneZiel;
+  if(ohneZiel || !stand) return;
+  const rest = b.ziel - b.ausgegeben - b.geplant;
+  const zeile = stand.querySelector('.budget-zeile');
+  if(zeile){
+    zeile.textContent = rest >= 0
+      ? txtf('heute.budget_rest', {rest: fmtEuro(rest), ziel: fmtEuro(b.ziel)})
+      : txtf('heute.budget_ueber', {betrag: fmtEuro(-rest)});
+    zeile.classList.toggle('ueber', rest < 0);
+  }
+  const pV = Math.min(100, b.ausgegeben / b.ziel * 100);
+  const pG = Math.max(0, Math.min(100 - pV, b.geplant / b.ziel * 100));
+  const v = stand.querySelector('.bb-verbraucht'), g = stand.querySelector('.bb-geplant');
+  if(v) v.style.width = pV.toFixed(2) + '%';
+  if(g) g.style.width = pG.toFixed(2) + '%';
+  const leg = stand.querySelector('.budget-legende');
+  if(leg) leg.textContent = txtf('heute.budget_legende', {a: fmtEuro(b.ausgegeben), b: fmtEuro(b.geplant)});
+  const op = stand.querySelector('.budget-ohne-preis');
+  if(op){ op.textContent = b.ohnePreis ? txtf('heute.ohne_preis', {n: b.ohnePreis}) : ''; op.hidden = !b.ohnePreis; }
+}
+/* Preis erfragen - dasselbe Muster wie Menge und Laden (prompt). Leer loescht. */
+function preisAbfragen(name){
+  if(!name) return;
+  const akt = preisVon(name);
+  const eingabe = prompt(txt('einkauf.preis_fuer') + name + ':', akt == null ? '' : String(akt).replace('.', ','));
+  if(eingabe === null) return;
+  const wert = parseFloat(eingabe.trim().replace(',', '.'));
+  const key = normKey(name);
+  if(!key) return;
+  state.preise = state.preise || {};
+  if(wert > 0) state.preise[key] = wert; else delete state.preise[key];
+  savePreis(key, (wert > 0) ? wert : null);
+  renderShop(); renderHeute();
+}
+/* Die Felder im Einkauf zeigen den gespeicherten Stand, solange niemand
+   gerade darin tippt. */
+function zeichneBudgetFelder(){
+  const cfg = budgetCfg();
+  const setze = (el, wert)=>{ if(el && document.activeElement !== el) el.value = (wert == null) ? '' : String(wert); };
+  setze(document.getElementById('budgetWoche'), cfg.woche);
+  setze(document.getElementById('budgetPersonen'), cfg.auswaertsPersonen);
+  setze(document.getElementById('budgetProPerson'), cfg.auswaertsProPerson);
+}
+function budgetFeldVerdrahten(el, feld){
+  if(!el) return;
+  el.addEventListener('change', ()=>{
+    const v = parseFloat(String(el.value).replace(',', '.'));
+    const wert = (v > 0) ? v : null;
+    state.settings.budget = Object.assign({}, state.settings.budget || {});
+    if(wert == null) delete state.settings.budget[feld]; else state.settings.budget[feld] = wert;
+    saveBudgetFeld(feld, wert);
+    renderShop(); renderHeute();
+  });
+}
+budgetFeldVerdrahten(document.getElementById('budgetWoche'), 'woche');
+budgetFeldVerdrahten(document.getElementById('budgetPersonen'), 'auswaertsPersonen');
+budgetFeldVerdrahten(document.getElementById('budgetProPerson'), 'auswaertsProPerson');
+
+/* =========================================================================
    15b. Nährwerte-Report
    ========================================================================= */
 function computeDayNutrition(wk, day){
@@ -2665,6 +2790,9 @@ function renderShop(){
      er muss also mitziehen, sobald sich die Liste ändert. Abgeschirmt, damit
      eine Zusatzansicht nie die Einkaufsliste mitreißt (Kapitel 2.6, Regel 2). */
   try{ renderArtikel(); }catch(e){ console.warn(txt('essen.artikelstamm_konnte_nicht_gezeichnet_werden'), e); }
+  /* v31 - Budget immer fuer die laufende Woche, auch wenn hier geblaettert wurde */
+  try{ zeichneBudgetFelder(); zeichneBudget('shopBudget', budgetDerWoche(weekKeyOf(getMondayOf(new Date())))); }
+  catch(e){ console.warn('Budget im Einkauf:', e); }
 
   const box = document.getElementById('shopGroups');
   const emptyMsg = document.getElementById('shopEmpty');
@@ -2716,6 +2844,8 @@ function renderShop(){
           ? '<button class="rep-btn'+(it.recurring?' an':'')+'" type="button" aria-pressed="'+(it.recurring?'true':'false')+'" title="Jede Woche wieder auf die Liste" aria-label="'+escapeHtml(it.name)+' jede Woche wieder">↻</button>'
           : '') +
         '<button class="qty-btn '+(it.edited?'edited':'')+' '+(it.qty?'':'ohne-menge')+'" type="button">'+escapeHtml(it.qty || 'Menge')+'</button>' +
+        /* v31 - Preis je Packung, Modifikator `ohne-preis` (kein generischer Name, Regel 11) */
+        '<button class="preis-btn'+(preisVon(it.name)==null?' ohne-preis':'')+'" type="button" aria-label="'+escapeHtml(txt('einkauf.preis_fuer')+it.name)+'">'+(preisVon(it.name)==null ? txt('einkauf.preis') : fmtEuro(preisVon(it.name)))+'</button>' +
         '<button class="del-item" type="button" title="Löschen" aria-label="'+escapeHtml(it.name)+' löschen">🗑</button>' +
       '</div>' +
       '<div class="cat-picker">' +
@@ -2779,6 +2909,7 @@ function renderShop(){
 
     li.querySelector('input[type=checkbox]').addEventListener('change', toggleCheck);
     li.querySelector('.del-item').addEventListener('click', removeItem);
+    li.querySelector('.preis-btn').addEventListener('click', ()=>preisAbfragen(it.name));
 
     /* „jede Woche wieder" umlegen. Beim Einschalten faellt ein evtl. gesetztes
        doneWk weg, beim Ausschalten der Haken dieser Woche — sonst steht der
@@ -3143,6 +3274,7 @@ function renderArtikel(){
       '</span>' +
       '<div class="art-fuss">' +
         '<button class="market-tag-btn" type="button" data-key="'+escapeHtml(k)+'" data-name="'+escapeHtml(it.name)+'">'+(it.market?'🏬 '+escapeHtml(it.market):txt('einkauf.laden_zuordnen'))+'</button>' +
+        ' · <button class="preis-btn'+(preisVon(it.name)==null?' ohne-preis':'')+'" type="button" data-name="'+escapeHtml(it.name)+'">'+(preisVon(it.name)==null ? txt('einkauf.preis') : fmtEuro(preisVon(it.name)))+'</button>' +
         zuhause +
       '</div>' +
       (it.recipes.length ? '<div class="in-recipes">'+it.recipes.map(n=>'<span class="in-tag">'+escapeHtml(n)+'</span>').join('')+'</div>' : '') +
@@ -3165,6 +3297,9 @@ function renderArtikel(){
     });
   }
   box.innerHTML = html;
+
+  /* v31 - Preis je Artikel, gleiche Logik wie in der Liste */
+  Array.prototype.forEach.call(box.querySelectorAll('.preis-btn'), b=>b.addEventListener('click', e=>preisAbfragen(e.currentTarget.dataset.name)));
 
   /* Auswählen — IA-8 */
   Array.prototype.forEach.call(box.querySelectorAll('.art-pick'), b=>b.addEventListener('click', e=>{
@@ -3744,7 +3879,7 @@ function legeNotizEintragAn(){
 function renderHeuteAufgaben(){
   const el = document.getElementById('heuteAufgaben');
   const zahlEl = document.getElementById('heuteAufgabenZahl');
-  if(!el) return;
+  if(!el) return false;
   const heute = heuteIso();
   const faellig = [];
   notizListen().forEach(l=>{
@@ -3754,11 +3889,15 @@ function renderHeuteAufgaben(){
     });
   });
   if(zahlEl) zahlEl.textContent = faellig.length ? String(faellig.length) : '';
+  /* v31 - die Karte erscheint nur mit Inhalt; die Leertexte bleiben als
+     Rueckfall, falls die Karte je wieder ohne Inhalt gezeigt wird. */
+  const karte = document.getElementById('heuteKarteAufgaben');
+  if(karte) karte.hidden = !faellig.length;
   if(!faellig.length){
     el.innerHTML = (state.notizen && Object.keys(state.notizen).length)
       ? '<p class="heute-leer">Heute ist nichts fällig.</p>'
       : '<p class="heute-leer">Sobald es Notizen mit Fälligkeit gibt, stehen hier die fälligen Aufgaben.</p>';
-    return;
+    return false;
   }
   /* Überfälliges zuerst — K-11 */
   faellig.sort((a,b)=>(a.eintrag.faellig||'').localeCompare(b.eintrag.faellig||''));
@@ -3792,6 +3931,7 @@ function renderHeuteAufgaben(){
       renderNotizen();
     });
   }));
+  return true;
 }
 
 /* =========================================================================
@@ -4798,24 +4938,27 @@ function renderIcsAus(){
 function renderHeuteTermine(){
   const box = document.getElementById('heuteTermine');
   const zahlEl = document.getElementById('heuteTermineZahl');
-  if(!box) return;
+  if(!box) return false;
   const heute = heuteIso();
   let dran = termineAmTag(heute);
   let hinweis = '';
   const heuteEigene = dran.length;
   if(!dran.length){
-    /* Steht heute nichts an, die nächsten Tage — Kapitel 3.2. */
-    for(let i=1;i<=7 && !dran.length;i++){
+    /* Steht heute nichts an, die nächsten Tage — Kapitel 3.2. Seit v31 genau
+       sieben Tage (heute + 6); danach ist die Karte leer und bleibt weg. */
+    for(let i=1;i<=6 && !dran.length;i++){
       const tag = tageAddieren(heute, i);
       const treffer = termineAmTag(tag);
       if(treffer.length){ dran = treffer; hinweis = (i===1 ? 'Morgen' : WOCHENTAGE_KURZ[wochentagIndex(tag)] + ', ' + fmtTag(tag)); }
     }
   }
   if(zahlEl) zahlEl.textContent = heuteEigene ? String(heuteEigene) : '';
+  const karte = document.getElementById('heuteKarteTermine');
+  if(karte) karte.hidden = !dran.length;
 
   if(!dran.length){
     box.innerHTML = '<p class="heute-leer">In den nächsten Tagen steht nichts an.</p>';
-    return;
+    return false;
   }
 
   /* Der nächste noch nicht vergangene Termin traegt den Punkt auf der Linie.
@@ -4844,6 +4987,7 @@ function renderHeuteTermine(){
         '</div>' +
       '</div>';
     }).join('');
+  return true;
 }
 
 /* =========================================================================
@@ -5531,6 +5675,11 @@ async function beantworteAnfrage(uid, aufnehmen){
    zugehoert - vier Knoepfe, die aussahen, als taeten sie etwas. Genau das,
    was Kapitel 3.3 an anderer Stelle ausdruecklich verwirft. */
 const HEUTE_ZIEL_UNTER = { essen:'plan', einkauf:'shop' };
+/* v31 - die Budgetkarte ist selbst der Weg in den Einkauf, wo das Ziel steht */
+document.getElementById('heuteBudget').addEventListener('click', ()=>{
+  zeigeBereich('einkauf'); zeigeUnter('einkauf', 'shop');
+  window.scrollTo({ top:0, behavior:'smooth' });
+});
 Array.prototype.forEach.call(document.querySelectorAll('#heute .karte-weiter'), b=>{
   b.addEventListener('click', ()=>{
     const ziel = b.dataset.ziel;
@@ -5585,6 +5734,8 @@ function renderHeute(){
     zeilen.push(schieneEssen(sl.label, escapeHtml(r.name),
       (e.servings ? e.servings + ' P.' : null), r.id));
   });
+  const essenKarte = document.getElementById('heuteKarteEssen');
+  if(essenKarte) essenKarte.hidden = !zeilen.length;
   if(essenEl){
     essenEl.innerHTML = zeilen.length
       ? zeilen.join('')
@@ -5593,15 +5744,7 @@ function renderHeute(){
        Auswaerts haben keins, und ein Knopf, der nirgendwohin fuehrt, ist
        genau der Schalter, der aussieht, als taete er etwas. */
     Array.prototype.forEach.call(essenEl.querySelectorAll('[data-rezept]'), b=>{
-      b.addEventListener('click', ()=>{
-        zeigeBereich('essen'); zeigeUnter('essen', 'recipes');
-        const ziel = document.querySelector('#recipes .recipe-item[data-id="'+b.dataset.rezept+'"]');
-        if(ziel){
-          ziel.classList.add('open');
-          ziel.scrollIntoView({ behavior:'smooth', block:'start' });
-          updateWakeLock();
-        }
-      });
+      b.addEventListener('click', ()=>oeffneRezeptVonHeute(b.dataset.rezept));
     });
   }
   const offenEl = document.getElementById('heuteEssenOffen');
@@ -5610,8 +5753,12 @@ function renderHeute(){
 
   /* Termine und Aufgaben kommen aus Kalender und Notizen — abgeschirmt, damit
      keine der Zusatzansichten die uebrigen mitreisst (Kapitel 2.6, Regel 2) */
-  try{ renderHeuteTermine(); }catch(e){ console.warn(txt('navigation.termine_auf_heute'), e); }
-  try{ renderHeuteAufgaben(); }catch(e){ console.warn(txt('navigation.aufgaben_auf_heute'), e); }
+  let termineDa = false, aufgabenDa = false;
+  try{ termineDa = !!renderHeuteTermine(); }catch(e){ console.warn(txt('navigation.termine_auf_heute'), e); }
+  try{ aufgabenDa = !!renderHeuteAufgaben(); }catch(e){ console.warn(txt('navigation.aufgaben_auf_heute'), e); }
+
+  /* ---- Budget (v31) ---- */
+  try{ zeichneBudget('heuteBudget', budgetDerWoche(wk)); }catch(e){ console.warn('Budget auf Heute:', e); }
 
   /* ---- Einkauf ----
      Kapitel 3.2: offene Posten direkt abhakbar, nicht nur als Zahl. Vier
@@ -5623,6 +5770,8 @@ function renderHeute(){
   if(zahlEl) zahlEl.textContent = offen.length ? String(offen.length) : '';
   const restEl = document.getElementById('heuteEinkaufRest');
   if(restEl) restEl.textContent = offen.length > 4 ? (offen.length - 4) + ' weitere' : '';
+  const einkaufKarte = document.getElementById('heuteKarteEinkauf');
+  if(einkaufKarte) einkaufKarte.hidden = !offen.length;
   if(einkaufEl){
     if(!offen.length){
       einkaufEl.innerHTML = '<p class="heute-leer">Die Einkaufsliste ist abgearbeitet.</p>';
@@ -5694,8 +5843,115 @@ function renderHeute(){
     }
   }
 
-  const leerEl = document.getElementById('heuteLeer');
-  if(leerEl) leerEl.style.display = 'block';
+  /* ---- Leerzustand (v31) ----
+     Keine der vier Karten hat Inhalt: statt eines Satzes die Woche ab heute
+     und Rezepte, die laenger nicht dran waren. */
+  const planenEl = document.getElementById('heutePlanen');
+  const alleLeer = !termineDa && !zeilen.length && !offen.length && !aufgabenDa;
+  if(planenEl){
+    planenEl.hidden = !alleLeer;
+    if(alleLeer){ try{ renderHeutePlanen(wk, jetzt); }catch(e){ console.warn('Planen auf Heute:', e); } }
+  }
+}
+
+/* Ein Rezept von Heute aus oeffnen - fuer die Essenskarte und die Vorschlaege. */
+function oeffneRezeptVonHeute(id){
+  zeigeBereich('essen'); zeigeUnter('essen', 'recipes');
+  const ziel = document.querySelector('#recipes .recipe-item[data-id="'+id+'"]');
+  if(ziel){
+    ziel.classList.add('open');
+    ziel.scrollIntoView({ behavior:'smooth', block:'start' });
+    updateWakeLock();
+  }
+}
+
+/* Einen Tag der laufenden Woche im Wochenplan anspringen - dieselbe Mechanik
+   wie der Tagesstreifen dort. Tage ab heute sind nie eingeklappt. */
+function oeffneWochenplanTag(idx){
+  const montag = getMondayOf(new Date());
+  if(montag.getTime() !== currentMonday.getTime()){
+    currentMonday = montag;
+    renderWeekNav(); renderDayTrack(); renderShop();
+  }
+  zeigeBereich('essen'); zeigeUnter('essen', 'plan');
+  const ziel = document.querySelector('#dayTrack .day-col[data-idx="'+idx+'"]');
+  if(ziel) ziel.scrollIntoView({ behavior:'smooth', block:'start' });
+  else window.scrollTo({ top:0, behavior:'smooth' });
+}
+
+/* Rezepte nach letzter Verwendung im Wochenplan, ueber alle gespeicherten
+   Wochen: nie gekochte zuerst, dann die aeltesten. Snacks zaehlen nicht -
+   "gekocht" meint eine Mahlzeit. */
+function laengerNichtGekocht(n){
+  const zuletzt = {};
+  Object.keys(state.plan || {}).forEach(wk=>{
+    const woche = state.plan[wk] || {};
+    Object.keys(woche).forEach(day=>{
+      const eintraege = woche[day] || {};
+      Object.keys(eintraege).forEach(slot=>{
+        const e = eintraege[slot];
+        if(istKochEintrag(e) && (!zuletzt[e.id] || wk > zuletzt[e.id])) zuletzt[e.id] = wk;
+      });
+    });
+  });
+  return state.recipes.filter(r=>!istSnack(r))
+    .map(r=>({ r:r, wk: zuletzt[r.id] || '' }))
+    .sort((a,b)=> a.wk === b.wk ? a.r.name.localeCompare(b.r.name,'de') : (a.wk < b.wk ? -1 : 1))
+    .slice(0, n);
+}
+
+function renderHeutePlanen(wk, jetzt){
+  const tageEl = document.getElementById('heutePlanenTage');
+  const rezEl = document.getElementById('heuteLaengerNicht');
+  if(!tageEl || !rezEl) return;
+  const montag = getMondayOf(jetzt);
+  const heuteIdx = (jetzt.getDay() + 6) % 7;
+  const plan = state.plan[wk] || {};
+  const slots = activeSlots();
+  const zeilen = [];
+  for(let i = heuteIdx; i < 7; i++){
+    const d = new Date(montag); d.setDate(d.getDate() + i);
+    const eintraege = plan[DAYS[i]] || {};
+    const teile = [];
+    slots.forEach(sl=>{
+      const e = eintraege[sl.id];
+      if(!e) return;
+      if(e.kind === 'out') teile.push(txt('heute.auswaerts') + (e.text ? ' – ' + e.text : ''));
+      else if(e.kind === 'leftover') teile.push(txt('heute.reste'));
+      else { const r = state.recipes.find(x=>x.id === e.id); if(r) teile.push(r.name); }
+    });
+    zeilen.push('<button class="planen-zeile" type="button" data-tagidx="' + i + '">' +
+      '<span class="pz-tag">' + escapeHtml(WOCHENTAGE_KURZ[i]) + '</span>' +
+      '<span class="pz-datum">' + escapeHtml(fmtDate(d)) + '</span>' +
+      '<span class="pz-gericht' + (teile.length ? '' : ' ohne') + '">' +
+        (teile.length ? escapeHtml(teile.join(' · ')) : txt('heute.nichts_geplant')) + '</span>' +
+      '<span class="reihe-pfeil">›</span>' +
+    '</button>');
+  }
+  tageEl.innerHTML = zeilen.join('');
+  Array.prototype.forEach.call(tageEl.querySelectorAll('.planen-zeile'), b=>
+    b.addEventListener('click', ()=>oeffneWochenplanTag(Number(b.dataset.tagidx))));
+
+  const vorschlaege = laengerNichtGekocht(5);
+  if(!vorschlaege.length){
+    rezEl.innerHTML = '<button class="planen-zeile' + ' planen-keine" type="button">' +
+      '<span class="pz-gericht">' + txt('heute.keine_rezepte') + '</span>' +
+      '<span class="reihe-pfeil">›</span></button>';
+    const b = rezEl.querySelector('.planen-keine');
+    if(b) b.addEventListener('click', ()=>{
+      zeigeBereich('essen'); zeigeUnter('essen', 'recipes');
+      window.scrollTo({ top:0, behavior:'smooth' });
+    });
+    return;
+  }
+  rezEl.innerHTML = vorschlaege.map(v=>
+    '<button class="planen-zeile" type="button" data-rezept="' + escapeHtml(v.r.id) + '">' +
+      '<span class="pz-gericht">' + escapeHtml(v.r.name) + '</span>' +
+      '<span class="pz-zuletzt">' + (v.wk ? txtf('heute.zuletzt_kw', {kw: Number(v.wk.slice(-2))}) : txt('heute.noch_nie')) + '</span>' +
+      '<span class="reihe-pfeil">›</span>' +
+    '</button>').join('');
+  Array.prototype.forEach.call(rezEl.querySelectorAll('[data-rezept]'), b=>
+    b.addEventListener('click', ()=>oeffneRezeptVonHeute(b.dataset.rezept)));
 }
 
 /* Eine Zeile der Zeitschiene im Essensfeld. `rezeptId` macht sie antippbar. */

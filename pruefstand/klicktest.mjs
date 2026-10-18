@@ -194,5 +194,75 @@ const abtOk = abt.backshopVorBrot && abt.trockenVorBackshop;
 console.log('Backshop haengt hinten an und traegt Sauerteigbrot:', abtOk ? 'ok' : 'FEHLGESCHLAGEN', JSON.stringify(abt));
 if(!abtOk) fehler.push('Abteilungen: Backshop fehlt, steht falsch oder traegt das Brot nicht');
 
+/* ---------- v31: Budget, Preise, Leerzustand (18.10.2026) ----------
+   Betriebsregel 13: Jede Behauptung hier schlaegt am Stand v30 an - dort gibt
+   es weder #heuteBudget noch .preis-btn, und die vier Heute-Karten stehen
+   auch bei leerem Haushalt. Die Zahlen werden aus dem Text gelesen, den der
+   Nutzer sieht, nicht aus einem Datenattribut nur fuer den Pruefstand. */
+const euro = (text)=>{
+  const m = String(text).match(/(-?\d+(?:[.,]\d+)?)\s*€/g) || [];
+  return m.map(x=>parseFloat(x.replace(/\s*€/,'').replace(',','.')));
+};
+const budgetLesen = ()=>p.evaluate(()=>{
+  const k = document.getElementById('heuteBudget');
+  const sec = document.getElementById('heuteKarteBudget');
+  const q = (sel)=>{ const el = k && k.querySelector(sel); return el ? el.textContent : ''; };
+  return { da: !!k && !!sec && !sec.hidden, zeile: q('.budget-zeile'), legende: q('.budget-legende'),
+           ohnePreis: q('.budget-ohne-preis'), festlegen: !!(k && k.querySelector('.budget-festlegen') && !k.querySelector('.budget-festlegen').hidden) };
+});
+await p.click('nav .tab[data-tab="heute"]'); await p.waitForTimeout(150);
+const b1 = await budgetLesen();
+const z1 = euro(b1.zeile), l1 = euro(b1.legende);
+/* "noch X € von Y €" -> [rest, ziel]; "verbraucht A € · geplant B €" -> [a, b] */
+const stimmig = b1.da && z1.length === 2 && l1.length === 2 && Math.abs((l1[0] + l1[1] + z1[0]) - z1[1]) < 0.011;
+console.log('Budgetkarte auf Heute:', stimmig ? 'ok' : 'FEHLGESCHLAGEN', JSON.stringify(b1));
+if(!stimmig) fehler.push('Budgetkarte fehlt oder die Zahlen gehen nicht auf (verbraucht + geplant + Rest = Ziel)');
+/* Abhaken eines Postens mit Preis: der Betrag wandert von geplant nach verbraucht.
+   Feta traegt in der Fixture 1,60 EUR und steht in beiden Rezepten der Woche. */
+await p.click('nav .tab[data-tab="einkauf"]'); await p.waitForTimeout(150);
+const preisKnoepfe = await p.evaluate(()=>Array.from(document.querySelectorAll('#shop .shop-item .preis-btn')).map(b=>b.textContent));
+const mitPreis = preisKnoepfe.filter(t=>/\d,\d{2} €/.test(t)).length, ohne = preisKnoepfe.filter(t=>t==='Preis').length;
+console.log('Preis-Schaltflaechen in der Liste:', (mitPreis && ohne) ? 'ok' : 'FEHLGESCHLAGEN', mitPreis, 'mit Preis,', ohne, 'ohne');
+if(!(mitPreis && ohne)) fehler.push('Preis-Schaltflaeche fehlt in der Einkaufsliste');
+const fetaPreis = await p.evaluate(()=>{ const li = Array.from(document.querySelectorAll('#shop .shop-item')).find(l=>l.querySelector('.nm') && l.querySelector('.nm').textContent==='Feta'); const pb = li && li.querySelector('.preis-btn'); return pb ? pb.textContent : null; });
+const fp = euro(fetaPreis || '')[0] || 0;
+await p.evaluate(()=>{ const li = Array.from(document.querySelectorAll('#shop .shop-item')).find(l=>l.querySelector('.nm') && l.querySelector('.nm').textContent==='Feta'); if(li) li.querySelector('input[type=checkbox]').click(); });
+await p.waitForTimeout(250);
+await p.click('nav .tab[data-tab="heute"]'); await p.waitForTimeout(150);
+const b2 = await budgetLesen();
+const l2 = euro(b2.legende);
+const gewandert = fp > 0 && l2.length === 2 && Math.abs((l2[0] - l1[0]) - fp) < 0.011 && Math.abs((l1[1] - l2[1]) - fp) < 0.011;
+console.log('Abhaken verschiebt den Preis (Feta ' + fetaPreis + '):', gewandert ? 'ok' : 'FEHLGESCHLAGEN', JSON.stringify({vorher:l1, nachher:l2}));
+if(!gewandert) fehler.push('Nach dem Abhaken wandert der Preis nicht von geplant nach verbraucht');
+const planenVoll = await p.evaluate(()=>{ const s = document.getElementById('heutePlanen'); return !!s && s.hidden; });
+console.log('Planen-Karte bei vollem Tag versteckt:', planenVoll ? 'ok' : 'FEHLGESCHLAGEN');
+if(!planenVoll) fehler.push('"Diese Woche planen?" erscheint, obwohl der Tag Inhalt hat');
+
+/* Leerer Haushalt (?leer=1, wie onboardingtest.mjs): keine der vier Karten,
+   dafuer die Planungsfrage mit hoechstens sieben Tageszeilen. */
+const cLeer = await b.newContext({viewport:{width:402,height:900},locale:'de-DE',timezoneId:'Europe/Berlin'});
+await haltDieUhrAn(cLeer);
+const pl = await cLeer.newPage();
+await pl.route('https://www.gstatic.com/firebasejs/**',ro=>ro.fulfill({status:200,contentType:'text/javascript',body:readFileSync(join(STUB,ro.request().url().split('/').pop()),'utf8')}));
+await pl.route('https://cdnjs.cloudflare.com/**',ro=>ro.fulfill({status:200,contentType:'text/javascript',body:'window.XLSX={utils:{},write:()=>{},read:()=>{}};'}));
+pl.on('pageerror',e=>fehler.push('Seitenfehler (leer): '+e.message));
+pl.on('console',m=>{if(m.type()==='error'&&!m.text().includes('404'))fehler.push('Konsole (leer): '+m.text());});
+await pl.addInitScript(()=>{try{localStorage.setItem('famboard.haushalt','hh-pruefstand'); localStorage.removeItem('famboard.ansicht');}catch(e){}
+  if(navigator.serviceWorker) navigator.serviceWorker.register=()=>Promise.reject(new Error('aus'));});
+await pl.goto(`http://127.0.0.1:${s.address().port}/index.html?leer=1`,{waitUntil:'networkidle'});
+await pl.waitForTimeout(800);
+const leer = await pl.evaluate(()=>{
+  const h = id=>{ const el = document.getElementById(id); return el ? el.hidden : null; };
+  return { termine:h('heuteKarteTermine'), essen:h('heuteKarteEssen'), einkauf:h('heuteKarteEinkauf'), aufgaben:h('heuteKarteAufgaben'),
+           planen:h('heutePlanen'), zeilen:document.querySelectorAll('#heutePlanenTage .planen-zeile').length,
+           keineRezepte:!!document.querySelector('#heuteLaengerNicht .planen-keine'),
+           budgetFestlegen:(()=>{ const f = document.querySelector('#heuteBudget .budget-festlegen'); return !!f && !f.hidden; })() };
+});
+const leerOk = leer.termine === true && leer.essen === true && leer.einkauf === true && leer.aufgaben === true
+            && leer.planen === false && leer.zeilen >= 1 && leer.zeilen <= 7 && leer.keineRezepte && leer.budgetFestlegen;
+console.log('Leerer Haushalt - nur Planungsfrage und Budget-Aufforderung:', leerOk ? 'ok' : 'FEHLGESCHLAGEN', JSON.stringify(leer));
+if(!leerOk) fehler.push('Leerzustand auf Heute: Karten nicht versteckt oder Planungsfrage fehlt');
+await cLeer.close();
+
 await b.close(); s.close();
 console.log(fehler.length ? 'FEHLER:\n  '+[...new Set(fehler)].join('\n  ') : 'Keine Fehler.');

@@ -723,7 +723,9 @@
     color:var(--text-haupt); font-family:var(--schrift); font-size:0.95rem;
     display:flex; align-items:center; gap:7px; flex-wrap:wrap;
   }
-  .name-btn .nm{ min-width:0; overflow-wrap:break-word; }
+  /* v31: Mit der Preis-Schaltflaeche wird die Namensspalte schmaler. Statt
+     "Spuelmaschinenta|bs" trennt der Browser am Silbenende (lang="de"). */
+  .name-btn .nm{ min-width:0; overflow-wrap:break-word; hyphens:auto; -webkit-hyphens:auto; }
   .name-btn:hover{ color:var(--messing-aktion); }
   .qty-btn{
     background:none; border:1px dashed transparent; border-radius:6px; padding:3px 4px; cursor:pointer;
@@ -1446,6 +1448,76 @@
   .heute-zeile .hz-frist.ueberfaellig{ color:var(--loeschen-farbe); font-weight:500; }
 
   .heute-leer{ margin:0; padding:18px var(--abstand-l); font-size:15px; color:var(--text-leise); }
+
+  /* ---------- Budget (v31) ----------
+     Zwei Farben auf einem Balken: verbraucht in der Aktionsfarbe, geplant in
+     der Marke, der Rest in der leisen Linie. Ueberschreitung als Text in der
+     Loeschfarbe, nie als Flaeche. Dieselbe Bauform auf Heute (als Knopf in
+     den Einkauf) und im Einkauf (unter den Feldern). */
+  .budget-karte{
+    display:block; width:100%; padding:0; margin:0; text-align:left;
+    font:inherit; color:inherit; cursor:pointer;
+  }
+  .budget-karte:hover{ background:var(--flaeche-senke); }
+  .budget-stand{ display:block; padding:14px var(--abstand-l); }
+  .budget-zeile{ display:block; font-size:15.5px; line-height:1.35; color:var(--text-haupt); font-variant-numeric:tabular-nums; }
+  .budget-zeile.ueber{ color:var(--loeschen-farbe); font-weight:500; }
+  .budget-balken{
+    display:flex; height:8px; margin:10px 0 8px; border-radius:999px;
+    background:var(--linie-leise); overflow:hidden;
+  }
+  .bb-verbraucht{ display:block; height:100%; flex:none; background:var(--messing-aktion); }
+  .bb-geplant{ display:block; height:100%; flex:none; background:var(--messing-marke); }
+  .budget-legende, .budget-ohne-preis{ display:block; font-size:13px; line-height:1.4; color:var(--text-leise); font-variant-numeric:tabular-nums; }
+  .budget-ohne-preis{ margin-top:2px; }
+  .budget-festlegen{
+    display:flex; align-items:center; justify-content:space-between; gap:12px;
+    height:48px; padding:0 var(--abstand-l);
+    font-family:var(--schrift); font-weight:500; font-size:14px; color:var(--messing-aktion);
+  }
+  /* Felder im Einkauf: Zahl rechtsbuendig, Felder so breit wie die Zahl */
+  .budget-felder{ display:flex; flex-direction:column; gap:10px; margin-bottom:12px; }
+  .budget-feld{ display:flex; align-items:center; justify-content:space-between; gap:12px; font-size:15px; color:var(--text-haupt); }
+  .budget-eingabe{ display:flex; align-items:center; gap:6px; flex:none; }
+  .budget-einheit{ font-size:15px; color:var(--text-leise); }
+  .budget-feld input, .budget-auswaerts input{
+    width:96px; flex:none; text-align:right; padding:8px 10px; font-variant-numeric:tabular-nums;
+  }
+  .budget-auswaerts{ display:flex; flex-wrap:wrap; align-items:center; gap:6px 8px; font-size:14px; color:var(--text-leise); }
+  /* Die Ueberschrift der Zeile steht allein, die Felder darunter - sonst bricht
+     die Zeile bei 402 px mitten zwischen "Personen" und dem zweiten Feld um. */
+  .budget-auswaerts > span:first-child{ flex:1 1 100%; color:var(--text-haupt); font-size:15px; }
+  .budget-auswaerts input{ width:64px; }
+  #shopBudget .budget-stand{ padding:0; }
+
+  /* Preis je Packung, in Liste und Artikelstamm - gleiche Bauform wie qty-btn */
+  .preis-btn{
+    background:none; border:1px dashed transparent; border-radius:6px; padding:3px 4px; cursor:pointer;
+    font-family:var(--schrift); font-variant-numeric:tabular-nums; color:var(--messing-aktion); font-size:0.8rem; white-space:nowrap;
+  }
+  .preis-btn:hover{ border-color:var(--messing-aktion); }
+  .preis-btn.ohne-preis{ color:var(--text-leise); }
+  .shop-item.checked .preis-btn{ color:var(--text-leise); }
+  .art-fuss .preis-btn{ font-size:0.74rem; padding:0; border:none; border-radius:0; text-decoration:underline dotted; }
+  .art-fuss .preis-btn.ohne-preis{ color:var(--text-leise); }
+
+  /* ---------- Leerzustand: Diese Woche planen? (v31) ---------- */
+  .planen-zeile{
+    display:flex; align-items:center; gap:10px; width:100%; min-height:48px;
+    padding:7px var(--abstand-l); border:none; background:none;
+    font:inherit; color:inherit; text-align:left; cursor:pointer;
+  }
+  .planen-zeile + .planen-zeile{ border-top:1px solid var(--linie-leise); }
+  .planen-zeile:hover{ background:var(--flaeche-senke); }
+  .pz-tag{ flex:none; width:26px; font-size:13.5px; font-weight:500; color:var(--text-leise); }
+  .pz-datum{ flex:none; width:46px; font-size:13px; color:var(--text-leise); font-variant-numeric:tabular-nums; }
+  .pz-gericht{ min-width:0; flex:1; font-size:15.5px; line-height:1.35; color:var(--text-haupt); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .pz-gericht.ohne{ color:var(--text-leise); }
+  .pz-zuletzt{ flex:none; font-size:13px; color:var(--text-leise); font-variant-numeric:tabular-nums; }
+  .planen-kopf{
+    padding:12px var(--abstand-l) 4px; border-top:1px solid var(--linie-leise);
+    font-size:13px; font-weight:500; color:var(--text-leise);
+  }
 
   /* ---------- Blatt (B6) ----------
      Ein Blatt statt eines Dialogs in der Mitte: Es kommt von unten, wo der

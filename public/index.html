@@ -166,6 +166,25 @@
     </div>
     <p class="ex-hint" id="heuteLageText" style="padding:0 4px var(--abstand-l);" hidden></p>
 
+    <!-- v31 - Wochenbudget. Zwei Farben: verbraucht (abgehakt, Auswaerts bis
+         heute) und geplant (offen, Auswaerts kommend). Die Karte ist ein Knopf
+         in den Einkauf, wo das Ziel eingestellt wird. Alle Bauteile stehen fest
+         im Markup (Betriebsregel 10); app.js fuellt nur Text und Breiten. -->
+    <section class="abschnitt" id="heuteKarteBudget">
+      <div class="abschnitt-kopf"><h2 data-t="heute.budget_titel">Budget diese Woche</h2></div>
+      <button class="karte budget-karte" id="heuteBudget" type="button">
+        <span class="budget-stand">
+          <span class="budget-zeile"></span>
+          <span class="budget-balken"><span class="bb-verbraucht"></span><span class="bb-geplant"></span></span>
+          <span class="budget-legende"></span>
+          <span class="budget-ohne-preis"></span>
+        </span>
+        <span class="budget-festlegen" hidden>
+          <span data-t="heute.budget_festlegen">Wochenbudget festlegen</span><span class="reihe-pfeil">›</span>
+        </span>
+      </button>
+    </section>
+
     <section class="abschnitt" id="heuteKarteTermine">
       <div class="abschnitt-kopf">
         <h2 data-t="heute.termine">Termine</h2><span class="zahl" id="heuteTermineZahl"></span>
@@ -214,7 +233,21 @@
       </div>
     </section>
 
-    <p class="ex-hint" id="heuteLeer" style="text-align:center; padding-top:4px;" data-t="heute.mehr_steht_heute_nicht">Mehr steht heute nicht an.</p>
+    <!-- v31 - Leerzustand. Nur wenn keine der vier Karten Inhalt hat: die
+         Woche ab heute als Zeilen (Antippen oeffnet den Tag im Wochenplan) und
+         darunter, was laenger nicht gekocht wurde. MD-15: ein Vorschlag, keine
+         Mahnung. -->
+    <section class="abschnitt" id="heutePlanen" hidden>
+      <div class="abschnitt-kopf"><h2 data-t="heute.woche_planen">Diese Woche planen?</h2></div>
+      <div class="karte" style="overflow:hidden;">
+        <div id="heutePlanenTage"></div>
+        <div class="planen-kopf" data-t="heute.laenger_nicht">Länger nicht gekocht</div>
+        <div id="heuteLaengerNicht"></div>
+        <button class="karte-weiter" data-ziel="essen" type="button">
+          <span data-t="heute.wochenplan">Wochenplan</span><span class="reihe-pfeil">›</span>
+        </button>
+      </div>
+    </section>
   </section>
 
   <!-- Kalender (B5) — Monat als Standard, Woche umschaltbar (K-2). Termine je
@@ -552,6 +585,37 @@
         </div>
         <div id="shopVorschlaege" class="vorschlaege" hidden></div>
         <p class="ex-hint" style="margin-bottom:0;" data-t="einkauf.was_es_noch_nicht">Was es noch nicht gibt, wird beim Draufsetzen als Artikel angelegt — beim nächsten Mal steht es als Vorschlag da.</p>
+      </div>
+
+      <!-- v31 - Wochenbudget einstellen. Speichern je Feld bei change
+           (gezielte Zweigschreibung, Betriebsregel 3). Darunter dieselbe
+           Balkenanzeige wie auf Heute, gezeichnet von derselben Funktion. -->
+      <div class="karte karte-block" id="shopBudgetKarte" style="margin-bottom:16px;">
+        <div class="abschnitt-kopf">
+          <span class="ak-titel" data-t="einkauf.budget">Budget</span>
+        </div>
+        <div class="budget-felder">
+          <label class="budget-feld" for="budgetWoche">
+            <span data-t="einkauf.wochenziel">Wochenziel</span>
+            <span class="budget-eingabe"><input type="number" id="budgetWoche" inputmode="decimal" min="0" step="1" placeholder="0"><span class="budget-einheit">€</span></span>
+          </label>
+          <div class="budget-auswaerts">
+            <span data-t="einkauf.auswaerts_zaehlt">Auswärts zählt mit</span>
+            <input type="number" id="budgetPersonen" inputmode="decimal" min="0" step="1" aria-label="Personen" data-t-aria="einkauf.personen">
+            <span data-t="einkauf.personen">Personen</span>
+            <span>×</span>
+            <input type="number" id="budgetProPerson" inputmode="decimal" min="0" step="1" aria-label="€ pro Person" data-t-aria="einkauf.pro_person">
+            <span data-t="einkauf.pro_person">€ pro Person</span>
+          </div>
+        </div>
+        <div class="budget-anzeige" id="shopBudget">
+          <div class="budget-stand">
+            <span class="budget-zeile"></span>
+            <span class="budget-balken"><span class="bb-verbraucht"></span><span class="bb-geplant"></span></span>
+            <span class="budget-legende"></span>
+            <span class="budget-ohne-preis"></span>
+          </div>
+        </div>
       </div>
 
       <div class="karte karte-block">

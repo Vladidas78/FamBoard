@@ -71,7 +71,12 @@ Ausnahmen bekommen /* texte-ok: <Grund> */ in die Zeile.
 # CAT_KEYWORDS (backshop/asia/snacks: kaesestange, knaecke, sojasosse, gummibaerchen,
 # salzstangen). CAT_KEYWORDS bleibt bewusst hart kodiert (O-29) - Erkennung, kein
 # Anzeigetext.
-REST_ERWARTET = 442
+# 18.10.2026 (v31, Budget und Leerzustand): 442 -> 456. Vierzehn Markup-Fragmente
+# der Preis-Schaltflaeche (Liste und Artikelstamm) und der Planen-Zeilen auf Heute
+# ('<button class="planen-zeile" ...>', '<span class="pz-tag">' usw.) - der Zaehler
+# haelt "button class" fuer Satzbau. Menschlicher Text steckt darin nicht; der
+# laeuft ueber txt('heute.*') und txt('einkauf.*').
+REST_ERWARTET = 456
 import re, sys
 from html.parser import HTMLParser
 
