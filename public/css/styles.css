@@ -492,7 +492,6 @@
     transition:border-color .15s ease;
   }
   .recipe-item:hover{ border-color:var(--linie); }
-  .recipe-item.open{ grid-column:1 / -1; }
   .recipe-head{
     display:block; width:100%; padding:0;
     background:none; border:none; cursor:pointer; text-align:left; color:var(--text-haupt);
@@ -535,39 +534,12 @@
     font-size:15px; line-height:1;
   }
   .kachel-snack + .kachel-fav{ display:none; }
-  .recipe-item.open .kachel-fav{ background:none; }
-  /* Geoeffnet: das grosse Bild steht im Rumpf, die Kachelflaeche waere doppelt */
-  .recipe-item.open .kachel-bild{ display:none; }
   .fav-star{ background:none; border:none; cursor:pointer; font-size:1.15rem; line-height:1; color:var(--text-leise); padding:0 2px; flex:none; }
   .fav-star:hover{ color:var(--messing-aktion); }
   .fav-star.active{ color:var(--messing-aktion); }
   .fav-toggle{ flex:none; }
   .fav-toggle.active{ background:var(--messing-aktion); color:var(--auf-aktion); border-color:var(--messing-aktion); }
   .chev{ transition:transform .2s ease; color:var(--messing-aktion); flex:none; font-size:0.8rem; }
-  .recipe-item.open .chev{ transform:rotate(90deg); }
-  .recipe-body{ display:none; padding:0 16px 16px; }
-  .recipe-item.open .kachel-text{ padding:14px 16px 10px; }
-  .recipe-item.open .kachel-name{ font-size:1.05rem; -webkit-line-clamp:unset; }
-  .recipe-item.open .recipe-body{ display:block; animation:fade .2s ease; }
-  .portion-bar{
-    display:flex; align-items:center; justify-content:space-between; gap:10px;
-    background:var(--flaeche-feld); border:1px solid var(--linie-leise); border-radius:var(--radius-s);
-    padding:8px 10px; margin-bottom:10px;
-  }
-  .portion-bar .lbl{ font-size:0.8rem; color:var(--text-leise); }
-  .ing-line{ display:flex; gap:8px; font-size:0.9rem; padding:4px 0; border-bottom:1px solid var(--linie-leise); }
-  .ing-line .q{ font-family:var(--schrift); font-variant-numeric:tabular-nums; color:var(--messing-aktion); min-width:80px; }
-  .nutri-row{ font-family:var(--schrift); font-variant-numeric:tabular-nums; font-size:0.76rem; color:var(--text-leise); margin-top:10px; display:flex; gap:10px; flex-wrap:wrap; }
-  .desc-toggle{
-    display:flex; align-items:center; gap:8px; width:100%; margin-top:12px; padding:9px 11px;
-    background:color-mix(in srgb, var(--messing-aktion) 8%, transparent); border:1px solid color-mix(in srgb, var(--messing-aktion) 30%, transparent); border-radius:var(--radius-s);
-    cursor:pointer; font-weight:600; font-size:0.82rem; color:var(--messing-aktion);
-  }
-  .desc-toggle:hover{ background:rgba(138,101,32,0.12); }
-  .desc-toggle .chev{ color:var(--messing-aktion); }
-  .desc-body{ display:none; margin-top:10px; font-size:0.9rem; line-height:1.6; white-space:pre-wrap; color:var(--text-haupt); }
-  .desc-open .desc-body{ display:block; }
-  .desc-open .desc-toggle .chev{ transform:rotate(90deg); }
 
   .add-recipe h3{ font-family:var(--schrift-headline); font-weight:600; font-size:1.2rem; margin:0 0 14px; }
   .rec-toolbar{ display:flex; justify-content:flex-end; gap:8px; margin-bottom:14px; }
@@ -889,13 +861,9 @@
   .filter-pill:hover{ color:var(--text-haupt); border-color:var(--messing-aktion); }
   .filter-pill.active{ background:var(--messing-aktion); color:var(--auf-aktion); border-color:var(--messing-aktion); }
 
-  /* recipe images */
-  .recipe-img{ width:100%; max-height:230px; object-fit:cover; border-radius:var(--radius-s); margin-bottom:12px; border:1px solid var(--linie-leise); }
-  .img-controls{ display:flex; gap:8px; flex-wrap:wrap; margin-top:8px; }
   .add-img-preview{ margin-top:8px; }
   .add-img-preview img{ width:100%; max-height:180px; object-fit:cover; border-radius:var(--radius-s); border:1px solid var(--linie-leise); }
 
-  .img-loading{ font-size:0.82rem; color:var(--text-leise); font-style:italic; padding:10px 0; }
   /* Leerzustand einer ganzen Fläche. `empty` war zusätzlich als Modifikator
      an zwei Bauteilen im Einsatz — an der Mengen-Schaltfläche der
      Einkaufszeile und an der Nährwert-Tageszeile. Beide erbten damit
@@ -943,9 +911,8 @@
 
   /* ---------- Rezeptsuche & Zur-Woche-Picker ---------- */
   .rec-search{ margin-bottom:10px; }
-  .add-to-week-row{ display:flex; gap:8px; justify-content:flex-end; margin-top:12px; flex-wrap:wrap; }
-  .week-picker{ display:none; margin-top:10px; padding:10px; background:var(--flaeche-feld); border:1px solid var(--linie-leise); border-radius:var(--radius-s); }
-  .recipe-item.show-week-picker .week-picker{ display:block; }
+  /* Seit v35 steht die Wochenwahl unter den Aktionen des Rezeptdetails (#rdWochenWahl). */
+  .week-picker{ margin-top:10px; padding:10px; background:var(--flaeche-feld); border:1px solid var(--linie-leise); border-radius:var(--radius-s); }
   .wp-row{ display:flex; gap:8px; flex-wrap:wrap; }
   .wp-row select{ flex:1; min-width:120px; }
 
@@ -1657,26 +1624,75 @@
     .tagesstreifen{ display:none; }
   }
 
-  /* ---------- Geoeffnete Rezeptkachel (B6) ----------
-     Der Prototyp zeigt ein Rezept als eigene Seite mit grossem Bild. Hier
-     klappt die Kachel an Ort und Stelle auf, traegt aber dieselbe Anmutung:
-     Bild ueber die volle Breite, Serifen-Ueberschrift darunter. Der Weg
-     zurueck ist derselbe Tipp - keine zweite Navigationsebene fuer etwas,
-     das man beim Kochen mit nassen Haenden bedient. */
-  .recipe-item.open{
-    border-color:var(--linie);
-    box-shadow:0 2px 10px rgb(38 34 32 / 0.07);
+
+  /* ---------- Rezeptdetail (O-38, v35) ----------
+     Eigene Flaeche nach YAZIO-Vorbild, in Butleys Farbwelt: Hero 16:10 mit
+     16-px-Radius, Serifen-Titel, Kennzahl-Chips, Zutaten als ruhige Liste
+     (Name links, Menge rechts in Messing mit Tabellenziffern), Stepper mit
+     44-px-Knoepfen (D-4), nummerierte Schritte, Naehrstoffe als Tabelle. */
+  .rd-zurueck{
+    display:inline-flex; align-items:center; gap:4px; min-height:var(--hoehe-control); margin:-6px 0 4px -6px; padding:0 8px;
+    border:none; background:none; color:var(--text-leise); font-family:var(--schrift); font-size:15px; font-weight:500; cursor:pointer;
   }
-  .recipe-item.open .recipe-head{ position:relative; }
-  .recipe-item.open .kachel-text{ padding:16px 18px 12px; }
-  .recipe-item.open .kachel-meta{ font-size:13px; }
-  .recipe-item.open .recipe-body{ padding:0 18px 18px; }
-  .recipe-item.open .recipe-img{
-    max-height:none; aspect-ratio:16 / 9; object-fit:cover;
-    border-radius:var(--radius-m); margin-bottom:14px;
+  .rd-zurueck:hover{ color:var(--text-haupt); }
+  .rd-zurueck-pfeil{ font-size:24px; line-height:1; margin-top:-3px; }
+  .rd-hero{
+    position:relative; aspect-ratio:16 / 10; overflow:hidden; border-radius:var(--radius-l);
+    background:var(--messing-flaeche); color:var(--auf-messing-flaeche);
   }
+  .rd-hero img{ width:100%; height:100%; object-fit:cover; display:block; }
+  .rd-hero-leer{ position:absolute; inset:0; display:grid; place-items:center; opacity:.55; }
+  .rd-hero-leer[hidden]{ display:none; }
+  .rd-bild-zeile{ display:flex; gap:8px; flex-wrap:wrap; margin:8px 0 2px; }
+  .rd-bild-zeile .btn-sm{ min-height:36px; padding:0 var(--abstand-m); font-size:13px; }
+  .rd-titel{
+    margin:14px 0 10px; font-family:var(--schrift-headline); font-weight:600; font-size:26px; line-height:1.2; color:var(--text-haupt);
+  }
+  .rd-chips{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px; }
+  .rd-chip{
+    display:inline-flex; align-items:baseline; gap:4px; min-height:var(--hoehe-chip); padding:0 14px;
+    border-radius:var(--radius-rund); background:var(--flaeche-karte); border:1px solid var(--linie-leise); box-shadow:var(--schatten-karte);
+    font-size:14px; color:var(--text-haupt); align-items:center;
+  }
+  .rd-chip-wert{ font-weight:600; font-variant-numeric:tabular-nums; color:var(--messing-aktion); }
+  .rd-chip-einheit{ font-size:13px; color:var(--text-leise); }
+  .rd-text{ margin:0 0 12px; font-size:15px; line-height:1.55; color:var(--text-haupt); white-space:pre-wrap; }
+  .rd-tags{ margin-bottom:16px; }
+  .rd-tag{ cursor:default; }
+  .rd-abschnitt{ margin-bottom:var(--abstand-l); }
+  .rd-kopf{ display:flex; align-items:baseline; justify-content:space-between; gap:var(--abstand-m); margin-bottom:10px; }
+  .rd-kopf h3{ margin:0; font-family:var(--schrift-headline); font-weight:600; font-size:19px; color:var(--text-haupt); }
+  .rd-kopf-meta{ font-size:13px; color:var(--text-leise); font-variant-numeric:tabular-nums; white-space:nowrap; }
+  .rd-portionen{ display:flex; align-items:center; justify-content:space-between; gap:var(--abstand-m); margin-bottom:6px; }
+  .rd-portionen-text{ font-size:14px; color:var(--text-leise); }
+  .rd-portionen-text .zahl{ font-weight:600; color:var(--text-haupt); font-variant-numeric:tabular-nums; }
+  .rd-stepper{ padding:0; gap:0; }
+  .rd-stepper button{ width:var(--hoehe-control); height:var(--hoehe-control); font-size:20px; }
+  .rd-zutat{ display:flex; justify-content:space-between; align-items:baseline; gap:var(--abstand-m); padding:11px 0; border-bottom:1px solid var(--linie-leise); font-size:15px; }
+  .rd-zutat:last-child{ border-bottom:none; }
+  .rd-zutat-name{ min-width:0; color:var(--text-haupt); }
+  .rd-menge{ flex:none; color:var(--messing-aktion); font-weight:500; font-variant-numeric:tabular-nums; white-space:nowrap; }
+  #rdAufListe{ margin-top:12px; }
+  .rd-schritte{ list-style:none; margin:0; padding:0; }
+  .rd-schritte li{ display:flex; gap:12px; align-items:flex-start; padding:9px 0; }
+  .rd-schritte li + li{ border-top:1px solid var(--linie-leise); }
+  .rd-nr{
+    flex:none; width:28px; height:28px; border-radius:50%; display:grid; place-items:center;
+    background:var(--messing-flaeche); color:var(--auf-messing-flaeche); font-size:13px; font-weight:600; font-variant-numeric:tabular-nums;
+  }
+  .rd-schritt{ font-size:15px; line-height:1.55; color:var(--text-haupt); padding-top:3px; }
+  .rd-naehr{ width:100%; border-collapse:collapse; font-size:15px; }
+  .rd-naehr td{ padding:10px 0; border-bottom:1px solid var(--linie-leise); }
+  .rd-naehr tr:last-child td{ border-bottom:none; }
+  .rd-naehr td.zahl{ text-align:right; font-variant-numeric:tabular-nums; color:var(--messing-aktion); font-weight:500; }
+  .rd-aktionen{ display:flex; gap:var(--abstand-s); flex-wrap:wrap; margin:4px 0 var(--abstand-l); }
+  .rd-aktionen .btn{ flex:1 1 auto; }
+  #rdFav.active{ color:var(--messing-aktion); border-color:var(--messing-aktion); }
+  .rd-wochenwahl{ margin:-8px 0 var(--abstand-l); }
+  .rd-wochenwahl .week-picker{ margin-top:0; }
+  .r-schwierigkeit{ margin:0; }
   @media (min-width:700px){
-    .recipe-item.open .recipe-img{ aspect-ratio:21 / 9; max-height:320px; }
+    .rd-hero{ aspect-ratio:21 / 9; }
   }
 
   /* ---------- Login-Gate ---------- */

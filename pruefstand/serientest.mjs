@@ -319,6 +319,83 @@ if (vorher === null) {
   }
 }
 
+/* 8 — O-39 (v35): ein mehrtaegiger Termin. Betriebsregel 13: Am Stand v34
+       schlaegt jede Zeile hier an - dort kennt terminAmTag kein `endDatum`,
+       der Termin t8 steht nur an seinem ersten Tag, der Feed schliesst ihn
+       nach einem Tag, und das Formular hat kein zweites Datumsfeld. */
+const zeitraum = await (async () => {
+  const alle = await ausDb();
+  const id = Object.keys(alle).find(k => alle[k].endDatum);
+  return id ? Object.assign({ id }, alle[id]) : null;
+})();
+if (!zeitraum) {
+  sag('Testdaten enthalten einen Termin mit endDatum (O-39)', false);
+} else {
+  console.log('Zeitraum:', zeitraum.id, zeitraum.titel, zeitraum.datum, 'bis', zeitraum.endDatum);
+  const tagNach = (iso, n) => { const d = new Date(iso + 'T12:00:00'); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
+  const zeilenAm = async (tag) => {
+    await p.click('nav .tab[data-tab="kalender"]');
+    await p.waitForTimeout(150);
+    await p.evaluate(t => { const k = document.querySelector(`.kal-tag[data-tag="${t}"]`); if (k) k.click(); }, tag);
+    await p.waitForTimeout(250);
+    return p.evaluate(id => {
+      const li = document.querySelector(`.kal-zeile[data-id="${id}"]`);
+      return li ? li.textContent.replace(/\s+/g, ' ').trim() : null;
+    }, zeitraum.id);
+  };
+  /* (a) Tag 2 des Zeitraums zeigt den Termin mit "Tag 2 von 4"; der Tag nach
+         dem Ende zeigt ihn nicht. */
+  const tag2 = await zeilenAm(tagNach(zeitraum.datum, 1));
+  sag('Zeitraum-Termin steht am zweiten Tag in der Tagesliste', !!tag2, String(tag2));
+  sag('Die Zeile nennt "Tag 2 von 4"', !!tag2 && tag2.includes('Tag 2 von 4'), String(tag2));
+  const danach = await zeilenAm(tagNach(zeitraum.endDatum, 1));
+  sag('Am Tag nach dem Ende steht er nicht mehr', danach === null, String(danach));
+  /* Das Raster markiert jeden betroffenen Tag. */
+  const markiert = await p.evaluate(({ a, b }) => {
+    const tage = [];
+    const d = new Date(a + 'T12:00:00');
+    while (d.toISOString().slice(0, 10) <= b) { tage.push(d.toISOString().slice(0, 10)); d.setDate(d.getDate() + 1); }
+    return tage.map(t => { const k = document.querySelector(`.kal-tag[data-tag="${t}"] .kal-punkte`); return !!k; });
+  }, { a: zeitraum.datum, b: zeitraum.endDatum });
+  sag('Jeder Tag des Zeitraums traegt eine Markierung im Raster', markiert.length === 4 && markiert.every(Boolean), markiert.join(','));
+
+  /* (b) Der Feed: ganztaegiger Zeitraum endet exklusiv am Tag nach endDatum. */
+  await p.click('nav .tab[data-tab="kalender"]');
+  await p.evaluate(() => { const k = document.getElementById('icsKopieren'); if (k) k.click(); });
+  await p.waitForTimeout(500);
+  const feed2 = await feedVon();
+  const block = (feed2 || '').split('BEGIN:VEVENT').find(v => v.includes('UID:' + zeitraum.uid)) || '';
+  const erwartet = tagNach(zeitraum.endDatum, 1).replace(/-/g, '');
+  sag('ICS: Zeitraum-Termin traegt DTEND;VALUE=DATE am Tag nach dem Ende',
+      block.includes('DTEND;VALUE=DATE:' + erwartet), 'erwartet ' + erwartet);
+
+  /* (c) Enddatum vor Datum: Fehlerzustand am Feld, nichts wird gespeichert. */
+  const vorher = Object.keys(await ausDb()).length;
+  await p.evaluate(() => document.getElementById('terminNeu').click());
+  await p.waitForTimeout(200);
+  await p.fill('#terminTitel', 'Falsch herum');
+  await p.fill('#terminDatum', tagNach(zeitraum.datum, 3));
+  const feldDa = await p.evaluate(() => !!document.getElementById('terminEndDatum'));
+  sag('Formular hat ein Feld "Bis (Datum)"', feldDa);
+  if (feldDa) {
+    await p.fill('#terminEndDatum', tagNach(zeitraum.datum, 1));
+    await p.click('#terminSpeichern');
+    await p.waitForTimeout(300);
+    const zustand = await p.evaluate(() => ({
+      fehlerhaft: document.getElementById('terminEndDatum').classList.contains('fehlerhaft'),
+      offen: !document.getElementById('terminForm').hidden,
+      wdhAus: Array.from(document.querySelectorAll('#terminWdhRow .filter-pill')).every(b => b.disabled),
+      grund: (document.getElementById('terminWdhHinweis') || {}).textContent || ''
+    }));
+    sag('Enddatum vor Datum macht das Feld fehlerhaft', zustand.fehlerhaft);
+    sag('Das Formular bleibt offen', zustand.offen);
+    sag('Es wurde nichts gespeichert', Object.keys(await ausDb()).length === vorher);
+    sag('Bei gesetztem Enddatum ist die Wiederholung ausgegraut und begruendet',
+        zustand.wdhAus && zustand.grund.includes('wiederholt sich nicht'), zustand.grund);
+    await p.evaluate(() => document.getElementById('terminAbbrechen').click());
+  }
+}
+
 await b.close(); s.close();
 console.log(fehler.length ? 'FEHLER:\n  ' + [...new Set(fehler)].join('\n  ') : 'Keine Fehler.');
 process.exit(fehler.length ? 1 : 0);

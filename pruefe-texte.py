@@ -76,7 +76,11 @@ Ausnahmen bekommen /* texte-ok: <Grund> */ in die Zeile.
 # ('<button class="planen-zeile" ...>', '<span class="pz-tag">' usw.) - der Zaehler
 # haelt "button class" fuer Satzbau. Menschlicher Text steckt darin nicht; der
 # laeuft ueber txt('heute.*') und txt('einkauf.*').
-REST_ERWARTET = 456
+# 18.10.2026 (v35, Rezeptdetail O-38): 456 -> 444. Der aufgeklappte Kachel-Rumpf
+# in renderRecipeList ist entfallen; seine zwoelf Markup-Fragmente mit ihm. Das
+# neue Detail fuellt feste Elemente aus index.html und bringt weniger Fragmente
+# mit, als weggefallen sind. Deckel nachgezogen, damit er wieder anschlaegt.
+REST_ERWARTET = 444
 import re, sys
 from html.parser import HTMLParser
 

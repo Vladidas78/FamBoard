@@ -826,8 +826,17 @@ function computeRecipeNutrition(ingredients){
 /* =========================================================================
    5. Bilder verkleinern
    ========================================================================= */
+/* Vorgaben seit v35: 1200 px und Qualität 0,82 statt 600 px / 0,68 — die
+   hochgeladenen Bilder waren auf dem Telefon unscharf. Butley bleibt privat
+   (Z-8), Speicher in der RTDB ist kein Engpass mehr, und ein iPhone zeichnet
+   mit dreifacher Pixeldichte. Aufrufe mit eigenen Werten (KI-Import) bleiben.
+   Die Sicherheitsregel für `images/<rezept>` lässt höchstens 400 000 Zeichen
+   zu; wird die Daten-URL länger, geht die Qualität schrittweise zurück und
+   zuletzt die Kantenlänge, damit das Speichern nicht still abgelehnt wird. */
+const BILD_ZEICHEN_GRENZE = 390000;
 function fileToResizedDataURL(file, maxDim, quality){
-  maxDim = maxDim || 600; quality = quality || 0.68;
+  const vorgabe = !maxDim && !quality;
+  maxDim = maxDim || 1200; quality = quality || 0.82;
   return new Promise((resolve,reject)=>{
     const reader=new FileReader();
     reader.onload=()=>{
@@ -838,7 +847,17 @@ function fileToResizedDataURL(file, maxDim, quality){
         else if(h>w && h>maxDim){ w=Math.round(w*maxDim/h); h=maxDim; }
         const c=document.createElement('canvas'); c.width=w; c.height=h;
         c.getContext('2d').drawImage(img,0,0,w,h);
-        resolve(c.toDataURL('image/jpeg', quality));
+        let aus = c.toDataURL('image/jpeg', quality);
+        if(vorgabe){
+          let q = quality;
+          while(aus.length > BILD_ZEICHEN_GRENZE && q > 0.6){ q = Math.round((q-0.06)*100)/100; aus = c.toDataURL('image/jpeg', q); }
+          if(aus.length > BILD_ZEICHEN_GRENZE){
+            const k=document.createElement('canvas'); k.width=Math.round(w*0.75); k.height=Math.round(h*0.75);
+            k.getContext('2d').drawImage(img,0,0,k.width,k.height);
+            aus = k.toDataURL('image/jpeg', q);
+          }
+        }
+        resolve(aus);
       };
       img.onerror=reject; img.src=reader.result;
     };
@@ -1762,9 +1781,6 @@ function renderRecipeList(){
   document.getElementById('recCount').textContent =
     '('+(state.recipes.length-nSnack)+(nSnack?' + '+nSnack+' Snacks':'')+')';
 
-  const openIds = Array.prototype.map.call(list.querySelectorAll('.recipe-item.open'), el=>el.dataset.id);
-  const descOpenIds = Array.prototype.map.call(list.querySelectorAll('.recipe-item .desc-wrap.desc-open'), el=>el.closest('.recipe-item').dataset.id);
-
   renderTagFilterChips();
 
   if(!state.recipes.length){
@@ -1786,22 +1802,19 @@ function renderRecipeList(){
   }
 
   list.innerHTML = gefiltert.map(r=>{
-    const base = r.servings || 4;
-    const shown = viewServings[r.id] || base;
-    const f = shown / base;
     return '' +
-    /* Kachel nach dem Zielentwurf: Bildflaeche im Verhaeltnis 4:3, darunter
-       Name und Menge. D-7 - ein Snack bekommt keine Bildflaeche und auch
-       keinen Platzhalter, sondern eine Messingleiste. Wird die Kachel
-       geoeffnet, spannt sie ueber alle Spalten; der Inhalt bleibt derselbe
-       wie vorher, nur die Huelle ist neu. */
+    // Kachel nach dem Zielentwurf: Bildflaeche 4:3, darunter Name und Menge.
+    // D-7 - ein Snack bekommt keine Bildflaeche, sondern eine Messingleiste.
+    // Seit v35 (O-38) klappt die Kachel nicht mehr auf: Antippen oeffnet das
+    // Rezeptdetail als eigene Flaeche (#rezeptDetail), die Liste wird versteckt.
+    // //-Kommentare, weil ein /*-Block hier den Zaehler in pruefe-texte.py verschiebt.
     '<div class="recipe-item" data-id="'+r.id+'">' +
       '<button class="recipe-head" type="button" data-toggle="'+r.id+'">' +
         (istSnack(r)
           ? '<span class="kachel-snack">Snack</span>'
           : '<span class="kachel-bild">' +
               (imgOf(r) ? '<img src="'+imgOf(r)+'" alt="">'
-                        : (r.hasImage ? '<span class="kachel-laedt">Bild wird geladen …</span>'
+                        : ((r.hasImage && imageCache[r.id] === undefined) ? '<span class="kachel-laedt">Bild wird geladen …</span>'
                                       : '<span class="kachel-leer" aria-hidden="true">🍽</span>')) +
             '</span>') +
         '<span class="kachel-text">' +
@@ -1811,77 +1824,18 @@ function renderRecipeList(){
         '</span>' +
       '</button>' +
       (istSnack(r) ? '' : '<button class="fav-star kachel-fav'+(r.fav?' active':'')+'" type="button" data-favid="'+r.id+'" aria-label="'+(r.fav?'Favorit entfernen':txt('essen.als_favorit_markieren'))+'">'+(r.fav?'★':'☆')+'</button>') +
-      '<div class="recipe-body">' +
-        (imgOf(r) ? '<img class="recipe-img" src="'+imgOf(r)+'" alt="'+escapeHtml(r.name)+'">' : (r.hasImage ? '<div class="img-loading">Bild wird geladen …</div>' : '')) +
-        '<div class="portion-bar">' +
-          '<span class="lbl">Mengen für</span>' +
-          '<span class="stepper">' +
-            '<button type="button" class="rv-minus" data-id="'+r.id+'" aria-label="Weniger Portionen">−</button>' +
-            '<span class="val">'+shown+' Pers.</span>' +
-            '<button type="button" class="rv-plus" data-id="'+r.id+'" aria-label="Mehr Portionen">+</button>' +
-          '</span>' +
-        '</div>' +
-        '<div>' + (r.ingredients||[]).map(i=>
-          '<div class="ing-line"><span class="q">'+scaleAmount(i.amount,f)+' '+escapeHtml(i.unit||'')+'</span><span>'+escapeHtml(i.name)+'</span></div>'
-        ).join('') + '</div>' +
-        (istSnack(r) ? '' :
-          '<div class="nutri-row"><span>'+(r.kcal||0)+' kcal/Portion</span><span>Eiweiß '+(r.prot||0)+'g</span><span>KH '+(r.carbs||0)+'g</span><span>Fett '+(r.fat||0)+'g</span></div>') +
-        (r.description
-          ? '<div class="desc-wrap">' +
-              '<button class="desc-toggle" type="button" data-desctoggle>' +
-                '<span class="chev">▶</span><span class="desc-label">Beschreibung anzeigen</span>' +
-              '</button>' +
-              '<div class="desc-body">'+escapeHtml(r.description)+'</div>' +
-            '</div>' : '') +
-        (istSnack(r) ? '' : '<div class="img-controls">' +
-          '<label class="btn btn-soft btn-sm" for="imgup-'+r.id+'" style="cursor:pointer;">📷 '+(r.hasImage?'Bild ändern':txt('essen.bild_hochladen'))+'</label>' +
-          '<input type="file" id="imgup-'+r.id+'" accept="image/*" data-imgfor="'+r.id+'" style="display:none;">' +
-          (r.hasImage?'<button class="btn btn-ghost btn-loeschen btn-sm rm-img" data-id="'+r.id+'" type="button">Bild entfernen</button>':'') +
-        '</div>') +
-        '<div class="add-to-week-row">' +
-          '<button class="btn btn-soft btn-sm add-to-week" data-id="'+r.id+'" type="button">+ Zur Woche</button>' +
-          '<button class="btn btn-soft btn-sm edit-recipe" data-id="'+r.id+'" type="button">✏️ Bearbeiten</button>' +
-          '<button class="btn btn-ghost btn-loeschen btn-sm del-recipe" data-id="'+r.id+'" type="button">Entfernen</button>' +
-        '</div>' +
-        weekPickerHtml(r) +
-      '</div>' +
     '</div>';
   }).join('');
+  // Bilder der sichtbaren Kacheln nachladen (18.10.2026): Bis v33 stand auf jeder
+  // Kachel mit hasImage dauerhaft der Ladehinweis, weil erst das Aufklappen lud.
+  // Einmal laden, dann einmal neu zeichnen; fehlt das Bild, zeigt die Kachel den
+  // Platzhalter (imageCache = null, nicht undefined).
+  const nachzuladen = gefiltert.filter(r=>r.hasImage && imageCache[r.id] === undefined).map(r=>r.id);
+  if(nachzuladen.length){ Promise.all(nachzuladen.map(loadImage)).then(()=>renderRecipeList()); }
 
-  openIds.forEach(id=>{ const el=list.querySelector('.recipe-item[data-id="'+id+'"]'); if(el) el.classList.add('open'); });
-  descOpenIds.forEach(id=>{
-    const el=list.querySelector('.recipe-item[data-id="'+id+'"] .desc-wrap');
-    if(el){ el.classList.add('desc-open'); const l=el.querySelector('.desc-label'); if(l) l.textContent='Beschreibung ausblenden'; }
-  });
-
-  Array.prototype.forEach.call(list.querySelectorAll('[data-toggle]'), b=>b.addEventListener('click', async ()=>{
-    const item = b.closest('.recipe-item');
-    item.classList.toggle('open');
-    const id = item.dataset.id;
-    const r = state.recipes.filter(x=>x.id===id)[0];
-    if(item.classList.contains('open') && r && r.hasImage && imageCache[id] === undefined){
-      await loadImage(id); renderRecipeList();
-    }
-    updateWakeLock();
+  Array.prototype.forEach.call(list.querySelectorAll('[data-toggle]'), b=>b.addEventListener('click', ()=>{
+    oeffneRezeptDetail(b.dataset.toggle);
   }));
-  Array.prototype.forEach.call(list.querySelectorAll('[data-desctoggle]'), b=>b.addEventListener('click',()=>{
-    const w=b.closest('.desc-wrap'); w.classList.toggle('desc-open');
-    const l=b.querySelector('.desc-label'); if(l) l.textContent = w.classList.contains('desc-open')?'Beschreibung ausblenden':'Beschreibung anzeigen';
-  }));
-
-  const rv = (id, delta)=>{
-    const r = state.recipes.filter(x=>x.id===id)[0]; if(!r) return;
-    const cur = viewServings[id] || r.servings || 4;
-    viewServings[id] = Math.min(30, Math.max(1, cur+delta));
-    renderRecipeList();
-  };
-  Array.prototype.forEach.call(list.querySelectorAll('.rv-minus'), b=>b.addEventListener('click', e=>rv(e.currentTarget.dataset.id,-1)));
-  Array.prototype.forEach.call(list.querySelectorAll('.rv-plus'),  b=>b.addEventListener('click', e=>rv(e.currentTarget.dataset.id, 1)));
-
-  Array.prototype.forEach.call(list.querySelectorAll('.edit-recipe'), b=>b.addEventListener('click', e=>{
-    openEditRecipe(e.currentTarget.dataset.id);
-  }));
-
   Array.prototype.forEach.call(list.querySelectorAll('.fav-star'), b=>b.addEventListener('click', e=>{
     e.stopPropagation();
     const r = state.recipes.filter(x=>x.id===e.currentTarget.dataset.favid)[0];
@@ -1889,45 +1843,228 @@ function renderRecipeList(){
     r.fav = !r.fav;
     saveRecipes(); renderRecipeList();
   }));
-  Array.prototype.forEach.call(list.querySelectorAll('.del-recipe'), b=>b.addEventListener('click', async e=>{
-    const id=e.target.dataset.id;
-    state.recipes=state.recipes.filter(r=>r.id!==id);
-    Object.keys(state.plan).forEach(wk=>Object.keys(state.plan[wk]||{}).forEach(d=>{
-      const en=state.plan[wk][d]; if(en && en.id===id) state.plan[wk][d]=null;
-    }));
-    deleteImage(id); saveRecipes(); saveAllPlans(); renderAll();
+  // Das offene Detail zeichnet mit - Favorit, Bild und Bearbeitung laufen alle hier durch.
+  renderRezeptDetail();
+}
+
+/* =========================================================================
+   11b. Rezeptdetail (O-38, v35) — eigene Fläche nach YAZIO-Vorbild
+
+   Hero-Bild, Serifen-Titel, Kennzahl-Chips, Zutaten mit Portions-Stepper,
+   „Zur Einkaufsliste", nummerierte Anleitung, Nährstoffe je Portion, unten
+   Bearbeiten und Favorit. Alle Teile stehen fest in index.html
+   (Betriebsregel 10); hier wird nur gefüllt. Löschen gibt es nur im
+   Bearbeiten-Formular.
+   ========================================================================= */
+let rezeptOffen = null;              // id des Rezepts auf der Detailfläche
+let rezeptNachBearbeitung = null;    // wohin es nach „Änderungen speichern" zurückgeht
+
+function rezeptVon(id){ return state.recipes.filter(x=>x.id===id)[0] || null; }
+
+/* Die Anleitung: ein Zeilenumbruch oder „1." / „1)" am Zeilenanfang beginnt
+   einen Schritt. Ein einzelner Absatz ohne Gliederung ist keine Anleitung,
+   sondern der Beschreibungstext — er landet in #rdText. */
+function anleitungsSchritte(text){
+  const zeilen = String(text||'').split(/\r?\n/).map(z=>z.trim()).filter(Boolean);
+  const schritte = [];
+  zeilen.forEach(z=>{
+    const teile = z.split(/(?:^|\s)(?=\d{1,2}[.)]\s)/).map(x=>x.replace(/^\d{1,2}[.)]\s+/,'').trim()).filter(Boolean);
+    teile.forEach(x=>schritte.push(x));
+  });
+  return schritte;
+}
+
+function oeffneRezeptDetail(id){
+  const r = rezeptVon(id);
+  if(!r) return;
+  rezeptOffen = id;
+  if(!viewServings[id]) viewServings[id] = r.servings || 4;
+  renderRezeptDetail();
+  document.getElementById('rezeptUebersicht').hidden = true;
+  document.getElementById('rezeptDetail').hidden = false;
+  window.scrollTo(0, 0);
+  updateWakeLock();
+  try{ ansichtSichern(); }catch(e){}
+}
+function schliesseRezeptDetail(){
+  rezeptOffen = null;
+  document.getElementById('rezeptDetail').hidden = true;
+  document.getElementById('rezeptUebersicht').hidden = false;
+  document.getElementById('rdWochenWahl').hidden = true;
+  updateWakeLock();
+  try{ ansichtSichern(); }catch(e){}
+}
+
+function renderRezeptDetail(){
+  if(!rezeptOffen) return;
+  const r = rezeptVon(rezeptOffen);
+  if(!r){ schliesseRezeptDetail(); return; }
+  const el = id=>document.getElementById(id);
+  const snack = istSnack(r);
+
+  /* Hero: Bild, sonst ruhige Messingfläche mit Strich-Symbol. Snacks ohne
+     Bildfläche (D-7). Das Bild wird nachgeladen, wenn es noch nicht da ist. */
+  const bild = el('rdHeroBild');
+  el('rdHero').hidden = snack;
+  el('rdBildZeile').hidden = snack;
+  if(imgOf(r)){ bild.src = imgOf(r); bild.alt = r.name || ''; bild.hidden = false; el('rdHeroLeer').hidden = true; }
+  else { bild.removeAttribute('src'); bild.hidden = true; el('rdHeroLeer').hidden = false;
+         if(r.hasImage && imageCache[r.id] === undefined){ loadImage(r.id).then(()=>{ if(rezeptOffen === r.id) renderRezeptDetail(); }); } }
+  el('rdBildLabel').textContent = r.hasImage ? txt('essen.bild_aendern') : txt('essen.bild_hochladen');
+  el('rdBildWeg').hidden = !r.hasImage;
+
+  el('rdTitel').textContent = r.name || '';
+
+  /* Kennzahl-Chips - nur mit Wert. */
+  const chip = (wert, einheit)=>'<span class="rd-chip"><span class="rd-chip-wert zahl">'+escapeHtml(wert)+'</span>'+(einheit ? '<span class="rd-chip-einheit">'+escapeHtml(einheit)+'</span>' : '')+'</span>';
+  const chips = [];
+  if(r.kcal) chips.push(chip(Math.round(r.kcal), txt('essen.kcal')));
+  if(r.minuten) chips.push(chip(r.minuten, txt('essen.min')));
+  const schwierigkeitText = {leicht:txt('essen.leicht'), mittel:txt('essen.mittel'), aufwendig:txt('essen.aufwendig')}[r.schwierigkeit];
+  if(schwierigkeitText) chips.push(chip(schwierigkeitText, ''));
+  el('rdChips').innerHTML = chips.join('');
+  el('rdChips').hidden = !chips.length;
+
+  const schritte = anleitungsSchritte(r.description);
+  const nurText = schritte.length === 1 ? schritte[0] : '';
+  el('rdText').textContent = nurText;
+  el('rdText').hidden = !nurText;
+
+  el('rdTags').innerHTML = (r.tags||[]).map(t=>'<span class="chip rd-tag">'+escapeHtml(t)+'</span>').join('');
+  el('rdTags').hidden = !(r.tags||[]).length;
+
+  /* Zutaten, auf die gewählten Portionen umgerechnet. */
+  const base = r.servings || 4;
+  const shown = viewServings[r.id] || base;
+  const f = shown / base;
+  el('rdPortionenZahl').textContent = String(shown);
+  el('rdPortionenWort').textContent = shown === 1 ? txt('essen.portion') : txt('essen.portionen');
+  el('rdZutaten').innerHTML = (r.ingredients||[]).map(i=>{
+    const menge = scaleAmount(i.amount, f);
+    const einheit = UNIT_DISPLAY[String(i.unit||'').toLowerCase()] || (i.unit||'');
+    return '<div class="rd-zutat"><span class="rd-zutat-name">'+escapeHtml(i.name)+'</span><span class="rd-menge zahl">'+(menge ? menge+' '+escapeHtml(einheit) : '')+'</span></div>';
+  }).join('');
+  el('rdAufListe').hidden = !(r.ingredients||[]).length;
+
+  /* Anleitung mit Nummernkreis; „Fertig in n Minuten" nur mit Wert. */
+  el('rdAnleitung').hidden = schritte.length < 2;
+  el('rdFertig').textContent = r.minuten ? txtf('essen.fertig_in_n_minuten', {n:r.minuten}) : '';
+  el('rdSchritte').innerHTML = schritte.length >= 2 ? schritte.map((sch,i)=>'<li><span class="rd-nr zahl">'+(i+1)+'</span><span class="rd-schritt">'+escapeHtml(sch)+'</span></li>').join('') : '';
+
+  /* Nährstoffe je Portion - fehlt alles, bleibt der Abschnitt weg. */
+  const werte = [[txt('essen.kalorien'), r.kcal ? Math.round(r.kcal)+' '+txt('essen.kcal') : ''],
+                 [txt('essen.eiweiss'), r.prot ? r.prot+' '+txt('allgemein.g') : ''],
+                 [txt('essen.kohlenhydrate'), r.carbs ? r.carbs+' '+txt('allgemein.g') : ''],
+                 [txt('essen.fett'), r.fat ? r.fat+' '+txt('allgemein.g') : '']];
+  const naehrDa = werte.some(w=>w[1]);
+  el('rdNaehrAbschnitt').hidden = !naehrDa;
+  el('rdNaehr').innerHTML = naehrDa ? werte.map(w=>'<tr><td>'+escapeHtml(w[0])+'</td><td class="zahl">'+escapeHtml(w[1] || '–')+'</td></tr>').join('') : '';
+
+  el('rdFav').hidden = snack;
+  el('rdFav').textContent = r.fav ? txt('essen.favorit') : txt('essen.als_favorit');
+  el('rdFav').classList.toggle('active', !!r.fav);
+  el('rdBildInput').dataset.imgfor = r.id;
+}
+
+/* Die Wochenwahl unter „+ Zur Woche": dieselbe Bauform wie vorher in der Kachel. */
+function rdWochenWahlZeigen(){
+  const r = rezeptVon(rezeptOffen); if(!r) return;
+  const box = document.getElementById('rdWochenWahl');
+  if(!box.hidden){ box.hidden = true; return; }
+  box.innerHTML = weekPickerHtml(r);
+  box.hidden = false;
+  const ok = box.querySelector('.wp-confirm');
+  if(ok) ok.addEventListener('click', ()=>{
+    const panel = box.querySelector('.week-picker');
+    const day = panel.querySelector('.wp-day').value;
+    const slotId = panel.querySelector('.wp-slot').value;
+    setPlanSlot(weekKeyOf(currentMonday), day, slotId, r.id);
+    box.hidden = true;
+    renderDayTrack(); renderShop();
+    showToast(r.name+' für '+day+' eingetragen');
+  });
+}
+
+/* Ein Rezept löschen - nur aus dem Bearbeiten-Formular heraus. Das Rückgängig
+   holt Rezept und Bild zurück, solange der Toast steht. */
+function loescheRezept(id){
+  const r = rezeptVon(id); if(!r) return;
+  const bild = imageCache[id] || null;
+  state.recipes = state.recipes.filter(x=>x.id!==id);
+  Object.keys(state.plan).forEach(wk=>Object.keys(state.plan[wk]||{}).forEach(d=>{
+    const en=state.plan[wk][d]; if(en && en.id===id) state.plan[wk][d]=null;
   }));
-  Array.prototype.forEach.call(list.querySelectorAll('input[data-imgfor]'), inp=>inp.addEventListener('change', async e=>{
+  deleteImage(id); saveRecipes(); saveAllPlans();
+  if(rezeptOffen === id) schliesseRezeptDetail();
+  renderAll();
+  showToast('„'+r.name+'“'+txt('essen.geloescht'), ()=>{
+    state.recipes.push(r);
+    if(bild){ imageCache[id] = bild; saveImage(id, bild); }
+    saveRecipes(); renderAll();
+  });
+}
+
+(function(){
+  const an = (id, ev, fn) => { const e = document.getElementById(id); if(e) e.addEventListener(ev, fn); };
+  an('rdZurueck','click', schliesseRezeptDetail);
+  const rv = delta=>{
+    const r = rezeptVon(rezeptOffen); if(!r) return;
+    const cur = viewServings[r.id] || r.servings || 4;
+    viewServings[r.id] = Math.min(30, Math.max(1, cur+delta));
+    renderRezeptDetail();
+  };
+  const minus = document.querySelector('#rdPortionen .rd-minus');
+  const plus  = document.querySelector('#rdPortionen .rd-plus');
+  if(minus) minus.addEventListener('click', ()=>rv(-1));
+  if(plus)  plus.addEventListener('click', ()=>rv(1));
+  an('rdAufListe','click', ()=>{
+    const r = rezeptVon(rezeptOffen); if(!r) return;
+    const n = setzeAufListe((r.ingredients||[]).map(i=>i.name));
+    showToast(n ? txtf('essen.n_zutaten_auf_der_liste', {n:n}) : txt('essen.alles_steht_schon_auf_der_liste'));
+  });
+  an('rdFav','click', ()=>{
+    const r = rezeptVon(rezeptOffen); if(!r) return;
+    r.fav = !r.fav; saveRecipes(); renderRecipeList();
+  });
+  an('rdBearbeiten','click', ()=>{
+    const id = rezeptOffen; if(!id) return;
+    rezeptNachBearbeitung = id;
+    schliesseRezeptDetail();
+    openEditRecipe(id);
+  });
+  an('rdZurWoche','click', rdWochenWahlZeigen);
+  an('rdBildInput','change', async e=>{
     const id=e.target.dataset.imgfor; const file=e.target.files[0]; if(!file) return;
-    setStatus('Bild wird verarbeitet …');
+    setStatus(txt('essen.bild_wird_verarbeitet'));
     try{
       const data=await fileToResizedDataURL(file);
-      const r=state.recipes.filter(x=>x.id===id)[0];
+      const r=rezeptVon(id);
       if(r){ imageCache[id]=data; r.hasImage=true; saveImage(id,data); saveRecipes(); renderRecipeList(); }
       setStatus('Bild gespeichert ✓'); setTimeout(()=>setStatus(''),1200);
     }catch(err){ setStatus('Das Bild ließ sich nicht laden. Versuch ein anderes Format.'); setTimeout(()=>setStatus(''),2500); }
     e.target.value='';
+  });
+  an('rdBildWeg','click', ()=>{
+    const r = rezeptVon(rezeptOffen); if(!r) return;
+    imageCache[r.id]=null; r.hasImage=false; deleteImage(r.id); saveRecipes(); renderRecipeList();
+  });
+  an('deleteRecipe','click', ()=>{
+    const id = editingRecipeId; if(!id) return;
+    closeAddPanel();
+    loescheRezept(id);
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('#r-schwierigkeit .filter-pill'), b=>b.addEventListener('click', ()=>{
+    const war = b.classList.contains('active');
+    Array.prototype.forEach.call(document.querySelectorAll('#r-schwierigkeit .filter-pill'), x=>x.classList.remove('active'));
+    if(!war) b.classList.add('active');
   }));
-  Array.prototype.forEach.call(list.querySelectorAll('.rm-img'), b=>b.addEventListener('click', async e=>{
-    const r=state.recipes.filter(x=>x.id===e.target.dataset.id)[0];
-    if(r){ imageCache[r.id]=null; r.hasImage=false; deleteImage(r.id); saveRecipes(); renderRecipeList(); }
-  }));
-
-  Array.prototype.forEach.call(list.querySelectorAll('.add-to-week'), b=>b.addEventListener('click', e=>{
-    e.currentTarget.closest('.recipe-item').classList.toggle('show-week-picker');
-  }));
-  Array.prototype.forEach.call(list.querySelectorAll('.wp-confirm'), b=>b.addEventListener('click', e=>{
-    const panel = e.currentTarget.closest('.week-picker');
-    const id = panel.dataset.id;
-    const day = panel.querySelector('.wp-day').value;
-    const slotId = panel.querySelector('.wp-slot').value;
-    const wk = weekKeyOf(currentMonday);
-    setPlanSlot(wk, day, slotId, id);
-    const r = state.recipes.filter(x=>x.id===id)[0];
-    panel.closest('.recipe-item').classList.remove('show-week-picker');
-    renderDayTrack(); renderShop();
-    showToast((r?r.name:'Eintrag')+' für '+day+' eingetragen');
-  }));
+})();
+function gewaehlteSchwierigkeit(){
+  const an = document.querySelector('#r-schwierigkeit .filter-pill.active');
+  return an ? an.dataset.schwierigkeit : '';
+}
+function setzeSchwierigkeit(wert){
+  Array.prototype.forEach.call(document.querySelectorAll('#r-schwierigkeit .filter-pill'), x=>x.classList.toggle('active', x.dataset.schwierigkeit === wert));
 }
 
 /* =========================================================================
@@ -2106,7 +2243,9 @@ function resetAddForm(){
   editingRecipeId = null;
   const rezeptRadio = document.querySelector('input[name=rType][value="rezept"]');
   if(rezeptRadio) rezeptRadio.checked = true;
-  ['r-name','r-tags','r-description','r-kcal','r-protein-g','r-carbs-g','r-fat-g'].forEach(id=>{ document.getElementById(id).value=''; });
+  ['r-name','r-tags','r-description','r-kcal','r-protein-g','r-carbs-g','r-fat-g','r-minuten'].forEach(id=>{ document.getElementById(id).value=''; });
+  setzeSchwierigkeit('');
+  document.getElementById('deleteRecipe').hidden = true;
   document.getElementById('ingRows').innerHTML=''; addIngRow();
   pendingImage=null; document.getElementById('addImgPreview').innerHTML='';
   syncTypFelder();
@@ -2124,6 +2263,9 @@ async function openEditRecipe(id){
   document.getElementById('r-servings').value = r.servings || (istSnack(r) ? 1 : 4);
   document.getElementById('r-tags').value = (r.tags||[]).join(', ');
   document.getElementById('r-description').value = r.description || '';
+  document.getElementById('r-minuten').value = r.minuten || '';
+  setzeSchwierigkeit(r.schwierigkeit || '');
+  document.getElementById('deleteRecipe').hidden = false;
   document.getElementById('r-kcal').value = r.kcal || '';
   document.getElementById('r-protein-g').value = r.prot || '';
   document.getElementById('r-carbs-g').value = r.carbs || '';
@@ -2256,6 +2398,11 @@ document.getElementById('saveRecipe').addEventListener('click', async ()=>{
     carbs:typ==='snack' ? 0 : carbsIn,
     fat:  typ==='snack' ? 0 : fatIn
   };
+  /* O-38 - beide optional; ohne Wert steht das Feld gar nicht erst im Datensatz. */
+  const minutenIn = typ==='snack' ? 0 : (parseInt(document.getElementById('r-minuten').value,10) || 0);
+  const schwierigkeitIn = typ==='snack' ? '' : gewaehlteSchwierigkeit();
+  if(minutenIn > 0) eintrag.minuten = minutenIn;
+  if(schwierigkeitIn) eintrag.schwierigkeit = schwierigkeitIn;
   if(bestehend){
     state.recipes[state.recipes.indexOf(bestehend)] = eintrag;
   } else {
@@ -2267,6 +2414,9 @@ document.getElementById('saveRecipe').addEventListener('click', async ()=>{
   closeAddPanel();
   document.getElementById('recSectionHead').closest('.collapse-section').classList.remove('collapsed');
   renderAll();
+  /* Kam die Bearbeitung aus dem Detail, geht es dorthin zurück (O-38). */
+  if(warBearbeitung && rezeptNachBearbeitung === id) oeffneRezeptDetail(id);
+  rezeptNachBearbeitung = null;
   setStatus(warBearbeitung ? 'Änderungen gespeichert ✓' : txt('essen.rezept_gespeichert')); setTimeout(()=>setStatus(''),1500);
 });
 
@@ -4330,6 +4480,10 @@ function terminAmTag(t, iso){
      ein Nutzer als Erstes — die erste Ausgabe einer Reihe absagen. */
   if(t.exdate && t.exdate.indexOf(iso) >= 0) return false;
   if(t.datum === iso) return true;
+  /* O-39 — ein Zeitraum trifft jeden Tag von `datum` bis `endDatum`
+     einschließlich. Er und eine Reihe schließen sich aus: Trägt ein Termin
+     beides, gilt der Zeitraum, die Regel wird ignoriert und einmal gemeldet. */
+  if(istZeitraum(t)) return iso > t.datum && iso <= t.endDatum;
   if(!t.rrule || iso < t.datum) return false;
   const start = datumVon(t.datum), tag = datumVon(iso);
   if(!start || !tag) return false;
@@ -4355,6 +4509,42 @@ function meldeUnbekannteRrule(rrule){
   if(!rrule || rruleGemeldet[rrule]) return;
   rruleGemeldet[rrule] = true;
   console.warn(txt('kalender.butley_unbekannte_rrule') + rrule + txt('kalender.die_serie_wird_im_kalender'));
+}
+
+/* ---------- O-39: mehrtägige Termine ---------- */
+/* Ein Termin ist ein Zeitraum, wenn `endDatum` nach `datum` liegt. Ein
+   `endDatum` gleich `datum` ist ein gewöhnlicher Tag. */
+function istZeitraum(t){
+  if(!t || !t.endDatum || !t.datum || t.endDatum <= t.datum) return false;
+  if(t.rrule) meldeZeitraumMitReihe(t);
+  return true;
+}
+const zeitraumGemeldet = {};
+function meldeZeitraumMitReihe(t){
+  const k = t.id || t.uid || t.datum;
+  if(zeitraumGemeldet[k]) return;
+  zeitraumGemeldet[k] = true;
+  console.warn('Butley: Termin "' + (t.titel||'') + '" trägt endDatum und rrule — der Zeitraum gilt, die Wiederholung wird ignoriert.');
+}
+function zeitraumTage(t){
+  const a = datumVon(t.datum), b = datumVon(t.endDatum);
+  return (a && b) ? Math.round((b - a) / 86400000) + 1 : 1;
+}
+/* „Tag 3 von 24" für den Tag `iso` innerhalb des Zeitraums, sonst leer. */
+function zeitraumText(t, iso){
+  if(!istZeitraum(t) || iso < t.datum || iso > t.endDatum) return '';
+  const n = Math.round((datumVon(iso) - datumVon(t.datum)) / 86400000) + 1;
+  return txtf('kalender.tag_n_von_m', {n:n, m:zeitraumTage(t)});
+}
+/* Zeitangabe für einen Tag: erster Tag „ab Von", letzter „bis Bis",
+   dazwischen ganztägig — ein eintägiger Termin wie bisher. */
+function zeitText(t, iso){
+  const ganz = txt('kalender.ganztaegig_klein');
+  if(t.ganztag || !t.zeit) return ganz;
+  if(!istZeitraum(t)) return escapeHtml(t.zeit) + (t.bis ? '–' + escapeHtml(t.bis) : '');
+  if(iso === t.datum) return txtf('kalender.ab_zeit', {zeit:escapeHtml(t.zeit)});
+  if(iso === t.endDatum) return t.bis ? txtf('kalender.bis_zeit', {zeit:escapeHtml(t.bis)}) : ganz;
+  return ganz;
 }
 
 /* Die geänderten Einzelausgaben einer Reihe. Sie tragen dieselbe `uid` und ein
@@ -4467,11 +4657,12 @@ function renderKalTag(){
   box.innerHTML = '<div class="notiz-block">'+kopf+'<div class="karte"><ul class="kal-liste">' +
     dran.map(t=>'<li class="kal-zeile" data-id="'+escapeHtml(t.id)+'" data-ausgabe="'+escapeHtml(iso)+'">' +
       '<button class="kal-zeile-btn" type="button">' +
-        '<span class="kal-zeit zahl">'+(t.ganztag ? 'ganztägig' : escapeHtml(t.zeit||'') + (t.bis ? '–'+escapeHtml(t.bis) : ''))+'</span>' +
+        '<span class="kal-zeit zahl">'+zeitText(t, iso)+'</span>' +
         '<span class="kal-text">' +
           '<span class="kal-titel">'+escapeHtml(t.titel||'')+'</span>' +
           '<span class="kal-meta">'+werPunkte(t)+' '+escapeHtml(werText(t)) +
             (t.ort ? ' · '+escapeHtml(t.ort) : '') +
+            (zeitraumText(t, iso) ? ' · '+zeitraumText(t, iso) : '') +
             /* O-27 — der Rohwert steht im Titel, nicht in der Zeile. Bei einer
                unbekannten Regel zeigt der Kalender nur den Starttag; das gehört
                dorthin, wo jemand nachsieht, und nicht in jede Zeile. */
@@ -4587,6 +4778,24 @@ function zeitZeileZeigen(){
   if(zeile && ganz) zeile.style.display = ganz.checked ? 'none' : '';
 }
 
+/* O-39 — Zeitraum und Reihe schließen sich aus. Steht ein Enddatum im Feld,
+   werden die Wiederholungspillen ausgegraut und auf „Einmalig" gestellt; der
+   Grund steht als Text daneben, nicht als `title` (Betriebsregel 18). */
+function gewaehltesEndDatum(){
+  const el = document.getElementById('terminEndDatum');
+  return el ? el.value : '';
+}
+function zeitraumFelderAbgleichen(){
+  const zeitraum = !!gewaehltesEndDatum();
+  const hinweis = document.getElementById('terminWdhHinweis');
+  const pillen = document.querySelectorAll('#terminWdhRow .filter-pill');
+  Array.prototype.forEach.call(pillen, b=>{
+    b.disabled = zeitraum;
+    if(zeitraum) b.classList.toggle('active', b.dataset.rrule === '');
+  });
+  if(hinweis) hinweis.hidden = !zeitraum;
+}
+
 function oeffneTerminForm(id, ausgabe){
   const form = document.getElementById('terminForm');
   if(!form) return;
@@ -4602,15 +4811,21 @@ function oeffneTerminForm(id, ausgabe){
   document.getElementById('terminFormTitel').textContent = t ? 'Termin bearbeiten' : txt('kalender.neuer_termin');
   document.getElementById('terminTitel').value  = t ? (t.titel||'') : '';
   document.getElementById('terminDatum').value  = t ? (terminAusgabe || t.datum || '') : (kalGewaehlt || heuteIso());
+  document.getElementById('terminEndDatum').value = (t && istZeitraum(t)) ? t.endDatum : '';
+  feldFehlerWeg(document.getElementById('terminEndDatum'));
   document.getElementById('terminOrt').value    = t ? (t.ort||'') : '';
   document.getElementById('terminGanztag').checked = !!(t && t.ganztag);
   document.getElementById('terminZeit').value   = t ? (t.zeit||'') : '18:00';
   document.getElementById('terminBis').value    = t ? (t.bis||'') : '';
   terminWer = (t && Array.isArray(t.wer)) ? t.wer.slice() : [];
   renderTerminWer();
-  renderTerminWdh(t ? t.rrule : '');
+  /* Ein geladener Termin mit Zeitraum **und** Regel wird als Zeitraum behandelt —
+     die Regel kommt gar nicht erst ins Formular, sonst stünde sie nach dem
+     Speichern wieder in den Daten. */
+  renderTerminWdh((t && !istZeitraum(t)) ? t.rrule : '');
   renderTerminUmfang(serie);
   zeitZeileZeigen();
+  zeitraumFelderAbgleichen();
   document.getElementById('terminLoeschen').hidden = !t;
   form.hidden = false;
   form.scrollIntoView({block:'nearest'});
@@ -4630,12 +4845,17 @@ function speichereTermin(){
   if(!titel){ feldFehler(titelEl, txt('kalender.ohne_bezeichnung_laesst_sich_der')); return; }
   const datum = document.getElementById('terminDatum').value;
   if(!datum){ feldFehler(document.getElementById('terminDatum'), txt('kalender.ein_datum_braucht_der_termin')); return; }
+  /* O-39 — ein Enddatum vor dem Datum ist kein Zeitraum, sondern ein Tippfehler.
+     Es bleibt im Feld stehen und wird dort benannt; gespeichert wird nichts. */
+  const endDatumRoh = gewaehltesEndDatum();
+  if(endDatumRoh && endDatumRoh < datum){ feldFehler(document.getElementById('terminEndDatum'), txt('kalender.das_enddatum_liegt_vor_dem_datum')); return; }
+  const endDatum = (endDatumRoh && endDatumRoh > datum) ? endDatumRoh : '';
 
   const ganztag = document.getElementById('terminGanztag').checked;
   const zeit = ganztag ? '' : document.getElementById('terminZeit').value;
   const bis  = ganztag ? '' : document.getElementById('terminBis').value;
   const ort  = document.getElementById('terminOrt').value.trim();
-  const rrule = gewaehlteWdh();
+  const rrule = endDatum ? '' : gewaehlteWdh();
 
   const alt = terminBearbeitet ? termine().filter(x=>x.id === terminBearbeitet)[0] : null;
 
@@ -4644,8 +4864,8 @@ function speichereTermin(){
      `uid` und einem `recurrenceId`. Das ist die iCalendar-Form aus K-3a: Der
      Feed bleibt dadurch ohne Übersetzung gültig, und kein abonnierender
      Kalender sieht eine Löschung mit Neuanlage. */
-  if(alt && alt.rrule && terminUmfang === 'einzeln'){
-    loeseAusgabeHeraus(alt, {datum:datum, titel:titel, ganztag:ganztag, zeit:zeit, bis:bis, ort:ort});
+  if(alt && alt.rrule && !istZeitraum(alt) && terminUmfang === 'einzeln'){
+    loeseAusgabeHeraus(alt, {datum:datum, titel:titel, ganztag:ganztag, zeit:zeit, bis:bis, ort:ort, endDatum:endDatum});
     return;
   }
 
@@ -4668,6 +4888,7 @@ function speichereTermin(){
   if(zeit) termin.zeit = zeit;
   if(bis)  termin.bis = bis;
   if(ort)  termin.ort = ort;
+  if(endDatum) termin.endDatum = endDatum;
   if(rrule) termin.rrule = rrule;
   /* Beides gehört zum Termin und steht in keinem Formularfeld. Ohne diese zwei
      Zeilen verlöre „Ganze Reihe speichern" jede herausgelöste Ausgabe, und das
@@ -4715,6 +4936,7 @@ function loeseAusgabeHeraus(serie, felder){
   if(felder.zeit) ausgabe.zeit = felder.zeit;
   if(felder.bis)  ausgabe.bis  = felder.bis;
   if(felder.ort)  ausgabe.ort  = felder.ort;
+  if(felder.endDatum) ausgabe.endDatum = felder.endDatum;
 
   state.kalender = state.kalender || {gemeinsam:{}};
   state.kalender.gemeinsam = state.kalender.gemeinsam || {};
@@ -4819,6 +5041,8 @@ function loescheTermin(){
   an('terminSpeichern','click', speichereTermin);
   an('terminLoeschen','click', loescheTermin);
   an('terminGanztag','change', zeitZeileZeigen);
+  an('terminEndDatum','input', zeitraumFelderAbgleichen);
+  an('terminEndDatum','change', zeitraumFelderAbgleichen);
   an('terminTitel','keydown', e=>{ if(e.key === 'Enter'){ e.preventDefault(); speichereTermin(); } });
 })();
 
@@ -4879,14 +5103,21 @@ function baueIcs(){
     zeilen.push('UID:' + icsText(t.uid || (t.id + '@butley')));
     zeilen.push('SEQUENCE:' + (t.sequence || 0));
     zeilen.push('DTSTAMP:' + stempel);
+    /* O-39 — ein Zeitraum endet am letzten Tag. DTEND ist nach RFC 5545
+       exklusiv: ganztägig also der Tag **nach** `endDatum`; mit Uhrzeit der
+       letzte Tag um „Bis" — fehlt „Bis", um dieselbe Uhrzeit wie der Beginn,
+       damit der Abo-Kalender den Termin überhaupt bis zum letzten Tag zieht. */
+    const letzter = istZeitraum(t) ? t.endDatum : t.datum;
+    const letzterTag = String(letzter).replace(/-/g,'');
     if(t.ganztag || !t.zeit){
       zeilen.push('DTSTART;VALUE=DATE:' + tag);
-      zeilen.push('DTEND;VALUE=DATE:' + String(tageAddieren(t.datum,1)).replace(/-/g,''));
+      zeilen.push('DTEND;VALUE=DATE:' + String(tageAddieren(letzter,1)).replace(/-/g,''));
     } else {
       zeilen.push('DTSTART;TZID=Europe/Berlin:' + tag + 'T' + t.zeit.replace(':','') + '00');
-      if(t.bis) zeilen.push('DTEND;TZID=Europe/Berlin:' + tag + 'T' + t.bis.replace(':','') + '00');
+      if(t.bis) zeilen.push('DTEND;TZID=Europe/Berlin:' + letzterTag + 'T' + t.bis.replace(':','') + '00');
+      else if(istZeitraum(t)) zeilen.push('DTEND;TZID=Europe/Berlin:' + letzterTag + 'T' + t.zeit.replace(':','') + '00');
     }
-    if(t.rrule) zeilen.push('RRULE:' + t.rrule);
+    if(t.rrule && !istZeitraum(t)) zeilen.push('RRULE:' + t.rrule);
     /* O-25 — die ausgenommenen Tage. Der Werttyp muss dem von DTSTART
        entsprechen: ganztägig als DATE, sonst mit derselben Uhrzeit und
        derselben TZID wie der Serienbeginn. Ein EXDATE, dessen Form von DTSTART
@@ -4991,6 +5222,7 @@ function renderHeuteTermine(){
   const heute = heuteIso();
   let dran = termineAmTag(heute);
   let hinweis = '';
+  let gezeigterTag = heute;   // O-39: der Tag, für den die Zeilen gelten
   const heuteEigene = dran.length;
   if(!dran.length){
     /* Steht heute nichts an, die nächsten Tage — Kapitel 3.2. Seit v31 genau
@@ -4998,7 +5230,7 @@ function renderHeuteTermine(){
     for(let i=1;i<=6 && !dran.length;i++){
       const tag = tageAddieren(heute, i);
       const treffer = termineAmTag(tag);
-      if(treffer.length){ dran = treffer; hinweis = (i===1 ? 'Morgen' : WOCHENTAGE_KURZ[wochentagIndex(tag)] + ', ' + fmtTag(tag)); }
+      if(treffer.length){ dran = treffer; gezeigterTag = tag; hinweis = (i===1 ? 'Morgen' : WOCHENTAGE_KURZ[wochentagIndex(tag)] + ', ' + fmtTag(tag)); }
     }
   }
   if(zahlEl) zahlEl.textContent = heuteEigene ? String(heuteEigene) : '';
@@ -5017,6 +5249,7 @@ function renderHeuteTermine(){
   const vorbei = t=>{
     if(hinweis) return false;              // an einem kuenftigen Tag ist nichts vorbei
     if(t.ganztag || !t.zeit) return false;
+    if(istZeitraum(t) && heute !== t.datum) return false;   // O-39: nur der erste Tag hat eine Startzeit
     const teile = String(t.zeit).split(':');
     return (Number(teile[0])*60 + Number(teile[1]||0)) < jetztMin;
   };
@@ -5028,11 +5261,12 @@ function renderHeuteTermine(){
       if(t === naechster) klassen.push('jetzt');
       if(vorbei(t)) klassen.push('vorbei');
       const ort = t.ort ? '<span>'+escapeHtml(t.ort)+'</span>' : '';
+      const tagVon = zeitraumText(t, gezeigterTag);
       return '<div class="'+klassen.join(' ')+'">' +
-        '<div class="sch-marke">'+(t.ganztag || !t.zeit ? 'ganztägig' : escapeHtml(t.zeit))+'</div>' +
+        '<div class="sch-marke">'+(istZeitraum(t) ? zeitText(t, gezeigterTag) : (t.ganztag || !t.zeit ? txt('kalender.ganztaegig_klein') : escapeHtml(t.zeit)))+'</div>' +
         '<div class="sch-inhalt">' +
           '<p class="sch-titel">'+escapeHtml(t.titel||'')+'</p>' +
-          '<div class="sch-fuss"><span>'+werPunkte(t)+' '+escapeHtml(werText(t))+'</span>'+ort+'</div>' +
+          '<div class="sch-fuss"><span>'+werPunkte(t)+' '+escapeHtml(werText(t))+'</span>'+ort+(tagVon ? '<span>'+tagVon+'</span>' : '')+'</div>' +
         '</div>' +
       '</div>';
     }).join('');
@@ -5058,8 +5292,12 @@ function wakeLockGewuenscht(){
      sonst bliebe der Bildschirm auch in Heute oder Rezepten wach. */
   const shopAktiv = document.getElementById('einkauf').classList.contains('active')
                  && document.getElementById('shop').classList.contains('active');
-  const rezeptOffen = !!document.querySelector('#recipes .recipe-item.open');
-  return shopAktiv || rezeptOffen;
+  /* O-38: offen ist ein Rezept, wenn die Detailflaeche im Bereich Essen sichtbar ist. */
+  const detail = document.getElementById('rezeptDetail');
+  const rezeptSichtbar = !!rezeptOffen && !!detail && !detail.hidden
+                      && document.getElementById('essen').classList.contains('active')
+                      && document.getElementById('recipes').classList.contains('active');
+  return shopAktiv || rezeptSichtbar;
 }
 function updateWakeLock(){
   if(wakeLockGewuenscht()) requestWakeLock(); else releaseWakeLock();
@@ -5273,6 +5511,7 @@ function ansichtSichern(){
       bereich: offen ? offen.id : 'heute',
       unter: unter,
       montag: currentMonday.getTime(),
+      rezept: rezeptOffen || null,   // O-38: das offene Rezeptdetail
       tag: heuteIso(),
       zeit: Date.now()
     }));
@@ -5302,6 +5541,7 @@ function ansichtWiederherstellen(){
   Object.keys(z.unter || {}).forEach(bereichId=>{
     if(document.getElementById(bereichId)) zeigeUnter(bereichId, z.unter[bereichId]);
   });
+  if(z.rezept && rezeptVon(z.rezept)) oeffneRezeptDetail(z.rezept);
   /* Einstellungen sind kein Bereich - man startet nicht in einem Untermenue */
   if(z.bereich && z.bereich !== 'settings' && document.getElementById(z.bereich)) zeigeBereich(z.bereich);
 }
@@ -5906,12 +6146,7 @@ function renderHeute(){
 /* Ein Rezept von Heute aus oeffnen - fuer die Essenskarte und die Vorschlaege. */
 function oeffneRezeptVonHeute(id){
   zeigeBereich('essen'); zeigeUnter('essen', 'recipes');
-  const ziel = document.querySelector('#recipes .recipe-item[data-id="'+id+'"]');
-  if(ziel){
-    ziel.classList.add('open');
-    ziel.scrollIntoView({ behavior:'smooth', block:'start' });
-    updateWakeLock();
-  }
+  oeffneRezeptDetail(id);
 }
 
 /* Einen Tag der laufenden Woche im Wochenplan anspringen - dieselbe Mechanik

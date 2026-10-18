@@ -60,6 +60,16 @@ const BILDER = [
   { name:'essen-mahlzeiten', bereich:'essen', unter:'plan',
     vor: () => document.getElementById('mealHead').click() },
   { name:'essen-rezepte',bereich:'essen',   unter:'recipes' },
+  /* O-38 (v35) - das Rezeptdetail ist eine eigene Flaeche und steht auf
+     `hidden`, bis eine Kachel angetippt wird. Ohne diesen Eintrag kaeme die
+     ganze Neuerung in keinem Bild vor (Betriebsregel 12). Geoeffnet wird r1:
+     das einzige Rezept mit Minuten, Schwierigkeit und drei Schritten. */
+  { name:'essen-rezept-detail', bereich:'essen', unter:'recipes',
+    vor: () => {
+      const kachel = document.querySelector('#recipeList .recipe-item[data-id="r1"] .recipe-head');
+      if(!kachel) throw new Error('Kachel r1 steht nicht in der Liste - Testdaten pruefen');
+      kachel.click();
+    } },
   { name:'essen-naehr',  bereich:'essen',   unter:'nutrition' },
   { name:'einkauf-liste',bereich:'einkauf', unter:'shop' },
   { name:'einkauf-art',  bereich:'einkauf', unter:'artikel' },

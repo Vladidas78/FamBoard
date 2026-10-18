@@ -302,5 +302,54 @@ console.log('Auswahl-Leiste ueber der Fussleiste mit Budget:', leisteOk ? 'ok' :
 if(!leisteOk) fehler.push('Auswahl-Leiste ist nicht ueber der Fussleiste sichtbar oder nennt kein Budget');
 await p.click('#artAuswahlWeg'); await p.waitForTimeout(150);
 
+/* v35, O-38: Rezeptdetail als eigene Flaeche. Betriebsregel 13: Am Stand v34
+   gibt es kein #rezeptDetail - jede Zeile hier schlaegt dort an. Gelesen wird,
+   was der Nutzer sieht (Titel, Chips, Mengen, Postenzahl), nicht der Zustand
+   im Speicher. */
+await p.click('nav .tab[data-tab="essen"]'); await p.waitForTimeout(120);
+await p.click('#essen .unter[data-unter="recipes"]'); await p.waitForTimeout(150);
+await p.fill('#recSearch', ''); await p.waitForTimeout(150);
+const postenVorher = await p.evaluate(()=>document.querySelectorAll('#shop .shop-item').length);
+await p.evaluate(()=>{ const k = document.querySelector('#recipeList .recipe-item[data-id="r1"] .recipe-head'); if(k) k.click(); });
+await p.waitForTimeout(300);
+const detail = await p.evaluate(()=>{
+  const d = document.getElementById('rezeptDetail');
+  if(!d) return null;
+  const sichtbar = el=>!!el && !el.hidden && getComputedStyle(el).display !== 'none';
+  const liste = document.getElementById('recipeList');
+  return { offen: sichtbar(d), listeWeg: !liste || liste.offsetParent === null,
+    titel: (document.getElementById('rdTitel')||{}).textContent, chips: document.querySelectorAll('#rdChips .rd-chip').length,
+    mengen: Array.from(document.querySelectorAll('#rdZutaten .rd-menge')).map(e=>e.textContent.trim()),
+    schritte: document.querySelectorAll('#rdSchritte li').length,
+    naehr: document.querySelectorAll('#rdNaehr tr').length };
+});
+const detailOk = !!detail && detail.offen && detail.listeWeg && detail.titel === 'Ofengemüse mit Feta' && detail.chips === 3 && detail.schritte === 3 && detail.naehr === 4;
+console.log('Rezeptdetail oeffnet sich mit Titel, drei Chips, drei Schritten, Naehrstoffen:', detailOk ? 'ok' : 'FEHLGESCHLAGEN', JSON.stringify(detail));
+if(!detailOk) fehler.push('Rezeptdetail fehlt, zeigt die Kachelliste weiter oder traegt nicht Titel/Chips/Schritte/Naehrstoffe von r1');
+if(detail && detail.offen){
+  await p.click('#rdPortionen .rd-plus'); await p.waitForTimeout(200);
+  const mengenNachher = await p.evaluate(()=>Array.from(document.querySelectorAll('#rdZutaten .rd-menge')).map(e=>e.textContent.trim()));
+  const zahl = s=>parseFloat(String(s).replace(',','.'));
+  const mehr = mengenNachher.length === detail.mengen.length && mengenNachher.length > 0 && mengenNachher.every((m,i)=>zahl(m) > zahl(detail.mengen[i]));
+  console.log('Stepper + erhoeht die Mengen:', mehr ? 'ok' : 'FEHLGESCHLAGEN', detail.mengen[0], '->', mengenNachher[0]);
+  if(!mehr) fehler.push('Portions-Stepper im Rezeptdetail erhoeht die Mengen nicht');
+  await p.click('#rdAufListe'); await p.waitForTimeout(300);
+  const postenNachher = await p.evaluate(()=>document.querySelectorAll('#shop .shop-item').length);
+  console.log('"Zur Einkaufsliste" erhoeht die Postenzahl:', postenNachher > postenVorher ? 'ok' : 'FEHLGESCHLAGEN', postenVorher, '->', postenNachher);
+  if(!(postenNachher > postenVorher)) fehler.push('"Zur Einkaufsliste hinzufuegen" setzt keine Posten auf die Liste');
+  await p.click('#rdZurueck'); await p.waitForTimeout(200);
+  const zu = await p.evaluate(()=>({ detail: document.getElementById('rezeptDetail').hidden, liste: document.getElementById('recipeList').offsetParent !== null }));
+  console.log('"Zurueck" schliesst das Detail und zeigt die Kacheln:', (zu.detail && zu.liste) ? 'ok' : 'FEHLGESCHLAGEN', JSON.stringify(zu));
+  if(!(zu.detail && zu.liste)) fehler.push('"Zurueck" im Rezeptdetail fuehrt nicht zur Kachelliste');
+  /* (e) Ein Rezept ohne minuten/schwierigkeit zeigt nur den kcal-Chip. */
+  await p.evaluate(()=>{ const k = document.querySelector('#recipeList .recipe-item[data-id="r2"] .recipe-head'); if(k) k.click(); });
+  await p.waitForTimeout(250);
+  const r2 = await p.evaluate(()=>({ titel:(document.getElementById('rdTitel')||{}).textContent, chips:Array.from(document.querySelectorAll('#rdChips .rd-chip')).map(c=>c.textContent.trim()) }));
+  const r2Ok = r2.titel === 'Spaghetti Bolognese' && r2.chips.length === 1 && /kcal/.test(r2.chips[0]);
+  console.log('Rezept ohne Minuten/Schwierigkeit zeigt nur den kcal-Chip:', r2Ok ? 'ok' : 'FEHLGESCHLAGEN', JSON.stringify(r2));
+  if(!r2Ok) fehler.push('Chips ohne Wert werden im Rezeptdetail nicht ausgeblendet');
+  await p.click('#rdZurueck'); await p.waitForTimeout(150);
+}
+
 await b.close(); s.close();
 console.log(fehler.length ? 'FEHLER:\n  '+[...new Set(fehler)].join('\n  ') : 'Keine Fehler.');

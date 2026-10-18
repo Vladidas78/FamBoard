@@ -30,35 +30,43 @@ const TAGE = ['Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag','S
 
 /* ---- Rezepte ---- */
 const REZEPTE = [
+  /* Bis v34 hiessen die Zubereitungstexte hier `steps` - ein Feld, das die App
+     nie liest; sie schreibt `description` (Betriebsregel 15). Seit v35 (O-38)
+     zerlegt das Rezeptdetail `description` in Schritte: ein Zeilenumbruch oder
+     "1." am Zeilenanfang beginnt einen neuen Schritt. r1 traegt deshalb drei
+     Zeilen und die neuen optionalen Felder `minuten` und `schwierigkeit`;
+     alle anderen Rezepte bleiben ohne beide - so zeigt das Detail dort nur den
+     kcal-Chip, und genau das prueft der Klicklauf. */
   { id:'r1', name:'Ofengemüse mit Feta', type:'rezept', servings:4, fav:true, kcal:520, prot:22, carbs:28, fat:34, tags:['Ofen','Vegetarisch'],
-    steps:'Gemüse würfeln, mit Öl und Gewürzen mischen, 35 Minuten bei 200 °C backen. Feta darüber bröseln.',
+    minuten:45, schwierigkeit:'leicht',
+    description:'Gemüse würfeln, mit Öl und Gewürzen mischen.\n35 Minuten bei 200 °C backen.\nFeta darüber bröseln.',
     ingredients:[{name:'Zucchini',amount:2,unit:'stk'},{name:'Paprika',amount:2,unit:'stk'},{name:'Kirschtomaten',amount:250,unit:'g'},
                  {name:'Feta',amount:200,unit:'g'},{name:'Olivenöl',amount:3,unit:'el'},{name:'Rosmarin',amount:1,unit:'tl'}] },
   { id:'r2', name:'Spaghetti Bolognese', type:'rezept', servings:4, fav:true, kcal:680, prot:34, carbs:78, fat:24, tags:['Schnell'],
-    steps:'Zwiebeln anschwitzen, Hackfleisch anbraten, Tomaten dazu, 30 Minuten köcheln.',
+    description:'Zwiebeln anschwitzen, Hackfleisch anbraten, Tomaten dazu, 30 Minuten köcheln.',
     ingredients:[{name:'Spaghetti',amount:500,unit:'g'},{name:'Rinderhackfleisch',amount:500,unit:'g'},
                  {name:'Passierte Tomaten',amount:700,unit:'g'},{name:'Zwiebeln',amount:2,unit:'stk'},{name:'Knoblauch',amount:2,unit:'stk'}] },
   { id:'r3', name:'Linsensuppe', type:'rezept', servings:4, fav:false, kcal:390, prot:21, carbs:52, fat:8, tags:['Vegetarisch'],
-    steps:'Alles in einen Topf, 40 Minuten köcheln lassen.',
+    description:'Alles in einen Topf, 40 Minuten köcheln lassen.',
     ingredients:[{name:'Rote Linsen',amount:300,unit:'g'},{name:'Karotten',amount:3,unit:'stk'},
                  {name:'Sellerie',amount:1,unit:'stk'},{name:'Gemüsebrühe',amount:1,unit:'l'}] },
   { id:'r4', name:'Hähnchenbrustsandwich', type:'snack', servings:2, fav:false, kcal:560, prot:42, carbs:46, fat:22, tags:['Schnell','Snack'],
-    steps:'',
+    description:'',
     ingredients:[{name:'Hähnchenbrustfilet',amount:2,unit:'stk'},{name:'Sauerteigbrot',amount:4,unit:'stk'},
                  {name:'Mayonnaise',amount:2,unit:'el'},{name:'Salat',amount:1,unit:'stk'}] },
   { id:'r5', name:'Kaiserschmarrn', type:'rezept', servings:4, fav:false, kcal:610, prot:17, carbs:72, fat:27, tags:['Süß'],
-    steps:'Teig anrühren, in der Pfanne stocken lassen, zerreißen, mit Puderzucker bestäuben.',
+    description:'Teig anrühren, in der Pfanne stocken lassen, zerreißen, mit Puderzucker bestäuben.',
     ingredients:[{name:'Mehl',amount:250,unit:'g'},{name:'Milch',amount:400,unit:'ml'},{name:'Eier',amount:4,unit:'stk'},
                  {name:'Butter',amount:50,unit:'g'},{name:'Puderzucker',amount:2,unit:'el'}] },
   { id:'r6', name:'Griechischer Salat', type:'rezept', servings:2, fav:false, kcal:340, prot:12, carbs:14, fat:26, tags:['Schnell','Vegetarisch'],
-    steps:'Alles würfeln, mit Öl und Oregano anmachen.',
+    description:'Alles würfeln, mit Öl und Oregano anmachen.',
     ingredients:[{name:'Tomaten',amount:4,unit:'stk'},{name:'Gurke',amount:1,unit:'stk'},{name:'Feta',amount:150,unit:'g'},
                  {name:'Oliven',amount:100,unit:'g'},{name:'Rote Zwiebel',amount:1,unit:'stk'}] },
   { id:'r7', name:'Porridge mit Beeren', type:'rezept', servings:2, fav:false, kcal:320, prot:14, carbs:45, fat:9, tags:['Schnell'],
-    steps:'Haferflocken mit Milch aufkochen, Beeren darauf.',
+    description:'Haferflocken mit Milch aufkochen, Beeren darauf.',
     ingredients:[{name:'Haferflocken',amount:100,unit:'g'},{name:'Milch',amount:400,unit:'ml'},{name:'Heidelbeeren',amount:150,unit:'g'}] },
   { id:'r8', name:'Pizza Margherita', type:'rezept', servings:4, fav:true, kcal:720, prot:28, carbs:88, fat:28, tags:['Ofen'],
-    steps:'Teig ausrollen, belegen, 12 Minuten bei 250 °C.',
+    description:'Teig ausrollen, belegen, 12 Minuten bei 250 °C.',
     ingredients:[{name:'Pizzateig',amount:2,unit:'stk'},{name:'Mozzarella',amount:250,unit:'g'},
                  {name:'Passierte Tomaten',amount:200,unit:'g'},{name:'Basilikum',amount:1,unit:'stk'}] },
 ];
@@ -125,6 +133,11 @@ const TERMINE = {
        uid:'t4@butley', sequence:0, herkunft:'butley', angelegt:1786000000004 },
   t5:{ titel:'Geburtstag Jonas', datum:tagPlus(HEUTE_IDX+4), ganztag:true, wer:'haushalt',
        uid:'t5@butley', sequence:0, herkunft:'butley', angelegt:1786000000005 },
+  /* O-39 (v35) - ein mehrtaegiger Termin: vier Tage, ganztaegig, `endDatum`
+     einschliesslich. Ueberlappt mit Sport (t4), Sperrmuell (t9) und dem
+     Geburtstag (t5), damit die Tagesliste beides nebeneinander zeigt. */
+  t8:{ titel:'Wasser abgestellt', datum:tagPlus(HEUTE_IDX+2), endDatum:tagPlus(HEUTE_IDX+5), ganztag:true, wer:'haushalt',
+       uid:'t8@butley', sequence:0, herkunft:'butley', angelegt:1786000000008 },
   /* O-27 - eine Regel, die die App nicht kennt. Das ist die eine erlaubte
      Ausnahme von Betriebsregel 15: Der Wert steht hier nicht aus Versehen,
      sondern weil genau dieser Fall geprueft werden soll. Es ist derselbe

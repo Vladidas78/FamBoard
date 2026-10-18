@@ -298,6 +298,14 @@
         <div class="field"><label data-t="kalender.datum">Datum</label><input type="date" id="terminDatum"></div>
         <div class="field"><label data-t-teil="0:kalender.ort">Ort <span class="hint" data-t="kalender.optional">optional</span></label><input type="text" id="terminOrt" placeholder="Hallenbad Nord" data-t-ph="kalender.hallenbad_nord" autocomplete="off"></div>
       </div>
+      <!-- O-39 (v35) - mehrtaegiger Termin. Leer heisst eintaegig. Ein Zeitraum
+           und eine Reihe schliessen sich aus: Mit gesetztem Enddatum wird die
+           Wiederholung ausgegraut, der Grund steht als Text daneben (Regel 18). -->
+      <div class="field">
+        <label data-t-teil="0:kalender.bis_datum">Bis (Datum) <span class="hint" data-t="kalender.leer_eintaegig">optional — leer heißt eintägig</span></label>
+        <input type="date" id="terminEndDatum">
+        <p class="feld-fehler" data-fehler-fuer="terminEndDatum" hidden></p>
+      </div>
       <label class="kal-ganztag" data-t-teil="0:kalender.ganztaegig"><input type="checkbox" id="terminGanztag"> Ganztägig</label>
       <div class="grid2" id="terminZeitZeile">
         <div class="field"><label data-t="kalender.von">Von</label><input type="time" id="terminZeit"></div>
@@ -310,6 +318,7 @@
       <div class="field" id="terminWdhFeld">
         <label data-t="kalender.wiederholung">Wiederholung</label>
         <div class="filter-row" id="terminWdhRow"></div>
+        <p class="ex-hint" id="terminWdhHinweis" hidden data-t="kalender.ein_zeitraum_wiederholt_sich_nicht">Ein Zeitraum wiederholt sich nicht.</p>
       </div>
       <!-- O-25 - die Wahl zwischen einer Ausgabe und der ganzen Reihe. Sie steht
            unmittelbar vor den Knoepfen, weil sie die Handlung naeher bestimmt,
@@ -390,6 +399,63 @@
       </div>
     </div>
     <div id="recipes" class="unterpanel">
+      <!-- O-38 (v35) - Rezeptdetail als eigene Flaeche nach YAZIO-Vorbild.
+           Die Kachelliste darunter (#rezeptUebersicht) bleibt im DOM und wird
+           nur versteckt. Alle Teile stehen fest im HTML (Betriebsregel 10);
+           app.js fuellt sie je Rezept per innerHTML. -->
+      <div id="rezeptDetail" hidden>
+        <button class="rd-zurueck" id="rdZurueck" type="button"><span class="rd-zurueck-pfeil" aria-hidden="true">‹</span><span data-t="kopfzeile.zurueck">Zurück</span></button>
+        <div class="rd-hero" id="rdHero">
+          <img id="rdHeroBild" alt="" hidden>
+          <span class="rd-hero-leer" id="rdHeroLeer" aria-hidden="true">
+            <svg viewBox="0 0 48 48" width="56" height="56" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="24" cy="24" r="12"/><circle cx="24" cy="24" r="6"/>
+              <path d="M6 10v10a4 4 0 0 0 4 4h0V10M10 10v28"/><path d="M38 24c0-7 2-14 2-14v28M38 24h2"/>
+            </svg>
+          </span>
+        </div>
+        <div class="rd-bild-zeile" id="rdBildZeile">
+          <label class="btn btn-ghost btn-sm" for="rdBildInput" id="rdBildLabel" data-t="essen.bild_hochladen">Bild hochladen</label>
+          <input type="file" id="rdBildInput" accept="image/*" style="display:none;">
+          <button class="btn btn-ghost btn-sm" id="rdBildWeg" type="button" hidden data-t="essen.bild_entfernen">Bild entfernen</button>
+        </div>
+        <h2 class="rd-titel" id="rdTitel"></h2>
+        <div class="rd-chips" id="rdChips"></div>
+        <p class="rd-text" id="rdText" hidden></p>
+        <div class="chips rd-tags" id="rdTags"></div>
+
+        <section class="karte karte-block rd-abschnitt">
+          <div class="rd-kopf"><h3 data-t="essen.zutaten">Zutaten</h3></div>
+          <div class="rd-portionen" id="rdPortionen">
+            <span class="rd-portionen-text"><span data-t="essen.fuer_gross">Für</span> <span class="zahl" id="rdPortionenZahl"></span> <span id="rdPortionenWort" data-t="essen.portionen">Portionen</span></span>
+            <span class="stepper rd-stepper">
+              <button type="button" class="rd-minus" aria-label="Weniger Portionen" data-t-aria="essen.weniger_portionen">−</button>
+              <button type="button" class="rd-plus" aria-label="Mehr Portionen" data-t-aria="essen.mehr_portionen">+</button>
+            </span>
+          </div>
+          <div class="rd-zutaten" id="rdZutaten"></div>
+          <button class="btn btn-soft full" id="rdAufListe" type="button" data-t="essen.zur_einkaufsliste_hinzufuegen">Zur Einkaufsliste hinzufügen</button>
+        </section>
+
+        <section class="karte karte-block rd-abschnitt" id="rdAnleitung" hidden>
+          <div class="rd-kopf"><h3 data-t="essen.anleitung">Anleitung</h3><span class="rd-kopf-meta" id="rdFertig"></span></div>
+          <ol class="rd-schritte" id="rdSchritte"></ol>
+        </section>
+
+        <section class="karte karte-block rd-abschnitt" id="rdNaehrAbschnitt" hidden>
+          <div class="rd-kopf"><h3 data-t="essen.naehrstoffe">Nährstoffe</h3><span class="rd-kopf-meta" data-t="essen.fuer_1_portion">Für 1 Portion</span></div>
+          <table class="rd-naehr" id="rdNaehr"></table>
+        </section>
+
+        <div class="rd-aktionen" id="rdAktionen">
+          <button class="btn btn-soft" id="rdZurWoche" type="button" data-t="essen.zur_woche">+ Zur Woche</button>
+          <button class="btn btn-soft" id="rdBearbeiten" type="button" data-t="essen.bearbeiten">Bearbeiten</button>
+          <button class="btn btn-ghost" id="rdFav" type="button"></button>
+        </div>
+        <div class="rd-wochenwahl" id="rdWochenWahl" hidden></div>
+      </div>
+
+      <div id="rezeptUebersicht">
       <div class="rec-search">
         <input type="search" id="recSearch" placeholder="🔍 Rezept oder Zutat suchen …" data-t-ph="essen.rezept_oder_zutat_suchen">
       </div>
@@ -507,6 +573,23 @@
           <textarea id="r-description" placeholder="Kurz notieren, wie's gemacht wird …" data-t-ph="essen.kurz_notieren_wie_s"></textarea>
         </div>
 
+        <!-- O-38 (v35) - zwei optionale Kennzahlen fuer das Rezeptdetail. Ohne
+             Wert erscheint im Detail kein Chip. -->
+        <div class="grid2 only-rezept">
+          <div class="field">
+            <label data-t-teil="0:essen.zeit_in_minuten">Zeit in Minuten <span class="hint" data-t="essen.optional">— optional</span></label>
+            <input id="r-minuten" type="number" min="1" step="1" placeholder="45">
+          </div>
+          <div class="field">
+            <label data-t-teil="0:essen.schwierigkeit">Schwierigkeit <span class="hint" data-t="essen.optional">— optional</span></label>
+            <div class="filter-row r-schwierigkeit" id="r-schwierigkeit">
+              <button class="filter-pill" type="button" data-schwierigkeit="leicht" data-t="essen.leicht">leicht</button>
+              <button class="filter-pill" type="button" data-schwierigkeit="mittel" data-t="essen.mittel">mittel</button>
+              <button class="filter-pill" type="button" data-schwierigkeit="aufwendig" data-t="essen.aufwendig">aufwendig</button>
+            </div>
+          </div>
+        </div>
+
         <div class="field only-rezept">
           <label data-t-teil="0:essen.bild">Bild <span class="hint" data-t="essen.optional">— optional</span></label>
           <label class="btn btn-soft btn-sm" for="r-image-input" style="cursor:pointer;display:inline-block;" data-t="essen.bild_waehlen">📷 Bild wählen</label>
@@ -531,6 +614,8 @@
         </div>
 
         <button class="btn btn-primary full" id="saveRecipe" type="button" style="margin-top:6px;" data-t="essen.rezept_speichern">Rezept speichern</button>
+        <!-- Loeschen gibt es nur hier im Bearbeiten-Modus (O-38), nicht auf der Detailflaeche. -->
+        <button class="btn btn-ghost btn-loeschen full" id="deleteRecipe" type="button" style="margin-top:8px;" hidden data-t="essen.rezept_loeschen">Rezept löschen</button>
       </div>
 
       <div class="collapse-section">
@@ -541,6 +626,7 @@
           <div class="chips tag-filter-row" id="tagFilterRow" style="margin-bottom:12px;"></div>
           <div class="recipe-list" id="recipeList"></div>
         </div>
+      </div>
       </div>
     </div>
     <div id="nutrition" class="unterpanel">
