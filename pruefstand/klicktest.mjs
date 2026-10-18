@@ -264,5 +264,28 @@ console.log('Leerer Haushalt - nur Planungsfrage und Budget-Aufforderung:', leer
 if(!leerOk) fehler.push('Leerzustand auf Heute: Karten nicht versteckt oder Planungsfrage fehlt');
 await cLeer.close();
 
+/* v32: Ring statt Balken, Vorschlaege mit Plus auch unter dem Artikel-Suchfeld. */
+await p.click('nav .tab[data-tab="heute"]'); await p.waitForTimeout(150);
+const ring = await p.evaluate(()=>{ const r=document.querySelector('#heuteBudget .budget-ring'); if(!r) return null;
+  return { wert: r.querySelector('.br-wert').textContent, noch: r.querySelector('.br-noch').textContent,
+    dash: r.querySelector('.br-verbraucht').style.strokeDasharray, sichtbar: getComputedStyle(r).display !== 'none' }; });
+const ringOk = !!ring && ring.sichtbar && /\d/.test(ring.wert) && ring.noch === 'noch' && /\d/.test(ring.dash);
+console.log('Budget-Ring auf Heute:', ringOk ? 'ok' : 'FEHLGESCHLAGEN', JSON.stringify(ring));
+if(!ringOk) fehler.push('Budget-Ring fehlt oder traegt keinen Wert');
+await p.click('nav .tab[data-tab="einkauf"]'); await p.waitForTimeout(150);
+await p.click('#einkauf .unter[data-unter="artikel"]'); await p.waitForTimeout(150);
+await p.fill('#artSearch', 'kar'); await p.waitForTimeout(200);
+const av = await p.evaluate(()=>{ const b=document.getElementById('artVorschlaege'); if(!b) return null;
+  const feld=document.getElementById('artSearch').getBoundingClientRect(), box=b.getBoundingClientRect();
+  return { hidden: b.hidden, anzahl: b.querySelectorAll('.vorschlag .v-plus').length, direktDarunter: box.top >= feld.bottom && box.top - feld.bottom < 40,
+    namen: Array.from(b.querySelectorAll('.v-name')).map(e=>e.textContent.trim()).slice(0,3) }; });
+const avOk = !!av && !av.hidden && av.anzahl > 0 && av.direktDarunter;
+console.log('Artikel-Vorschlaege unter dem Feld mit Plus:', avOk ? 'ok' : 'FEHLGESCHLAGEN', JSON.stringify(av));
+if(!avOk) fehler.push('Vorschlaege unter dem Artikel-Suchfeld fehlen oder stehen nicht direkt darunter');
+if(avOk){ await p.click('#artVorschlaege .vorschlag'); await p.waitForTimeout(250);
+  const leer = await p.evaluate(()=>document.getElementById('artSearch').value === '' && document.getElementById('artVorschlaege').hidden);
+  console.log('Plus uebernimmt und leert das Feld:', leer ? 'ok' : 'FEHLGESCHLAGEN');
+  if(!leer) fehler.push('Nach dem Plus bleibt das Artikel-Suchfeld gefuellt'); }
+
 await b.close(); s.close();
 console.log(fehler.length ? 'FEHLER:\n  '+[...new Set(fehler)].join('\n  ') : 'Keine Fehler.');

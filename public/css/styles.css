@@ -1462,12 +1462,17 @@
   .budget-stand{ display:block; padding:14px var(--abstand-l); }
   .budget-zeile{ display:block; font-size:15.5px; line-height:1.35; color:var(--text-haupt); font-variant-numeric:tabular-nums; }
   .budget-zeile.ueber{ color:var(--loeschen-farbe); font-weight:500; }
-  .budget-balken{
-    display:flex; height:8px; margin:10px 0 8px; border-radius:999px;
-    background:var(--linie-leise); overflow:hidden;
-  }
-  .bb-verbraucht{ display:block; height:100%; flex:none; background:var(--messing-aktion); }
-  .bb-geplant{ display:block; height:100%; flex:none; background:var(--messing-marke); }
+  /* Ring (v32): Spur, darauf verbraucht und geplant als Boegen; Mitte traegt den Rest */
+  .budget-ring{ position:relative; display:block; width:160px; height:160px; margin:8px auto 10px; }
+  .budget-ring svg{ position:absolute; inset:0; width:100%; height:100%; transform:rotate(-90deg); }
+  .budget-ring circle{ fill:none; stroke-width:10; stroke-linecap:round; }
+  .budget-ring .br-spur{ stroke:var(--linie-leise); }
+  .budget-ring .br-verbraucht{ stroke:var(--messing-aktion); transition:stroke-dasharray .25s ease; }
+  .budget-ring .br-geplant{ stroke:var(--messing-marke); transition:stroke-dasharray .25s ease, stroke-dashoffset .25s ease; }
+  .budget-ring .br-mitte{ position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; }
+  .budget-ring .br-noch{ font-size:13px; color:var(--text-leise); }
+  .budget-ring .br-wert{ font-family:var(--schrift-headline); font-size:30px; font-weight:600; line-height:1; color:var(--text-haupt); font-variant-numeric:tabular-nums; }
+  .budget-ring.ueber .br-wert{ color:var(--loeschen-farbe); }
   .budget-legende, .budget-ohne-preis{ display:block; font-size:13px; line-height:1.4; color:var(--text-leise); font-variant-numeric:tabular-nums; }
   .budget-ohne-preis{ margin-top:2px; }
   .budget-festlegen{

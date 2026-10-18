@@ -175,7 +175,7 @@
       <button class="karte budget-karte" id="heuteBudget" type="button">
         <span class="budget-stand">
           <span class="budget-zeile"></span>
-          <span class="budget-balken"><span class="bb-verbraucht"></span><span class="bb-geplant"></span></span>
+          <span class="budget-ring"><svg viewBox="0 0 120 120" aria-hidden="true" focusable="false"><circle class="br-spur" cx="60" cy="60" r="52"/><circle class="br-geplant" cx="60" cy="60" r="52"/><circle class="br-verbraucht" cx="60" cy="60" r="52"/></svg><span class="br-mitte"><span class="br-noch"></span><span class="br-wert"></span></span></span>
           <span class="budget-legende"></span>
           <span class="budget-ohne-preis"></span>
         </span>
@@ -611,7 +611,7 @@
         <div class="budget-anzeige" id="shopBudget">
           <div class="budget-stand">
             <span class="budget-zeile"></span>
-            <span class="budget-balken"><span class="bb-verbraucht"></span><span class="bb-geplant"></span></span>
+            <span class="budget-ring"><svg viewBox="0 0 120 120" aria-hidden="true" focusable="false"><circle class="br-spur" cx="60" cy="60" r="52"/><circle class="br-geplant" cx="60" cy="60" r="52"/><circle class="br-verbraucht" cx="60" cy="60" r="52"/></svg><span class="br-mitte"><span class="br-noch"></span><span class="br-wert"></span></span></span>
             <span class="budget-legende"></span>
             <span class="budget-ohne-preis"></span>
           </div>
@@ -643,6 +643,7 @@
         <div class="such-zeile">
           <input type="search" id="artSearch" placeholder="🔍 Artikel suchen oder anlegen" data-t-ph="einkauf.artikel_suchen_oder_anlegen" autocomplete="off">
         </div>
+        <div id="artVorschlaege" class="vorschlaege" hidden></div>
         <div class="filter-row" id="artGruppeRow" style="margin-top:12px;">
           <button class="filter-pill active" data-gruppe="food" type="button" data-t="einkauf.lebensmittel">Lebensmittel</button>
           <button class="filter-pill" data-gruppe="nonfood" type="button" data-t="einkauf.drogerie_haushalt">Drogerie &amp; Haushalt</button>

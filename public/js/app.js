@@ -2621,9 +2621,19 @@ function zeichneBudget(id, b){
   }
   const pV = Math.min(100, b.ausgegeben / b.ziel * 100);
   const pG = Math.max(0, Math.min(100 - pV, b.geplant / b.ziel * 100));
-  const v = stand.querySelector('.bb-verbraucht'), g = stand.querySelector('.bb-geplant');
-  if(v) v.style.width = pV.toFixed(2) + '%';
-  if(g) g.style.width = pG.toFixed(2) + '%';
+  /* Ring statt Balken (Vladi, 18.10.2026 abends): zwei Boegen auf einer Spur,
+     verbraucht zuerst, geplant schliesst direkt an. Umfang bei r=52. */
+  const U = 2 * Math.PI * 52;
+  const v = stand.querySelector('.br-verbraucht'), g = stand.querySelector('.br-geplant');
+  if(v){ v.style.strokeDasharray = (U * pV / 100).toFixed(2) + ' ' + U.toFixed(2); }
+  if(g){ g.style.strokeDasharray = (U * pG / 100).toFixed(2) + ' ' + U.toFixed(2); g.style.strokeDashoffset = (-U * pV / 100).toFixed(2); }
+  const ring = stand.querySelector('.budget-ring');
+  if(ring){
+    ring.classList.toggle('ueber', rest < 0);
+    const noch = ring.querySelector('.br-noch'), wert = ring.querySelector('.br-wert');
+    if(noch) noch.textContent = rest >= 0 ? txt('heute.noch') : txt('heute.ueber');
+    if(wert) wert.textContent = fmtEuro(Math.abs(rest));
+  }
   const leg = stand.querySelector('.budget-legende');
   if(leg) leg.textContent = txtf('heute.budget_legende', {a: fmtEuro(b.ausgegeben), b: fmtEuro(b.geplant)});
   const op = stand.querySelector('.budget-ohne-preis');
@@ -3369,7 +3379,18 @@ function zeichneArtAuswahl(){
 
 (function(){
   const feld = document.getElementById('artSearch');
-  if(feld) feld.addEventListener('input', e=>{ artSuche = e.target.value; renderArtikel(); });
+  if(feld && !feld.dataset.vorschlaege){
+    feld.dataset.vorschlaege = '1';
+    feld.addEventListener('input', e=>{ letztesSuchfeld = 'artSearch'; artSuche = e.target.value; renderArtikel(); renderArtVorschlaege(); });
+    feld.addEventListener('keydown', e=>{
+      if(e.key !== 'Enter') return;
+      e.preventDefault();
+      const box = document.getElementById('artVorschlaege');
+      const erster = box && !box.hidden ? box.querySelector('.vorschlag') : null;
+      const wert = feld.value.trim();
+      if(erster) uebernehmeSuchbegriff(erster.dataset.name); else if(wert.length >= 2) uebernehmeSuchbegriff(wert);
+    });
+  }
 
   Array.prototype.forEach.call(document.querySelectorAll('#artGruppeRow .filter-pill'), b=>b.addEventListener('click', e=>{
     artGruppe = e.currentTarget.dataset.gruppe;
@@ -3404,9 +3425,15 @@ function zeichneArtAuswahl(){
    landet zugleich auf der Liste. Der Katalog wächst damit beim Einkaufen mit,
    ohne dass jemand ihn pflegt.
    ========================================================================= */
-function renderShopVorschlaege(){
-  const feld = document.getElementById('shopSearch');
-  const box  = document.getElementById('shopVorschlaege');
+/* Vorschlaege direkt unter dem Feld, in dem getippt wird - in der Liste UND im
+   Artikelstamm (dort stand die Trefferliste bis v31 weit unten, unter der
+   iPhone-Tastatur). Ohne Argumente: das Listenfeld. */
+let letztesSuchfeld = 'shopSearch';
+function renderArtVorschlaege(){ renderShopVorschlaege('artSearch', 'artVorschlaege'); }
+function renderShopVorschlaege(feldId, boxId){
+  if(typeof feldId !== 'string'){ feldId = 'shopSearch'; boxId = 'shopVorschlaege'; }
+  const feld = document.getElementById(feldId);
+  const box  = document.getElementById(boxId);
   if(!feld || !box) return;
   const roh = feld.value.trim();
   const suche = roh.toLowerCase();
@@ -3453,9 +3480,11 @@ function uebernehmeSuchbegriff(name){
   if(!sauber) return;
   legeArtikelAn(sauber);
   const n = setzeAufListe([sauber]);
-  const feld = document.getElementById('shopSearch');
-  if(feld){ feld.value = ''; feld.focus(); }
-  renderShopVorschlaege();
+  ['shopSearch', 'artSearch'].forEach(id=>{ const f = document.getElementById(id); if(f) f.value = ''; });
+  const aktiv = document.getElementById(letztesSuchfeld);
+  if(aktiv) aktiv.focus();
+  if(artSuche){ artSuche = ''; renderArtikel(); }
+  renderShopVorschlaege(); renderArtVorschlaege();
   showToast(n ? sauber+' steht auf der Liste' : sauber+txt('einkauf.steht_schon_auf_der_liste'));
   /* Nur was wirklich neu auf die Liste kommt, meldet (C3). Ein zweites Antippen
      desselben Artikels aendert nichts und soll auch nichts melden. */
@@ -3465,7 +3494,7 @@ function uebernehmeSuchbegriff(name){
 (function(){
   const feld = document.getElementById('shopSearch');
   if(!feld) return;
-  feld.addEventListener('input', renderShopVorschlaege);
+  feld.addEventListener('input', ()=>{ letztesSuchfeld = 'shopSearch'; renderShopVorschlaege(); });
   feld.addEventListener('keydown', e=>{
     if(e.key !== 'Enter') return;
     e.preventDefault();
