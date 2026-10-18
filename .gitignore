@@ -4,3 +4,11 @@ Thumbs.db
 node_modules/
 .wrangler/
 .dev.vars
+
+# Lokales, nie committen (18.10.2026): Claude-Einstellungen mit lokalen Pfaden,
+# npm-Dateien der Playwright-Installation, Prüfstand-Bildausgaben
+.claude/
+package.json
+package-lock.json
+bilder/
+bilder-rolle/

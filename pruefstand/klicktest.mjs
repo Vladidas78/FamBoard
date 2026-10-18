@@ -182,5 +182,17 @@ for (const [name, sorte, zurueck] of [['Bananen','einmaliges Extra',true],['Basi
   if(!rueckOk) fehler.push('Ruecknahme des Heute-Hakens wirkt nicht bei '+sorte);
 }
 
+/* Abteilungen (18.10.2026): Die Fixture speichert eine Reihenfolge mit zehn Abteilungen.
+   Seit v30 gibt es dreizehn - die gespeicherte Reihenfolge muss bleiben, die neuen
+   haengen hinten an, und Sauerteigbrot steht im Backshop statt bei Trockenwaren. */
+const abt = await p.evaluate(()=>{
+  const text = document.getElementById('shopGroups').innerText;
+  const brot = text.indexOf('Sauerteigbrot'), backshop = text.indexOf('Backshop'), trocken = text.indexOf('Trockenwaren');
+  return { backshopVorBrot: backshop >= 0 && brot >= 0 && backshop < brot, trockenVorBackshop: trocken >= 0 && trocken < backshop };
+});
+const abtOk = abt.backshopVorBrot && abt.trockenVorBackshop;
+console.log('Backshop haengt hinten an und traegt Sauerteigbrot:', abtOk ? 'ok' : 'FEHLGESCHLAGEN', JSON.stringify(abt));
+if(!abtOk) fehler.push('Abteilungen: Backshop fehlt, steht falsch oder traegt das Brot nicht');
+
 await b.close(); s.close();
 console.log(fehler.length ? 'FEHLER:\n  '+[...new Set(fehler)].join('\n  ') : 'Keine Fehler.');

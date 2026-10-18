@@ -626,12 +626,15 @@ function normKey(name){
    ========================================================================= */
 const CATS = [
   {id:'obst',      label:txt('einkauf.obst_gemuese'),         icon:'🥕'},
+  {id:'backshop',  label:txt('einkauf.backshop'),             icon:'🥖'},
   {id:'fleisch',   label:'Fleisch & Fisch',       icon:'🥩'},
   {id:'kuehl',     label:txt('einkauf.kuehlregal'),             icon:'🧀'},
   {id:'trocken',   label:'Trockenwaren & Backen', icon:'🌾'},
   {id:'gewuerze',  label:txt('einkauf.gewuerze'),               icon:'🧂'},
   {id:'konserven', label:'Konserven & Saucen',    icon:'🥫'},
+  {id:'asia',      label:txt('einkauf.asia'),                 icon:'🍜'},
   {id:'tk',        label:txt('einkauf.tiefkuehl'),              icon:'🧊'},
+  {id:'snacks',    label:txt('einkauf.suessigkeiten_snacks'),  icon:'🍫'},
   {id:'getraenke', label:txt('einkauf.getraenke'),              icon:'🧃'},
   {id:'haushalt',  label:'Haushalt & Drogerie',   icon:'🧻'},
   {id:'sonstiges', label:'Sonstiges',             icon:'🛒'}
@@ -644,8 +647,12 @@ function defaultCatOrder(){ return CATS.map(c=>c.id); }
 function catOrder(){
   const o = (state.settings && state.settings.catOrder) || [];
   const ids = defaultCatOrder();
-  const gueltig = o.length === ids.length && ids.every(id=>o.indexOf(id)>=0);
-  return gueltig ? o : defaultCatOrder();
+  /* Bis v29 fiel eine gespeicherte Reihenfolge komplett auf den Standard zurueck, sobald
+     eine Abteilung dazukam - der Haushalt haette seine Sortierung still verloren. Jetzt:
+     Bekanntes in gespeicherter Reihenfolge, Unbekanntes raus, Neues hinten dran. */
+  const bekannt = o.filter(id=>ids.indexOf(id)>=0);
+  if(!bekannt.length) return ids;
+  return bekannt.concat(ids.filter(id=>bekannt.indexOf(id)<0));
 }
 function orderedCats(){ return catOrder().map(id=>CAT_LABEL[id]); }
 
@@ -653,11 +660,17 @@ const CAT_KEYWORDS = {
   obst: ['zwiebel','knoblauch','kartoffel','karotte','möhre','brokkoli','blumenkohl','zucchini','aubergine','paprika','tomate','gurke','salat','rucola','spinat','lauch','porree','sellerie','kohlrabi','weißkohl','rotkohl','wirsing','spitzkohl','champignon','pilz','kürbis','süßkartoffel','radieschen','rote bete','zitrone','limette','orange','apfel','banane','birne','erdbeere','himbeere','heidelbeere','beere','traube','mango','avocado','ingwer','petersilie','basilikum','schnittlauch','koriander','dill','rosmarin','thymian','minze','kräuter','frühlingszwiebel','lauchzwiebel','chili','fenchel','pastinake','rettich','kresse','staudensellerie','schalotte','melone','pfirsich','pflaume','kiwi','ananas'],
   fleisch: ['hähnchen','hühnchen','huhn','pute','truthahn','rind','hackfleisch','hack','schwein','schnitzel','kotelett','steak','filet','speck','bacon','schinken','wurst','salami','bratwurst','chorizo','lamm','ente','gans','gulasch','lachs','fisch','garnele','shrimp','kabeljau','seelachs','forelle','dorade','scampi','muschel','tintenfisch','leberkäse','frikadelle'],
   kuehl: ['milch','sahne','schmand','crème fraîche','creme fraiche','joghurt','jogurt','quark','butter','margarine','käse','gouda','feta','mozzarella','parmesan','frischkäse','hüttenkäse','ricotta','mascarpone','halloumi','emmentaler','bergkäse','ei','tofu','seitan','pudding','buttermilch','kefir','skyr','sauerrahm','blätterteig','pizzateig','mürbeteig','frische hefe','räuchertofu','aufschnitt','hafermilch','mandelmilch'],
-  trocken: ['mehl','zucker','reis','nudel','spaghetti','penne','fusilli','tagliatelle','pasta','spätzle','couscous','bulgur','quinoa','linse','kichererbse','haferflocke','müsli','grieß','stärke','backpulver','natron','nuss','mandel','walnuss','cashew','pinienkern','sesam','sonnenblumenkern','kürbiskern','rosine','dattel','honig','sirup','öl','olivenöl','rapsöl','essig','balsamico','brot','toast','brötchen','baguette','semmelbrösel','panko','schokolade','kakao','kaffee','tee','tortilla','wrap','chips','cracker','trockenhefe','hefe'],
+  trocken: ['mehl','zucker','reis','nudel','spaghetti','penne','fusilli','tagliatelle','pasta','spätzle','couscous','bulgur','quinoa','linse','kichererbse','haferflocke','müsli','grieß','stärke','backpulver','natron','mandel','walnuss','cashew','pinienkern','sesam','sonnenblumenkern','kürbiskern','rosine','dattel','honig','sirup','öl','olivenöl','rapsöl','essig','balsamico','baguette','semmelbrösel','panko','kakao','kaffee','tee','tortilla','cracker','trockenhefe','hefe'],
   gewuerze: ['salz','pfeffer','paprikapulver','curry','currypulver','kreuzkümmel','kümmel','oregano','majoran','muskat','gewürz','brühe','vanille','zimt','chiliflocken','chilipulver','lorbeer','lorbeerblatt','nelken','kardamom','sternanis','ingwerpulver','knoblauchpulver','zwiebelpulver','currypaste'],
-  konserven: ['passierte tomaten','tomatenmark','dosentomaten','gehackte tomaten','kokosmilch','kidneybohne','weiße bohne','mais','ketchup','senf','mayonnaise','sojasauce','sojasoße','pesto','olive','kaper','marmelade','konfitüre','nutella','erdnussbutter','fond','sauce','soße','ajvar','sambal','sriracha','tahini','apfelmus','sauerkraut','thunfisch','antipasti'],
+  konserven: ['passierte tomaten','tomatenmark','dosentomaten','gehackte tomaten','kidneybohne','weiße bohne','mais','ketchup','senf','mayonnaise','sojasoße','pesto','olive','kaper','marmelade','konfitüre','nutella','erdnussbutter','fond','sauce','soße','ajvar','sambal','sriracha','tahini','apfelmus','sauerkraut','thunfisch','antipasti'],
   tk: ['tiefkühl','tk-','pommes','eiscreme','speiseeis','blattspinat','fischstäbchen'],
   getraenke: ['wasser','mineralwasser','saft','apfelsaft','orangensaft','traubensaft','tomatensaft','kirschsaft','multivitaminsaft','wein','bier','sekt','cola','limonade','schorle','prosecco'],
+  /* 18.10.2026: drei Abteilungen nach dem Weg durch den Laden (Kaufland-Reihenfolge).
+     Brot, Toast, Wraps standen bis v29 unter Trockenwaren, Chips und Schokolade ebenfalls,
+     Kokosmilch und Sojasauce unter Konserven - alle drei am falschen Ort im Laden. */
+  backshop: ['brot','brötchen','toast','wrap','baguette','croissant','käsestange','laugen','ciabatta','fladenbrot','pita','knäcke'],
+  asia: ['kokosmilch','sojasauce','sojasoße','reisnudel','glasnudel','klebreis','currypaste','sriracha','sesamöl','teriyaki','mie-nudel','wok'],
+  snacks: ['chips','schokolade','keks','gummibärchen','riegel','snack','nuss','salzstangen','popcorn','bonbon','pralinen','cracker'],
   haushalt: ['klopapier','toilettenpapier','küchenrolle','kuechenrolle','taschentücher','waschmittel','weichspüler','spülmittel','spuelmittel','spülmaschinentab','geschirrspültab','putzmittel','allzweckreiniger','wc-reiniger','wc reiniger','müllbeutel','muellbeutel','alufolie','frischhaltefolie','backpapier','batterien','kerzen','streichhölzer','feuerzeug','seife','duschgel','shampoo','zahnpasta','zahnbürste','rasierklinge','katzenfutter','katzenstreu','hundefutter','windeln','feuchttücher','müllsack','schwamm','handschuhe']
 };
 const KEYWORD_INDEX = [];

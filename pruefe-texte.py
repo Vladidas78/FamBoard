@@ -67,7 +67,11 @@ Ausnahmen bekommen /* texte-ok: <Grund> */ in die Zeile.
 # 13.08.2026 (E4): 435 -> 437. Zwei weitere Markup-Fragmente, diesmal aus der
 # Mitgliederzeile (Ernennen-Knopf, rechter Zeilenteil). Gleiche Lage: kein
 # menschlicher Text, der laeuft ueber txt('einstellungen.*').
-REST_ERWARTET = 437
+# 18.10.2026 (v30, Abteilungen): 437 -> 442. Fuenf Schluesselwoerter mit Umlaut in
+# CAT_KEYWORDS (backshop/asia/snacks: kaesestange, knaecke, sojasosse, gummibaerchen,
+# salzstangen). CAT_KEYWORDS bleibt bewusst hart kodiert (O-29) - Erkennung, kein
+# Anzeigetext.
+REST_ERWARTET = 442
 import re, sys
 from html.parser import HTMLParser
 
