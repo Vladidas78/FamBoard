@@ -836,15 +836,20 @@
   .market-badge{ font-size:0.68rem; padding:2px 7px; border-radius:999px; background:var(--flaeche-senke); border:1px solid var(--linie); color:var(--text-leise); margin-left:6px; }
 
   /* Klebende Leiste: erscheint nur, solange etwas ausgewaehlt ist (IA-8) */
+  /* v33: Die Leiste klebte hinter der Fussleiste (fixed, 74 px) und wurde erst beim
+     Scrollen ans Ende sichtbar. Jetzt sitzt sie darueber, solange etwas gewaehlt ist. */
   .art-auswahl{
-    position:sticky; bottom:calc(var(--abstand-m) + env(safe-area-inset-bottom, 0px)); z-index:5;
-    display:flex; gap:var(--abstand-s); padding:var(--abstand-s);
+    position:sticky; bottom:calc(82px + env(safe-area-inset-bottom, 0px)); z-index:5;
+    display:flex; flex-wrap:wrap; gap:var(--abstand-s); padding:var(--abstand-s);
     background:var(--flaeche-karte); border:1px solid var(--linie); border-radius:var(--radius-m);
     box-shadow:0 6px 20px rgba(0,0,0,.16); margin-top:var(--abstand-m);
   }
   .art-auswahl[hidden]{ display:none; }
   .art-auswahl .btn{ flex:1; }
   .art-auswahl .btn-ghost{ flex:0 0 auto; }
+  .art-auswahl-budget{ flex:1 1 100%; padding:2px 6px 0; font-size:13px; line-height:1.4; color:var(--text-leise); font-variant-numeric:tabular-nums; }
+  .art-auswahl-budget[hidden]{ display:none; }
+  .art-auswahl-budget.ueber{ color:var(--loeschen-farbe); font-weight:500; }
 
   /* ---------- Suchfeld und Vorschlaege (IA-7 / IA-16) ---------- */
   .such-zeile input[type=search]{ width:100%; }

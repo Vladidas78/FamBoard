@@ -3375,6 +3375,26 @@ function zeichneArtAuswahl(){
   knopf.textContent = artAuswahl.length === 1
     ? txt('einkauf.1_artikel_auf_die_liste')
     : artAuswahl.length+txt('einkauf.artikel_auf_die_liste');
+  /* v33: Was die Auswahl das Wochenbudget kostet - Summe der Preise und der Rest
+     danach. Posten ohne Preis zaehlen 0 und werden als Zahl genannt (Regel 18). */
+  const info = document.getElementById('artAuswahlBudget');
+  if(info){
+    const cfg = budgetCfg();
+    if(!(cfg.woche > 0)){ info.hidden = true; info.textContent = ''; }
+    else{
+      let summe = 0, ohne = 0;
+      artAuswahl.forEach(k=>{ const p = (state.preise||{})[k]; if(p > 0) summe += p; else ohne++; });
+      const jetzt = new Date(); jetzt.setHours(0,0,0,0);
+      const b = budgetDerWoche(weekKeyOf(getMondayOf(jetzt)));
+      const rest = b.ziel - b.ausgegeben - b.geplant - summe;
+      let text = rest >= 0
+        ? txtf('einkauf.auswahl_budget', {summe: fmtEuro(summe), rest: fmtEuro(rest)})
+        : txtf('einkauf.auswahl_ueber', {summe: fmtEuro(summe), betrag: fmtEuro(-rest)});
+      if(ohne) text += ' · ' + txtf('heute.ohne_preis', {n: ohne});
+      info.textContent = text; info.hidden = false;
+      info.classList.toggle('ueber', rest < 0);
+    }
+  }
 }
 
 (function(){

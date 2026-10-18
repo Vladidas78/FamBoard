@@ -357,6 +357,8 @@ export const TEXTE = {
     'einkauf.artikel_auf_die_liste': ' Artikel auf die Liste',
     'einkauf.artikel_suchen_oder_anlegen': '🔍 Artikel suchen oder anlegen',
     'einkauf.auf_die_liste': 'Auf die Liste',
+    'einkauf.auswahl_budget': '+ {summe} · danach noch {rest}',
+    'einkauf.auswahl_ueber': '+ {summe} · {betrag} über dem Ziel',
     'einkauf.auswaerts_zaehlt': 'Auswärts zählt mit',
     'einkauf.budget': 'Budget',
     'einkauf.personen': 'Personen',

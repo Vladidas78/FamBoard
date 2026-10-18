@@ -287,5 +287,20 @@ if(avOk){ await p.click('#artVorschlaege .vorschlag'); await p.waitForTimeout(25
   console.log('Plus uebernimmt und leert das Feld:', leer ? 'ok' : 'FEHLGESCHLAGEN');
   if(!leer) fehler.push('Nach dem Plus bleibt das Artikel-Suchfeld gefuellt'); }
 
+/* v33: Auswahl-Leiste im Artikelstamm bleibt ueber der Fussleiste sichtbar und nennt die Budget-Wirkung. */
+await p.click('nav .tab[data-tab="einkauf"]'); await p.waitForTimeout(120);
+await p.click('#einkauf .unter[data-unter="artikel"]'); await p.waitForTimeout(150);
+await p.fill('#artSearch', ''); await p.waitForTimeout(150);
+await p.evaluate(()=>window.scrollTo(0, 0));
+await p.locator('#artikelListe .art-row .art-pick').first().click(); await p.waitForTimeout(250);
+const leiste = await p.evaluate(()=>{ const l=document.getElementById('artAuswahl'); if(!l || l.hidden) return {sichtbar:false};
+  const r=l.getBoundingClientRect(); const nav=document.querySelector('nav').getBoundingClientRect();
+  return { sichtbar:true, unterkante:Math.round(r.bottom), navOben:Math.round(nav.top), imBild: r.bottom <= nav.top && r.top >= 0,
+    budget:(document.getElementById('artAuswahlBudget')||{}).textContent, scrollY:Math.round(scrollY) }; });
+const leisteOk = leiste.sichtbar && leiste.imBild && /€/.test(leiste.budget||'');
+console.log('Auswahl-Leiste ueber der Fussleiste mit Budget:', leisteOk ? 'ok' : 'FEHLGESCHLAGEN', JSON.stringify(leiste));
+if(!leisteOk) fehler.push('Auswahl-Leiste ist nicht ueber der Fussleiste sichtbar oder nennt kein Budget');
+await p.click('#artAuswahlWeg'); await p.waitForTimeout(150);
+
 await b.close(); s.close();
 console.log(fehler.length ? 'FEHLER:\n  '+[...new Set(fehler)].join('\n  ') : 'Keine Fehler.');
