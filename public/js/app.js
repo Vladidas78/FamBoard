@@ -605,7 +605,9 @@ const IRREGULAR = {
 function singular(w){
   if(IRREGULAR[w]) return IRREGULAR[w];
   if(w.length < 5) return w;
-  if(/(chen|lein|ken|hen)$/.test(w)) return w;             // Hähnchen, Brötchen bleiben
+  if(/(chen|lein)$/.test(w)) return w;                     // Hähnchen, Brötchen bleiben
+  if(/schinken$/.test(w)) return w;                        // Schinken ist Einzahl (v36: vorher hielt
+                                                           // „-ken" auch Gurken und Zehen in der Mehrzahl)
   if(/n$/.test(w)){
     const stem = w.slice(0,-1);
     if(/(e|el|er)$/.test(stem)) return stem;                // Tomaten→Tomate, Zwiebeln→Zwiebel
@@ -983,6 +985,14 @@ function fromRemote(d){
   Object.keys(d.catOverrides || {}).forEach(k=>{ s.catOverrides[decKey(k)] = d.catOverrides[k]; });
   Object.keys(d.marketOverrides || {}).forEach(k=>{ s.marketOverrides[decKey(k)] = d.marketOverrides[k]; });
   Object.keys(d.preise || {}).forEach(k=>{ const v = Number(d.preise[k]); if(v > 0) s.preise[decKey(k)] = v; });
+  /* v36 — aendert sich die Einzahl-Regel, liegen alte Eintraege unter einem
+     Schluessel, den normKey heute nicht mehr bildet („snackgurken" statt
+     „snackgurke"). Sie werden beim Laden unter dem heutigen Schluessel
+     mitgefuehrt; der alte Eintrag bleibt in der Datenbank als Sicherung. */
+  [s.catOverrides, s.marketOverrides, s.preise].forEach(m=>{
+    Object.keys(m).forEach(k=>{ const nk = normKey(k); if(nk && nk !== k && m[nk] == null) m[nk] = m[k]; });
+  });
+  s.excluded.forEach(k=>{ const nk = normKey(k); if(nk && nk !== k && s.excluded.indexOf(nk) < 0) s.excluded.push(nk); });
   Object.keys(d.weeks || {}).forEach(wk=>{
     const w = d.weeks[wk] || {};
     s.plan[wk] = {};
