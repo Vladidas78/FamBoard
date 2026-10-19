@@ -171,12 +171,11 @@
          in den Einkauf, wo das Ziel eingestellt wird. Alle Bauteile stehen fest
          im Markup (Betriebsregel 10); app.js fuellt nur Text und Breiten. -->
     <section class="abschnitt" id="heuteKarteBudget">
-      <div class="abschnitt-kopf"><h2 data-t="heute.budget_titel">Budget diese Woche</h2></div>
+      <div class="abschnitt-kopf"><h2 data-t="heute.budget_titel">Wochenbudget</h2></div>
       <button class="karte budget-karte" id="heuteBudget" type="button">
         <span class="budget-stand">
-          <span class="budget-zeile"></span>
-          <span class="budget-ring"><svg viewBox="0 0 120 120" aria-hidden="true" focusable="false"><circle class="br-spur" cx="60" cy="60" r="52"/><circle class="br-geplant" cx="60" cy="60" r="52"/><circle class="br-verbraucht" cx="60" cy="60" r="52"/></svg><span class="br-mitte"><span class="br-noch"></span><span class="br-wert"></span></span></span>
-          <span class="budget-legende"></span>
+          <span class="budget-ring"><svg viewBox="0 0 120 120" aria-hidden="true" focusable="false"><circle class="br-spur" cx="60" cy="60" r="52"/><circle class="br-geplant" cx="60" cy="60" r="52"/><circle class="br-verbraucht" cx="60" cy="60" r="52"/></svg><span class="br-mitte"><span class="br-wert"></span><span class="br-noch"></span></span></span>
+          <span class="budget-legende"><span class="bl-teil"><i class="bl-punkt bl-ausg" aria-hidden="true"></i><span data-t="heute.eingekauft">Eingekauft</span> <b class="bl-wert-ausg"></b></span><span class="bl-teil"><i class="bl-punkt bl-gepl" aria-hidden="true"></i><span data-t="heute.geplant">Geplant</span> <b class="bl-wert-gepl"></b></span></span>
           <span class="budget-ohne-preis"></span>
         </span>
         <span class="budget-festlegen" hidden>
@@ -238,7 +237,7 @@
          darunter, was laenger nicht gekocht wurde. MD-15: ein Vorschlag, keine
          Mahnung. -->
     <section class="abschnitt" id="heutePlanen" hidden>
-      <div class="abschnitt-kopf"><h2 data-t="heute.woche_planen">Diese Woche planen?</h2></div>
+      <div class="abschnitt-kopf"><h2 data-t="heute.woche_planen">Die Woche ist noch leer.</h2></div>
       <div class="karte" style="overflow:hidden;">
         <div id="heutePlanenTage"></div>
         <div class="planen-kopf" data-t="heute.laenger_nicht">Länger nicht gekocht</div>
@@ -376,7 +375,7 @@
       <div class="hint-swipe" data-t="essen.pfeile_oder_wischen_auf">Pfeile ‹ › oder Wischen auf der Leiste wechseln die Woche</div>
 
       <div class="week-fill-row">
-        <button class="btn btn-soft full" id="fillWeek" type="button" data-t="essen.ganze_woche_fuellen">🎲 Ganze Woche füllen</button>
+        <button class="btn btn-soft full" id="fillWeek" type="button" data-t="essen.ganze_woche_fuellen">Woche füllen</button>
       </div>
 
       <div class="collapse-section mealcfg collapsed" id="mealSection">
@@ -696,9 +695,8 @@
         </div>
         <div class="budget-anzeige" id="shopBudget">
           <div class="budget-stand">
-            <span class="budget-zeile"></span>
-            <span class="budget-ring"><svg viewBox="0 0 120 120" aria-hidden="true" focusable="false"><circle class="br-spur" cx="60" cy="60" r="52"/><circle class="br-geplant" cx="60" cy="60" r="52"/><circle class="br-verbraucht" cx="60" cy="60" r="52"/></svg><span class="br-mitte"><span class="br-noch"></span><span class="br-wert"></span></span></span>
-            <span class="budget-legende"></span>
+            <span class="budget-ring"><svg viewBox="0 0 120 120" aria-hidden="true" focusable="false"><circle class="br-spur" cx="60" cy="60" r="52"/><circle class="br-geplant" cx="60" cy="60" r="52"/><circle class="br-verbraucht" cx="60" cy="60" r="52"/></svg><span class="br-mitte"><span class="br-wert"></span><span class="br-noch"></span></span></span>
+            <span class="budget-legende"><span class="bl-teil"><i class="bl-punkt bl-ausg" aria-hidden="true"></i><span data-t="heute.eingekauft">Eingekauft</span> <b class="bl-wert-ausg"></b></span><span class="bl-teil"><i class="bl-punkt bl-gepl" aria-hidden="true"></i><span data-t="heute.geplant">Geplant</span> <b class="bl-wert-gepl"></b></span></span>
             <span class="budget-ohne-preis"></span>
           </div>
         </div>

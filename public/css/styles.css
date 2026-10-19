@@ -524,6 +524,7 @@
     color:var(--text-haupt);
   }
   .kachel-meta{ display:block; margin-top:3px; font-size:12px; color:var(--text-leise); font-variant-numeric:tabular-nums; }
+  .kachel-preis{ display:block; margin-top:1px; font-size:12px; color:var(--text-leise); font-variant-numeric:tabular-nums; }
   /* Der Stern steht oben rechts auf dem Bild und ist zugleich der Knopf -
      ein zweiter, nur anzeigender daneben waere dasselbe zweimal. */
   .kachel-fav{
@@ -1432,8 +1433,6 @@
   }
   .budget-karte:hover{ background:var(--flaeche-senke); }
   .budget-stand{ display:block; padding:14px var(--abstand-l); }
-  .budget-zeile{ display:block; font-size:15.5px; line-height:1.35; color:var(--text-haupt); font-variant-numeric:tabular-nums; }
-  .budget-zeile.ueber{ color:var(--loeschen-farbe); font-weight:500; }
   /* Ring (v32): Spur, darauf verbraucht und geplant als Boegen; Mitte traegt den Rest */
   .budget-ring{ position:relative; display:block; width:160px; height:160px; margin:8px auto 10px; }
   .budget-ring svg{ position:absolute; inset:0; width:100%; height:100%; transform:rotate(-90deg); }
@@ -1442,11 +1441,18 @@
   .budget-ring .br-verbraucht{ stroke:var(--messing-aktion); transition:stroke-dasharray .25s ease; }
   .budget-ring .br-geplant{ stroke:var(--messing-marke); transition:stroke-dasharray .25s ease, stroke-dashoffset .25s ease; }
   .budget-ring .br-mitte{ position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; }
-  .budget-ring .br-noch{ font-size:13px; color:var(--text-leise); }
+  .budget-ring .br-noch{ font-size:12.5px; color:var(--text-leise); font-variant-numeric:tabular-nums; }
+  .budget-ring.ueber .br-noch{ color:var(--loeschen-farbe); }
   .budget-ring .br-wert{ font-family:var(--schrift-headline); font-size:30px; font-weight:600; line-height:1; color:var(--text-haupt); font-variant-numeric:tabular-nums; }
   .budget-ring.ueber .br-wert{ color:var(--loeschen-farbe); }
-  .budget-legende, .budget-ohne-preis{ display:block; font-size:13px; line-height:1.4; color:var(--text-leise); font-variant-numeric:tabular-nums; }
-  .budget-ohne-preis{ margin-top:2px; }
+  /* v38 (Variante A): Legende mit Farbpunkten, die zu den Boegen gehoeren */
+  .budget-legende{ display:flex; justify-content:center; flex-wrap:wrap; gap:4px 18px; font-size:13.5px; line-height:1.4; color:var(--text-leise); font-variant-numeric:tabular-nums; }
+  .budget-legende b{ font-weight:600; color:var(--text-haupt); }
+  .bl-teil{ display:inline-flex; align-items:center; gap:6px; white-space:nowrap; }
+  .bl-punkt{ display:inline-block; width:9px; height:9px; border-radius:50%; }
+  .bl-ausg{ background:var(--messing-aktion); }
+  .bl-gepl{ background:var(--messing-marke); }
+  .budget-ohne-preis{ display:block; margin-top:6px; font-size:12.5px; line-height:1.4; color:var(--text-leise); text-align:center; }
   .budget-festlegen{
     display:flex; align-items:center; justify-content:space-between; gap:12px;
     height:48px; padding:0 var(--abstand-l);

@@ -80,7 +80,12 @@ Ausnahmen bekommen /* texte-ok: <Grund> */ in die Zeile.
 # in renderRecipeList ist entfallen; seine zwoelf Markup-Fragmente mit ihm. Das
 # neue Detail fuellt feste Elemente aus index.html und bringt weniger Fragmente
 # mit, als weggefallen sind. Deckel nachgezogen, damit er wieder anschlaegt.
-REST_ERWARTET = 444
+# 19.10.2026 (v38, Butley-Texte): 444 -> 443. Der Begruessungssatz auf Heute
+# und die Meldungen von "Woche fuellen" liefen am Katalog vorbei; sie stehen
+# jetzt unter heute.lage_*, heute.gruss_* und essen.*. Dafuer kamen wenige
+# Markup-Fragmente (Kostenzeile an der Kachel, Kosten in der Auswahl) dazu.
+# Menschlicher Text steckt darin nicht. Deckel nachgezogen.
+REST_ERWARTET = 443
 import re, sys
 from html.parser import HTMLParser
 

@@ -207,13 +207,14 @@ const budgetLesen = ()=>p.evaluate(()=>{
   const k = document.getElementById('heuteBudget');
   const sec = document.getElementById('heuteKarteBudget');
   const q = (sel)=>{ const el = k && k.querySelector(sel); return el ? el.textContent : ''; };
-  return { da: !!k && !!sec && !sec.hidden, zeile: q('.budget-zeile'), legende: q('.budget-legende'),
+  /* v38 (Variante A): keine Kopfzeile mehr - Rest und Ziel stehen in der Ringmitte */
+  return { da: !!k && !!sec && !sec.hidden, zeile: q('.br-wert') + ' ' + q('.br-noch'), legende: q('.budget-legende'),
            ohnePreis: q('.budget-ohne-preis'), festlegen: !!(k && k.querySelector('.budget-festlegen') && !k.querySelector('.budget-festlegen').hidden) };
 });
 await p.click('nav .tab[data-tab="heute"]'); await p.waitForTimeout(150);
 const b1 = await budgetLesen();
 const z1 = euro(b1.zeile), l1 = euro(b1.legende);
-/* "noch X € von Y €" -> [rest, ziel]; "verbraucht A € · geplant B €" -> [a, b] */
+/* "X € frei von Y €" -> [rest, ziel]; "Eingekauft A € Geplant B €" -> [a, b] */
 const stimmig = b1.da && z1.length === 2 && l1.length === 2 && Math.abs((l1[0] + l1[1] + z1[0]) - z1[1]) < 0.011;
 console.log('Budgetkarte auf Heute:', stimmig ? 'ok' : 'FEHLGESCHLAGEN', JSON.stringify(b1));
 if(!stimmig) fehler.push('Budgetkarte fehlt oder die Zahlen gehen nicht auf (verbraucht + geplant + Rest = Ziel)');
@@ -269,7 +270,7 @@ await p.click('nav .tab[data-tab="heute"]'); await p.waitForTimeout(150);
 const ring = await p.evaluate(()=>{ const r=document.querySelector('#heuteBudget .budget-ring'); if(!r) return null;
   return { wert: r.querySelector('.br-wert').textContent, noch: r.querySelector('.br-noch').textContent,
     dash: r.querySelector('.br-verbraucht').style.strokeDasharray, sichtbar: getComputedStyle(r).display !== 'none' }; });
-const ringOk = !!ring && ring.sichtbar && /\d/.test(ring.wert) && ring.noch === 'noch' && /\d/.test(ring.dash);
+const ringOk = !!ring && ring.sichtbar && /\d/.test(ring.wert) && /^frei von \d/.test(ring.noch) && /\d/.test(ring.dash);
 console.log('Budget-Ring auf Heute:', ringOk ? 'ok' : 'FEHLGESCHLAGEN', JSON.stringify(ring));
 if(!ringOk) fehler.push('Budget-Ring fehlt oder traegt keinen Wert');
 await p.click('nav .tab[data-tab="einkauf"]'); await p.waitForTimeout(150);

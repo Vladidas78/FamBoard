@@ -1381,20 +1381,56 @@ document.getElementById('todayBtn').addEventListener('click',()=>{
   },{passive:true});
 })();
 
+/* v38 (Option 1, Vladi 19.10.2026): Ist ein Wochenbudget gesetzt, haelt
+   „Woche fuellen" es ein. Der freie Betrag wird auf die leeren Mahlzeiten
+   verteilt; ein Gericht, das nicht mehr hineinpasst, kommt nicht in Frage.
+   Zutaten, die schon auf der Liste stehen, kosten nichts extra - so gewinnen
+   Gerichte, die Zutaten teilen. Ohne Budget wuerfelt es wie bisher. */
 document.getElementById('fillWeek').addEventListener('click', ()=>{
   const wk = weekKeyOf(currentMonday);
-  let anzahl = 0;
+  const leer = [];
   DAYS.forEach((day, idx)=>{
     activeSlots().forEach(sl=>{
-      const cur = ((state.plan[wk] || {})[day] || {})[sl.id];
-      if(cur) return;   // Tag/Mahlzeit ist schon belegt — auch txt('essen.auswaerts') und Reste bleiben stehen
-      const id = suggestFor(idx, sl.id);
-      if(id){ setPlanSlot(wk, day, sl.id, id); anzahl++; }
+      if(((state.plan[wk] || {})[day] || {})[sl.id]) return;   // belegt - auch auswärts und Reste bleiben stehen
+      leer.push({day:day, idx:idx, slot:sl.id});
     });
   });
+  /* Als Toast, nicht in der Statuszeile: Jede Speicherung des Plans leert die
+     Statuszeile ueber den Datenrueckruf, die Meldung waere sofort weg. */
+  const melde = (text)=>showToast(text);
+  if(!leer.length){ melde(txt('essen.woche_schon_voll')); return; }
+  if(!activeSlots().some(sl=>poolFor(sl.id).length)){ melde(txt('essen.erst_rezepte_anlegen')); return; }
+
+  const cfg = budgetCfg();
+  let budget = null;
+  if(cfg.woche > 0){
+    const b = budgetDerWoche(wk);
+    const schonDa = {};
+    try{ buildItems(wk).items.forEach(it=>{ const k = normKey(it.name); if(k) schonDa[k] = true; }); }catch(e){}
+    budget = { schonDa: schonDa, frei: cfg.woche - b.ausgegeben - b.geplant, anteil: 0 };
+  }
+  let anzahl = 0, zuTeuer = 0;
+  leer.forEach((l, i)=>{
+    if(budget) budget.anteil = Math.max(0, budget.frei) / (leer.length - i);
+    const id = suggestFor(l.idx, l.slot, budget);
+    if(!id){ if(budget && poolFor(l.slot).length) zuTeuer++; return; }
+    if(budget){
+      const r = state.recipes.find(x=>x.id === id);
+      budget.frei -= rezeptKosten(r, budget.schonDa);
+      ((r && r.ingredients) || []).forEach(ing=>{ const k = normKey(ing.name); if(k) budget.schonDa[k] = true; });
+    }
+    setPlanSlot(wk, l.day, l.slot, id);
+    anzahl++;
+  });
   renderDayTrack(); renderShop();
-  setStatus(anzahl ? anzahl+' Mahlzeiten ergänzt ✓' : txt('essen.nichts_zu_ergaenzen_schon_alles'));
-  setTimeout(()=>setStatus(''), 2500);
+  const teile = [];
+  if(anzahl) teile.push(anzahl === 1 ? txt('essen.mahlzeit_ergaenzt') : txtf('essen.mahlzeiten_ergaenzt', {n: anzahl}));
+  if(zuTeuer) teile.push(txtf('essen.budget_reicht_nicht', {n: zuTeuer}));
+  if(budget && anzahl){
+    const b2 = budgetDerWoche(wk);
+    teile.push(txtf('essen.woche_bei', {summe: fmtEuro(b2.ausgegeben + b2.geplant), ziel: zielText(cfg.woche)}));
+  }
+  melde(teile.length ? teile.join(' · ') : txt('essen.erst_rezepte_anlegen'));
 });
 
 function renderMealConfig(){
@@ -1433,7 +1469,7 @@ document.getElementById('mealHead').addEventListener('click', ()=>{
 /* =========================================================================
    9. Vorschlagslogik
    ========================================================================= */
-function suggestFor(dayIdx, slotId){
+function suggestFor(dayIdx, slotId, budget){
   const wk = weekKeyOf(currentMonday);
   const weekPlan = state.plan[wk] || {};
   const pool = poolFor(slotId);
@@ -1448,8 +1484,15 @@ function suggestFor(dayIdx, slotId){
     let sc = 10 + Math.random()*3;
     if(r.id===prevId) sc -= 8;
     if(used.indexOf(r.id)>=0) sc -= 5;
+    /* v38 — mit Budget: was nicht mehr hineinpasst, faellt raus; was ueber
+       dem Anteil je Mahlzeit liegt, rutscht nach hinten. Abwechslung bleibt. */
+    if(budget){
+      const c = rezeptKosten(r, budget.schonDa);
+      if(c > budget.frei + 0.005) return null;
+      if(c > budget.anteil) sc -= (c - budget.anteil) / Math.max(budget.anteil, 1) * 6;
+    }
     return {r:r, s:sc};
-  });
+  }).filter(Boolean);
   scored.sort((a,b)=>b.s-a.s);
   return scored[0] ? scored[0].r.id : null;
 }
@@ -1507,7 +1550,7 @@ function slotSelect(wk, day, slotId, e){
   let opts = '<option value="">— leer —</option>';
   if(pool.length){
     opts += '<optgroup label="'+(slotId==='snack'?'Snacks':'Rezepte')+'">' +
-      pool.map(r=>'<option value="'+r.id+'" '+(r.id===cur?'selected':'')+'>'+escapeHtml(r.name)+'</option>').join('') +
+      pool.map(r=>{ const kh = kostenHinweis(r); return '<option value="'+r.id+'" '+(r.id===cur?'selected':'')+'>'+escapeHtml(r.name)+(kh ? ' · '+escapeHtml(kh) : '')+'</option>'; }).join('') +
       '</optgroup>';
   }
 
@@ -1918,6 +1961,8 @@ function renderRecipeList(){
           '<span class="kachel-name">'+escapeHtml(r.name)+'</span>' +
           '<span class="kachel-meta">' + (r.servings||4) + ' Pers.' +
             ((r.tags||[]).length ? ' · ' + escapeHtml(r.tags[0]) : '') + '</span>' +
+          // v38: geschaetzte Kosten als eigene Zeile, sonst bricht die Meta-Zeile mitten im Trenner um
+          (istSnack(r) || !kostenHinweis(r) ? '' : '<span class="kachel-preis">' + escapeHtml(kostenHinweis(r)) + '</span>') +
         '</span>' +
       '</button>' +
       (istSnack(r) ? '' : '<button class="fav-star kachel-fav'+(r.fav?' active':'')+'" type="button" data-favid="'+r.id+'" aria-label="'+(r.fav?'Favorit entfernen':txt('essen.als_favorit_markieren'))+'">'+(r.fav?'★':'☆')+'</button>') +
@@ -2807,6 +2852,27 @@ function setzeAbgehakt(wk, it, an){
    immer vor; leert man ihn, gilt wieder der Richtpreis.
    ========================================================================= */
 function fmtEuro(n){ return (Math.round(Number(n||0)*100)/100).toFixed(2).replace('.',',') + ' €'; }
+/* Ein rundes Ziel ohne Nachkommastellen: „200 €" statt „200,00 €" */
+function zielText(z){ const c = Math.round(Number(z||0)*100); return c % 100 === 0 ? (c/100) + ' €' : fmtEuro(z); }
+/* v38 — Was ein Rezept die Woche zusaetzlich kostet: Summe der (Richt-)Preise
+   seiner Zutaten. „Immer zuhause" zaehlt nicht, und was in `schonDa` steht
+   (diese Woche schon auf der Liste), auch nicht - die Packung ist gekauft.
+   Preis je Packung, Mengen fliessen nicht ein. */
+function rezeptKosten(r, schonDa){
+  const gesehen = {};
+  let summe = 0;
+  ((r && r.ingredients) || []).forEach(i=>{
+    const k = normKey(i && i.name);
+    if(!k || gesehen[k]) return;
+    gesehen[k] = true;
+    if(state.excluded.indexOf(k) >= 0) return;
+    if(schonDa && schonDa[k]) return;
+    const p = preisVonKey(k);
+    if(p > 0) summe += p;
+  });
+  return Math.round(summe * 100) / 100;
+}
+function kostenHinweis(r){ const c = rezeptKosten(r); return c > 0 ? txtf('einkauf.preis_ca', {preis: fmtEuro(c)}) : ''; }
 let richtpreisNachKey = null;
 function richtpreisVonKey(k){
   if(!richtpreisNachKey){
@@ -2882,13 +2948,6 @@ function zeichneBudget(id, b){
   if(fest) fest.hidden = !ohneZiel;
   if(ohneZiel || !stand) return;
   const rest = b.ziel - b.ausgegeben - b.geplant;
-  const zeile = stand.querySelector('.budget-zeile');
-  if(zeile){
-    zeile.textContent = rest >= 0
-      ? txtf('heute.budget_rest', {rest: fmtEuro(rest), ziel: fmtEuro(b.ziel)})
-      : txtf('heute.budget_ueber', {betrag: fmtEuro(-rest)});
-    zeile.classList.toggle('ueber', rest < 0);
-  }
   const pV = Math.min(100, b.ausgegeben / b.ziel * 100);
   const pG = Math.max(0, Math.min(100 - pV, b.geplant / b.ziel * 100));
   /* Ring statt Balken (Vladi, 18.10.2026 abends): zwei Boegen auf einer Spur,
@@ -2901,11 +2960,15 @@ function zeichneBudget(id, b){
   if(ring){
     ring.classList.toggle('ueber', rest < 0);
     const noch = ring.querySelector('.br-noch'), wert = ring.querySelector('.br-wert');
-    if(noch) noch.textContent = rest >= 0 ? txt('heute.noch') : txt('heute.ueber');
+    /* v38 (Variante A, Vladi 19.10.2026): Die Kopfzeile ist weg, das Ziel
+       steht in der Ringmitte unter dem freien Betrag. */
+    if(noch) noch.textContent = rest >= 0 ? txtf('heute.frei_von', {ziel: zielText(b.ziel)}) : txt('heute.ueber_budget');
     if(wert) wert.textContent = fmtEuro(Math.abs(rest));
   }
-  const leg = stand.querySelector('.budget-legende');
-  if(leg) leg.textContent = txtf('heute.budget_legende', {a: fmtEuro(b.ausgegeben), b: fmtEuro(b.geplant)});
+  /* Legende mit Farbpunkten - Bauteile stehen im HTML, hier nur die Betraege */
+  const wa = stand.querySelector('.bl-wert-ausg'), wg = stand.querySelector('.bl-wert-gepl');
+  if(wa) wa.textContent = fmtEuro(b.ausgegeben);
+  if(wg) wg.textContent = fmtEuro(b.geplant);
   const op = stand.querySelector('.budget-ohne-preis');
   if(op){ op.textContent = b.ohnePreis ? txtf('heute.ohne_preis', {n: b.ohnePreis}) : ''; op.hidden = !b.ohnePreis; }
 }
@@ -6226,24 +6289,35 @@ function renderHeute(){
     const abend = eintraege['abend'];
     const abendRezept = abend && abend.id ? state.recipes.find(x=>x.id === abend.id) : null;
 
-    const teile = [];
-    if(termineHeute) teile.push(termineHeute + (termineHeute === 1 ? ' Termin' : ' Termine'));
-    if(abendRezept) teile.push('abends ' + abendRezept.name);
-    else if(abend && abend.kind === 'out') teile.push(txt('navigation.abends_auswaerts'));
-    if(offen.length) teile.push(offen.length + ' Posten');
-    if(aufgabenHeute) teile.push(aufgabenHeute + (aufgabenHeute === 1 ? ' Aufgabe' : ' Aufgaben'));
+    /* v38 (Vladi, 19.10.2026): kurze Saetze nach Thema statt einer
+       Aufzaehlung, alle Texte im Katalog. Steht nur die Einkaufsliste an,
+       wird daraus ein ganzer Satz. */
+    const heuteTeile = [];
+    if(termineHeute) heuteTeile.push(termineHeute === 1 ? txt('heute.lage_termin') : txtf('heute.lage_termine', {n: termineHeute}));
+    if(aufgabenHeute) heuteTeile.push(aufgabenHeute === 1 ? txt('heute.lage_aufgabe') : txtf('heute.lage_aufgaben', {n: aufgabenHeute}));
+    const saetze = [];
+    if(heuteTeile.length) saetze.push(txtf('heute.lage_heute', {teile: heuteTeile.join(', ')}));
+    if(abendRezept) saetze.push(txtf('heute.lage_abendessen', {gericht: abendRezept.name}));
+    else if(abend && abend.kind === 'out') saetze.push(txt('heute.lage_auswaerts'));
+    const nurEinkauf = !saetze.length;
+    if(offen.length){
+      const n = offen.length;
+      saetze.push(nurEinkauf
+        ? (n === 1 ? txt('heute.lage_nur_einkauf_eins') : txtf('heute.lage_nur_einkauf', {n: n}))
+        : (n === 1 ? txt('heute.lage_einkauf_eins') : txtf('heute.lage_einkauf', {n: n})));
+    }
 
-    const leer = teile.length === 0;
-    const lage = leer ? 'Heute ist nichts eingetragen.' : (teile.join(', ') + '.');
+    const leer = saetze.length === 0;
+    const lage = leer ? txt('heute.lage_leer') : saetze.join(' ');
     const stunde = new Date().getHours();
-    const tageszeit = stunde < 11 ? 'Morgen' : (stunde < 18 ? 'Tag' : 'Abend');
+    const gruss = stunde < 11 ? txt('heute.gruss_morgen') : (stunde < 18 ? txt('heute.gruss_tag') : txt('heute.gruss_abend'));
     const name = (auth.currentUser && auth.currentUser.displayName) ? auth.currentUser.displayName.split(' ')[0] : '';
 
     const mitFigur = figurSichtbar();
     if(band) band.hidden = !mitFigur;
     if(lageText) lageText.hidden = mitFigur;
     if(mitFigur){
-      if(bandText) bandText.textContent = 'Guten ' + tageszeit + (name ? ', ' + name : '') + '. ' + lage;
+      if(bandText) bandText.textContent = gruss + (name ? ', ' + name : '') + '. ' + lage;
       /* ruhend bei leerem Tag: Ein Butler ist nicht ratlos, nur weil nichts
          zu tun ist (MD-18). */
       zeichneFigur(document.getElementById('heuteFigur'), leer ? 'ruhend' : 'begruessend');
@@ -6337,6 +6411,14 @@ function renderHeutePlanen(wk, jetzt){
     b.addEventListener('click', ()=>oeffneWochenplanTag(Number(b.dataset.tagidx))));
 
   const vorschlaege = laengerNichtGekocht(5);
+  /* v38: „zuletzt vor 8 Wochen" statt „zuletzt KW 34" */
+  const zuletztText = (vwk)=>{
+    if(!vwk) return txt('heute.noch_nie');
+    const n = Math.round((montag - montagVonWeekKey(vwk)) / (7 * 864e5));
+    if(n < 0) return txt('heute.schon_eingeplant');
+    if(n === 0) return txt('heute.zuletzt_diese_woche');
+    return n === 1 ? txt('heute.zuletzt_vor_einer_woche') : txtf('heute.zuletzt_vor_wochen', {n: n});
+  };
   if(!vorschlaege.length){
     rezEl.innerHTML = '<button class="planen-zeile' + ' planen-keine" type="button">' +
       '<span class="pz-gericht">' + txt('heute.keine_rezepte') + '</span>' +
@@ -6351,7 +6433,7 @@ function renderHeutePlanen(wk, jetzt){
   rezEl.innerHTML = vorschlaege.map(v=>
     '<button class="planen-zeile" type="button" data-rezept="' + escapeHtml(v.r.id) + '">' +
       '<span class="pz-gericht">' + escapeHtml(v.r.name) + '</span>' +
-      '<span class="pz-zuletzt">' + (v.wk ? txtf('heute.zuletzt_kw', {kw: Number(v.wk.slice(-2))}) : txt('heute.noch_nie')) + '</span>' +
+      '<span class="pz-zuletzt">' + escapeHtml(zuletztText(v.wk)) + '</span>' +
       '<span class="reihe-pfeil">›</span>' +
     '</button>').join('');
   Array.prototype.forEach.call(rezEl.querySelectorAll('[data-rezept]'), b=>
