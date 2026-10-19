@@ -1477,6 +1477,8 @@
   .shop-item.checked .preis-btn{ color:var(--text-leise); }
   .art-fuss .preis-btn{ font-size:0.74rem; padding:0; border:none; border-radius:0; text-decoration:underline dotted; }
   .art-fuss .preis-btn.ohne-preis{ color:var(--text-leise); }
+  /* v37 - Richtpreis: zaehlt mit, ist aber noch nicht bestaetigt */
+  .preis-btn.richtpreis{ color:var(--text-leise); }
 
   /* ---------- Leerzustand: Diese Woche planen? (v31) ---------- */
   .planen-zeile{

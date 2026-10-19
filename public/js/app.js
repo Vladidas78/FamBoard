@@ -9,6 +9,7 @@ import {
 import { getDatabase, ref, set, remove, get, onValue } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-database.js";
 import { FIGUR, FIGUR_VIEWBOX } from "./figur.js";
 import { txt, txtf, uebersetzeSeite } from "./texte.js";
+import { RICHTPREISE, ZUTATEN_ANGLEICH, ANGLEICH_ZUHAUSE, ANGLEICH_REZEPTE, ANGLEICH_MINDESTENS } from "./richtpreise.js";
 import * as Push from "./push.js";
 
 /* Die ausgezeichneten Stellen im HTML einmal aus dem Katalog schreiben.
@@ -951,6 +952,7 @@ let haushaltMigriert = false;  // alte, wöchentlich wiederkehrende Haushalt-Ein
 let artikelMigriert = false;   // B2/IA-4: Haushalt-Katalog geht im gemeinsamen Artikelstamm auf
 let migrationsCats = [];       // [[normKey, catId], …] aus der Artikel-Migration
 let migrationsMarkets = [];    // [[normKey, laden], …] aus der Artikel-Migration
+let zutatenAngleich = null;    // v37: was der einmalige Zutaten-Angleich schreiben muss
 
 function fromRemote(d){
   d = d || {};
@@ -1053,7 +1055,69 @@ function fromRemote(d){
     s.settings.artikelMigriert = true;
     artikelMigriert = true;
   }
+  if(!s.settings.zutatenAngeglichen) zutatenAngleich = gleicheZutatenAn(s);
   return s;
+}
+
+/* v37 — Option B (Vladi, 19.10.2026): Rezeptzutaten tragen den Namen des
+   Artikelstamms („Hackfleisch" -> „Hackfleisch gemischt"), Gewuerze stehen auf
+   „Immer zuhause". Einmalig, und nur in dem Haushalt, dessen Rezepte die Liste
+   in richtpreise.js treffen - jeder andere bleibt unberuehrt.
+   Aendert s im Speicher und liefert, was zu schreiben ist (oder null).
+   Preis, Abteilung, Laden, „Immer zuhause" und der Wochenstand (Haken, Menge,
+   entfernt) ziehen vom alten auf den neuen Schluessel um, wenn der neue noch
+   nichts traegt. Der alte Stand geht vorher nach data/sicherungen. */
+function gleicheZutatenAn(s){
+  const vorhanden = {};
+  s.recipes.forEach(r=>{ vorhanden[String(r.name||'').trim()] = true; });
+  if(ANGLEICH_REZEPTE.filter(n=>vorhanden[n]).length < ANGLEICH_MINDESTENS) return null;
+
+  const ziel = {};   // alter Schluessel -> neuer Anzeigename
+  Object.keys(ZUTATEN_ANGLEICH).forEach(alt=>{
+    const k = normKey(alt), neu = ZUTATEN_ANGLEICH[alt];
+    if(k && normKey(neu) !== k) ziel[k] = neu;
+  });
+  const kopie = v => JSON.parse(JSON.stringify(v == null ? null : v));
+  const out = {
+    sicherung: kopie({
+      recipes: s.recipes.map(r=>({id:r.id, name:r.name, ingredients:r.ingredients||[]})),
+      customIngredients: s.customIngredients, excluded: s.excluded, extras: s.extras,
+      preise: s.preise, catOverrides: s.catOverrides, marketOverrides: s.marketOverrides
+    }),
+    preise:[], cats:[], maerkte:[], checked:[], removed:[], qty:[]
+  };
+
+  s.recipes.forEach(r=>{
+    r.ingredients = (r.ingredients||[]).map(i=>{
+      const neu = ziel[normKey(i.name)];
+      return neu ? Object.assign({}, i, {name: neu}) : i;
+    });
+  });
+  const gesehen = {};
+  s.customIngredients = s.customIngredients
+    .map(c=>{ const neu = ziel[normKey(c.name)]; return neu ? Object.assign({}, c, {name: neu}) : c; })
+    .filter(c=>{ const k = normKey(c && c.name); if(!k || gesehen[k]) return false; gesehen[k] = true; return true; });
+  s.extras.forEach(x=>{
+    const neu = ziel[normKey(x.name)];
+    if(neu) x.name = neu;
+    if(x.from && ziel[x.from]) x.from = normKey(ziel[x.from]);
+  });
+
+  Object.keys(ziel).forEach(k=>{
+    const nk = normKey(ziel[k]);
+    if(s.preise[k] > 0 && !(s.preise[nk] > 0)){ s.preise[nk] = s.preise[k]; out.preise.push([nk, s.preise[k]]); }
+    if(s.catOverrides[k] && !s.catOverrides[nk]){ s.catOverrides[nk] = s.catOverrides[k]; out.cats.push([nk, s.catOverrides[k]]); }
+    if(s.marketOverrides[k] && !s.marketOverrides[nk]){ s.marketOverrides[nk] = s.marketOverrides[k]; out.maerkte.push([nk, s.marketOverrides[k]]); }
+    const i = s.excluded.indexOf(k);
+    if(i >= 0){ s.excluded.splice(i, 1); if(s.excluded.indexOf(nk) < 0) s.excluded.push(nk); }
+    Object.keys(s.checked).forEach(wk=>{ const w = s.checked[wk] || {}; if(w[k] && !w[nk]){ w[nk] = true; out.checked.push([wk, nk]); } });
+    Object.keys(s.removed).forEach(wk=>{ const w = s.removed[wk] || {}; if(w[k] && !w[nk]){ w[nk] = true; out.removed.push([wk, nk]); } });
+    Object.keys(s.qty).forEach(wk=>{ const w = s.qty[wk] || {}; if(w[k] && !w[nk]){ w[nk] = w[k]; out.qty.push([wk, nk, w[k]]); } });
+  });
+  ANGLEICH_ZUHAUSE.forEach(n=>{ const k = normKey(n); if(k && s.excluded.indexOf(k) < 0) s.excluded.push(k); });
+
+  s.settings.zutatenAngeglichen = true;
+  return out;
 }
 function recipesForRemote(){
   return state.recipes.map(r=>{
@@ -1185,6 +1249,7 @@ async function loadState(){
     datenAngekommen = true;
     planAlt = false; slotsFehlen = false; haushaltMigriert = false;
     artikelMigriert = false; migrationsCats = []; migrationsMarkets = [];
+    zutatenAngleich = null;
     state = fromRemote(d);
     if(planAlt){ saveAllPlans(); }
     if(slotsFehlen){ saveSlots(); }
@@ -1207,6 +1272,28 @@ async function loadState(){
       if(eintraege.length) put('data/extras', eintraege);
       cats.forEach(pp=>saveCatOv(pp[0], pp[1]));
       maerkte.forEach(pp=>saveMarketOv(pp[0], pp[1]));
+    }
+    if(zutatenAngleich){
+      /* v37 — gleiche Reihenfolge wie oben: erst alles kopieren, dann der
+         Merker, dann die Zweige. Jeder Schreibzugriff ersetzt `state` ueber
+         den Rueckruf; was danach noch aus `state` gelesen wuerde, waere alt. */
+      const a = zutatenAngleich; zutatenAngleich = null;
+      const rezepte = recipesForRemote();
+      const artikel = (state.customIngredients||[]).slice();
+      const eintraege = (state.extras||[]).slice();
+      const zuhause = (state.excluded||[]).slice();
+      put('data/settings/zutatenAngeglichen', true);
+      put('data/sicherungen/zutatenAngleich', a.sicherung);
+      put('data/recipes', rezepte);
+      put('data/customIngredients', artikel.length ? artikel : null);
+      put('data/extras', eintraege.length ? eintraege : null);
+      put('data/excluded', zuhause.length ? zuhause : null);
+      a.preise.forEach(pp=>savePreis(pp[0], pp[1]));
+      a.cats.forEach(pp=>saveCatOv(pp[0], pp[1]));
+      a.maerkte.forEach(pp=>saveMarketOv(pp[0], pp[1]));
+      a.checked.forEach(pp=>saveChecked(pp[0], pp[1], true));
+      a.removed.forEach(pp=>saveRemoved(pp[0], pp[1], true));
+      a.qty.forEach(pp=>saveQty(pp[0], pp[1], pp[2]));
     }
     if(pruneExtras()) saveExtras();
     try{ localStorage.setItem(CACHE_KEY, JSON.stringify(d || {})); }catch(e){}
@@ -2715,9 +2802,32 @@ function setzeAbgehakt(wk, it, an){
    geblaetterten: Zwei Farben, verbraucht (abgehakt; Auswaerts bis heute) und
    geplant (offen; Auswaerts kommend). Posten ohne Preis zaehlen 0 EUR und
    werden als Zahl genannt (Betriebsregel 18: Grund als Text).
+   v37: Fehlt ein eigener Preis, gilt der Richtpreis aus richtpreise.js. Er
+   zaehlt im Budget mit und steht am Knopf als „ca. …". Ein eigener Preis geht
+   immer vor; leert man ihn, gilt wieder der Richtpreis.
    ========================================================================= */
 function fmtEuro(n){ return (Math.round(Number(n||0)*100)/100).toFixed(2).replace('.',',') + ' €'; }
-function preisVon(name){ const v = (state.preise||{})[normKey(name)]; return (v > 0) ? v : null; }
+let richtpreisNachKey = null;
+function richtpreisVonKey(k){
+  if(!richtpreisNachKey){
+    richtpreisNachKey = {};
+    Object.keys(RICHTPREISE).forEach(n=>{ const kk = normKey(n); if(kk && !(kk in richtpreisNachKey)) richtpreisNachKey[kk] = RICHTPREISE[n]; });
+  }
+  const v = richtpreisNachKey[k];
+  return (v > 0) ? v : null;
+}
+function eigenerPreisVonKey(k){ const v = (state.preise||{})[k]; return (v > 0) ? v : null; }
+function preisVonKey(k){ const e = eigenerPreisVonKey(k); return e != null ? e : richtpreisVonKey(k); }
+function preisVon(name){ return preisVonKey(normKey(name)); }
+/* Modifikator und Aufschrift des Preis-Knopfs: eigener Preis, Richtpreis, keiner. */
+function preisKnopf(name){
+  const k = normKey(name);
+  const e = eigenerPreisVonKey(k);
+  if(e != null) return {klasse:'', text: fmtEuro(e)};
+  const r = richtpreisVonKey(k);
+  if(r != null) return {klasse:' richtpreis', text: txtf('einkauf.preis_ca', {preis: fmtEuro(r)})};
+  return {klasse:' ohne-preis', text: txt('einkauf.preis')};
+}
 function budgetCfg(){
   const b = (state.settings||{}).budget || {};
   return {
@@ -3015,7 +3125,7 @@ function renderShop(){
           : '') +
         '<button class="qty-btn '+(it.edited?'edited':'')+' '+(it.qty?'':'ohne-menge')+'" type="button">'+escapeHtml(it.qty || 'Menge')+'</button>' +
         /* v31 - Preis je Packung, Modifikator `ohne-preis` (kein generischer Name, Regel 11) */
-        '<button class="preis-btn'+(preisVon(it.name)==null?' ohne-preis':'')+'" type="button" aria-label="'+escapeHtml(txt('einkauf.preis_fuer')+it.name)+'">'+(preisVon(it.name)==null ? txt('einkauf.preis') : fmtEuro(preisVon(it.name)))+'</button>' +
+        '<button class="preis-btn'+preisKnopf(it.name).klasse+'" type="button" aria-label="'+escapeHtml(txt('einkauf.preis_fuer')+it.name)+'">'+escapeHtml(preisKnopf(it.name).text)+'</button>' +
         '<button class="del-item" type="button" title="Löschen" aria-label="'+escapeHtml(it.name)+' löschen">🗑</button>' +
       '</div>' +
       '<div class="cat-picker">' +
@@ -3444,7 +3554,7 @@ function renderArtikel(){
       '</span>' +
       '<div class="art-fuss">' +
         '<button class="market-tag-btn" type="button" data-key="'+escapeHtml(k)+'" data-name="'+escapeHtml(it.name)+'">'+(it.market?'🏬 '+escapeHtml(it.market):txt('einkauf.laden_zuordnen'))+'</button>' +
-        ' · <button class="preis-btn'+(preisVon(it.name)==null?' ohne-preis':'')+'" type="button" data-name="'+escapeHtml(it.name)+'">'+(preisVon(it.name)==null ? txt('einkauf.preis') : fmtEuro(preisVon(it.name)))+'</button>' +
+        ' · <button class="preis-btn'+preisKnopf(it.name).klasse+'" type="button" data-name="'+escapeHtml(it.name)+'">'+escapeHtml(preisKnopf(it.name).text)+'</button>' +
         zuhause +
       '</div>' +
       (it.recipes.length ? '<div class="in-recipes">'+it.recipes.map(n=>'<span class="in-tag">'+escapeHtml(n)+'</span>').join('')+'</div>' : '') +
@@ -3543,7 +3653,7 @@ function zeichneArtAuswahl(){
     if(!(cfg.woche > 0)){ info.hidden = true; info.textContent = ''; }
     else{
       let summe = 0, ohne = 0;
-      artAuswahl.forEach(k=>{ const p = (state.preise||{})[k]; if(p > 0) summe += p; else ohne++; });
+      artAuswahl.forEach(k=>{ const p = preisVonKey(k); if(p > 0) summe += p; else ohne++; });
       const jetzt = new Date(); jetzt.setHours(0,0,0,0);
       const b = budgetDerWoche(weekKeyOf(getMondayOf(jetzt)));
       const rest = b.ziel - b.ausgegeben - b.geplant - summe;

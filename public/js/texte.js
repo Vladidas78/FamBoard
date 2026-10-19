@@ -399,6 +399,7 @@ export const TEXTE = {
     'einkauf.budget': 'Budget',
     'einkauf.personen': 'Personen',
     'einkauf.preis': 'Preis',
+    'einkauf.preis_ca': 'ca. {preis}',
     'einkauf.preis_fuer': 'Preis für ',
     'einkauf.pro_person': '€ pro Person',
     'einkauf.wochenziel': 'Wochenziel',
